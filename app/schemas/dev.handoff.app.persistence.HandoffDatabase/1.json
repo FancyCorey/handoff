@@ -1,0 +1,207 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "286f3e9b1dfe9b4280a7ab90d94a884b",
+    "entities": [
+      {
+        "tableName": "trusted_peers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`peerId` TEXT NOT NULL, `displayName` TEXT NOT NULL, `publicKey` BLOB NOT NULL, `pairedAtMs` INTEGER NOT NULL, PRIMARY KEY(`peerId`))",
+        "fields": [
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publicKey",
+            "columnName": "publicKey",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pairedAtMs",
+            "columnName": "pairedAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "peerId"
+          ]
+        }
+      },
+      {
+        "tableName": "logical_devices",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`logicalId` TEXT NOT NULL, `displayName` TEXT NOT NULL, `deviceType` TEXT NOT NULL, `fingerprint` TEXT, `localAddress` TEXT, `multipoint` INTEGER NOT NULL, `lastKnownOwner` TEXT, `ownershipGeneration` INTEGER NOT NULL, `hostMappingsJson` TEXT NOT NULL, PRIMARY KEY(`logicalId`))",
+        "fields": [
+          {
+            "fieldPath": "logicalId",
+            "columnName": "logicalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceType",
+            "columnName": "deviceType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fingerprint",
+            "columnName": "fingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localAddress",
+            "columnName": "localAddress",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "multipoint",
+            "columnName": "multipoint",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastKnownOwner",
+            "columnName": "lastKnownOwner",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownershipGeneration",
+            "columnName": "ownershipGeneration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hostMappingsJson",
+            "columnName": "hostMappingsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "logicalId"
+          ]
+        }
+      },
+      {
+        "tableName": "transfer_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `logicalId` TEXT NOT NULL, `deviceName` TEXT NOT NULL, `trigger` TEXT NOT NULL, `startedAtMs` INTEGER NOT NULL, `outcome` TEXT NOT NULL, `path` TEXT, `failure` TEXT, `detail` TEXT, `previousOwner` TEXT, `strategy` TEXT, `attempts` INTEGER NOT NULL, `releaseMs` INTEGER, `connectMs` INTEGER, `totalMs` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logicalId",
+            "columnName": "logicalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceName",
+            "columnName": "deviceName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trigger",
+            "columnName": "trigger",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAtMs",
+            "columnName": "startedAtMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outcome",
+            "columnName": "outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "failure",
+            "columnName": "failure",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "detail",
+            "columnName": "detail",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "previousOwner",
+            "columnName": "previousOwner",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "strategy",
+            "columnName": "strategy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "releaseMs",
+            "columnName": "releaseMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "connectMs",
+            "columnName": "connectMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "totalMs",
+            "columnName": "totalMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '286f3e9b1dfe9b4280a7ab90d94a884b')"
+    ]
+  }
+}

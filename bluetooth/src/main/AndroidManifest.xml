@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 12+ runtime permission: bonded-device list, A2DP state, connect/disconnect. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Handoff never scans for new devices, so BLUETOOTH_SCAN and location are not requested. -->
+
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="true" />
+</manifest>

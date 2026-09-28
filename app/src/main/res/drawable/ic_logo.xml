@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Handoff logo. Geometry shared with tools/IconGen.java and docs/brand/handoff-logo.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M24,0 H84 A24,24 0 0 1 108,24 V84 A24,24 0 0 1 84,108 H24 A24,24 0 0 1 0,84 V24 A24,24 0 0 1 24,0 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="0" android:startY="0"
+                    android:endX="108" android:endY="108"
+                    android:startColor="#FF1FA2C4"
+                    android:endColor="#FF3D3BB7" />
+            </aapt:attr>
+    </path>
+    <group android:pivotX="54" android:pivotY="54.25" android:scaleX="1.42" android:scaleY="1.42" android:translateY="1.5">
+        <path
+            android:pathData="M35,58 A19,19 0 0,1 50.70,39.29 M63.5,41.55 A19,19 0 0,1 73,58"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeColor="#FFFFFFFF" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M34,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z M72,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z" />
+        <path
+            android:fillColor="#FFFFC940"
+            android:pathData="M48.68,33.55 L59.57,37.73 L50.76,45.37 Z" />
+    </group>
+</vector>

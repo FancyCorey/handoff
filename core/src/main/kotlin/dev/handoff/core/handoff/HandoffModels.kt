@@ -1,0 +1,153 @@
+package dev.handoff.core.handoff
+
+import dev.handoff.core.model.LogicalDeviceId
+import dev.handoff.core.model.PeerId
+import kotlinx.coroutines.sync.Mutex
+import java.util.concurrent.ConcurrentHashMap
+
+enum class TransferTrigger { MANUAL, QUICK_SETTINGS_TILE, NOTIFICATION, AUTOMATIC }
+
+enum class TransferPath {
+    /** The previous owner released on request, then this host connected. */
+    COORDINATED,
+
+    /** This host connected without a confirmed release (owner offline/unknown/unresponsive). */
+    DIRECT_TAKEOVER,
+
+    /** Nobody held the headset. */
+    UNCONTESTED,
+
+    /** Multipoint headset: joined without disconnecting other hosts. */
+    MULTIPOINT_JOIN,
+}
+
+enum class FailureReason {
+    MISSING_LOCAL_MAPPING,
+    BLUETOOTH_OFF,
+    PERMISSION_DENIED,
+    UNSUPPORTED,
+    DEVICE_NOT_BONDED,
+    CONNECT_FAILED,
+    VERIFY_TIMEOUT,
+
+    /** Another host is taking the headset at the same time. */
+    CONTENTION,
+    RATE_LIMITED,
+    INTERNAL,
+}
+
+data class TransferTimings(
+    val releaseMs: Long?,
+    val connectMs: Long?,
+    val totalMs: Long,
+)
+
+sealed interface HandoffResult {
+    data class Success(
+        val path: TransferPath,
+        val timings: TransferTimings,
+        val strategy: String?,
+        val attempts: Int,
+    ) : HandoffResult
+
+    data object AlreadyConnected : HandoffResult
+
+    /** A transfer for this headset is already running; the request was not queued. */
+    data object InProgress : HandoffResult
+
+    data object MissingLocalMapping : HandoffResult
+
+    data class Failed(val reason: FailureReason, val detail: String?) : HandoffResult
+}
+
+/** User-visible progress lines. Mapped to localized strings by the UI. */
+enum class StepKind {
+    REQUESTING_RELEASE,
+    RELEASED,
+    PEER_NOT_CONNECTED,
+    PEER_UNREACHABLE,
+    RELEASE_TIMEOUT,
+    RELEASE_REFUSED,
+    PEER_BUSY,
+    DIRECT_TAKEOVER,
+    CONNECTING,
+    RETRYING,
+    VERIFYING,
+    CONNECTED,
+    ALREADY_CONNECTED,
+    FAILED,
+}
+
+data class TransferStep(val kind: StepKind, val peerName: String? = null, val detail: String? = null)
+
+/** Observable state of one transfer; the UI renders this. */
+data class HandoffState(
+    val logicalId: LogicalDeviceId,
+    val deviceName: String,
+    val trigger: TransferTrigger,
+    val phase: TransferPhase,
+    /** Every phase this transfer went through, in order (starts with IDLE). */
+    val phases: List<TransferPhase>,
+    val steps: List<TransferStep>,
+    val attempt: Int,
+    val takeover: Boolean,
+    val ownerPeer: PeerId?,
+    val result: HandoffResult?,
+    val startedAtMs: Long,
+)
+
+data class TransferRecord(
+    val logicalId: LogicalDeviceId,
+    val deviceName: String,
+    val trigger: TransferTrigger,
+    val startedAtMs: Long,
+    val outcome: String,
+    val path: TransferPath?,
+    val failure: FailureReason?,
+    val detail: String?,
+    val previousOwner: PeerId?,
+    val strategy: String?,
+    val attempts: Int,
+    val timings: TransferTimings,
+)
+
+/**
+ * Timeouts and retry limits. Every wait in a transfer is bounded by one of these.
+ */
+data class HandoffPolicy(
+    val statusRefreshTimeoutMs: Long = 1_500,
+    val reachabilityTimeoutMs: Long = 1_500,
+    /** Must exceed the remote side's disconnect + verify budget. */
+    val releaseTimeoutMs: Long = 9_000,
+    /** Pause after a confirmed release so the headset is connectable again before we page it. */
+    val releaseSettleDelayMs: Long = 1_500,
+    val verifyTimeoutMs: Long = 8_000,
+    val retryDelayMs: Long = 1_500,
+    val maxConnectAttempts: Int = 2,
+    val ownershipBroadcastTimeoutMs: Long = 3_000,
+    /** For multipoint headsets, "Move here" joins by default and never disconnects others. */
+    val releaseOthersOnMultipoint: Boolean = false,
+    /** Remote side: how long to wait for the local disconnect to be confirmed. */
+    val remoteDisconnectVerifyMs: Long = 5_000,
+    /** Remote side: after releasing to peer X, refuse other peers for this long (BUSY). */
+    val releaseGraceMs: Long = 8_000,
+)
+
+/** One mutex per logical headset, shared by outgoing transfers and incoming release requests. */
+class DeviceLocks {
+    private val locks = ConcurrentHashMap<LogicalDeviceId, Mutex>()
+
+    fun forDevice(id: LogicalDeviceId): Mutex = locks.getOrPut(id) { Mutex() }
+}
+
+interface TransferHistory {
+    suspend fun add(record: TransferRecord)
+}
+
+class InMemoryTransferHistory : TransferHistory {
+    val records = mutableListOf<TransferRecord>()
+
+    override suspend fun add(record: TransferRecord) {
+        synchronized(records) { records += record }
+    }
+}

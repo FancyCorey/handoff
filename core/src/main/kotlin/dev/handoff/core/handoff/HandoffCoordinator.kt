@@ -1,0 +1,457 @@
+package dev.handoff.core.handoff
+
+import dev.handoff.core.bluetooth.AdapterState
+import dev.handoff.core.bluetooth.BluetoothAudioController
+import dev.handoff.core.bluetooth.BluetoothError
+import dev.handoff.core.bluetooth.BluetoothOperationResult
+import dev.handoff.core.bluetooth.ConnectReason
+import dev.handoff.core.diagnostics.EventLog
+import dev.handoff.core.diagnostics.EventType
+import dev.handoff.core.mesh.protocol.PeerMessage
+import dev.handoff.core.mesh.protocol.ReleaseAudioDevice
+import dev.handoff.core.mesh.protocol.ReleaseResult
+import dev.handoff.core.mesh.protocol.ReleaseStatus
+import dev.handoff.core.mesh.transport.CommandResult
+import dev.handoff.core.mesh.transport.PeerTransport
+import dev.handoff.core.model.BluetoothDeviceId
+import dev.handoff.core.model.LogicalAudioDevice
+import dev.handoff.core.model.LogicalDeviceId
+import dev.handoff.core.model.PeerId
+import dev.handoff.core.ownership.Ownership
+import dev.handoff.core.ownership.OwnershipRepository
+import dev.handoff.core.ownership.OwnershipResolver
+import dev.handoff.core.ownership.PeerReport
+import dev.handoff.core.store.LogicalDeviceRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+interface HandoffCoordinator {
+    /** The most recently started transfer (any headset). */
+    val state: StateFlow<HandoffState?>
+
+    /** Latest transfer state per headset. */
+    val transfers: StateFlow<Map<LogicalDeviceId, HandoffState>>
+
+    suspend fun moveToThisDevice(
+        audioDevice: LogicalAudioDevice,
+        trigger: TransferTrigger = TransferTrigger.MANUAL,
+    ): HandoffResult
+}
+
+/**
+ * The single implementation of "Move here". Manual, tile, notification and automatic triggers
+ * all run through [moveToThisDevice]; there is no second switching path.
+ *
+ * Algorithm (see docs/ARCHITECTURE.md):
+ *  1. Per-headset mutex (tryLock: repeated presses return [HandoffResult.InProgress]).
+ *  2. Already connected locally -> done.
+ *  3. Refresh peer status, resolve ownership.
+ *  4. Owner is a reachable peer -> RELEASE_AUDIO_DEVICE; RELEASED/NOT_CONNECTED -> settle, connect.
+ *     BUSY -> fail with CONTENTION (another host is mid-transfer; taking over would ping-pong).
+ *     Unreachable / timeout / refusal / unknown owner -> direct takeover.
+ *  5. Connect, verify A2DP, retry once, never more than [HandoffPolicy.maxConnectAttempts].
+ *  6. Record the new ownership generation and tell peers.
+ */
+class DefaultHandoffCoordinator(
+    private val selfId: PeerId,
+    private val bluetooth: BluetoothAudioController,
+    private val transport: PeerTransport,
+    private val ownership: OwnershipRepository,
+    private val resolver: OwnershipResolver,
+    private val devices: LogicalDeviceRepository,
+    private val locks: DeviceLocks,
+    private val events: EventLog,
+    private val broadcaster: OwnershipBroadcaster,
+    private val history: TransferHistory,
+    private val peerName: (PeerId) -> String,
+    private val onlinePeers: () -> Set<PeerId>,
+    private val backgroundScope: CoroutineScope,
+    private val policy: HandoffPolicy = HandoffPolicy(),
+    private val clock: () -> Long = System::currentTimeMillis,
+) : HandoffCoordinator {
+
+    private val _state = MutableStateFlow<HandoffState?>(null)
+    override val state: StateFlow<HandoffState?> = _state.asStateFlow()
+
+    private val _transfers = MutableStateFlow<Map<LogicalDeviceId, HandoffState>>(emptyMap())
+    override val transfers: StateFlow<Map<LogicalDeviceId, HandoffState>> = _transfers.asStateFlow()
+
+    override suspend fun moveToThisDevice(audioDevice: LogicalAudioDevice, trigger: TransferTrigger): HandoffResult {
+        val mutex = locks.forDevice(audioDevice.logicalId)
+        if (!mutex.tryLock()) {
+            events.record(EventType.TRANSFER_FAILED, audioDevice.logicalId, details = mapOf("reason" to "already in progress"))
+            return HandoffResult.InProgress
+        }
+        try {
+            val run = Run(audioDevice, trigger)
+            return try {
+                run.execute()
+            } catch (e: CancellationException) {
+                run.fail(FailureReason.INTERNAL, "cancelled")
+                throw e
+            } catch (e: IllegalTransitionException) {
+                run.fail(FailureReason.INTERNAL, e.message)
+            } catch (e: Exception) {
+                run.fail(FailureReason.INTERNAL, e.javaClass.simpleName)
+            }
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    private sealed interface ReleaseOutcome {
+        data class Released(val durationMs: Long) : ReleaseOutcome
+        data class Contention(val peer: PeerId) : ReleaseOutcome
+        data class Fallback(val reason: String) : ReleaseOutcome
+    }
+
+    /** One transfer attempt; owns its state machine and published state. */
+    private inner class Run(val device: LogicalAudioDevice, val trigger: TransferTrigger) {
+        val id = device.logicalId
+        val startedAt = clock()
+        val machine = TransferStateMachine()
+        var steps = listOf<TransferStep>()
+        var attempt = 0
+        var takeover = false
+        var ownerPeer: PeerId? = null
+        var strategy: String? = null
+        var releaseMs: Long? = null
+        var connectStartedAt: Long? = null
+        var path: TransferPath? = null
+
+        /** Hosts that held the headset when ownership was resolved (we are taking it from them). */
+        var initialHolders: Set<PeerId> = emptySet()
+
+        suspend fun execute(): HandoffResult {
+            move(TransferPhase.RESOLVING_OWNER)
+            events.record(EventType.TRANSFER_STARTED, id, details = mapOf("trigger" to trigger.name))
+
+            val local = device.localBluetoothMapping()
+                ?: return fail(FailureReason.MISSING_LOCAL_MAPPING, "headset is not mapped on this device")
+                    .let { HandoffResult.MissingLocalMapping }
+
+            when (bluetooth.adapterState.value) {
+                AdapterState.ON -> Unit
+                AdapterState.NO_PERMISSION -> return fail(FailureReason.PERMISSION_DENIED, "Bluetooth permission not granted")
+                AdapterState.NOT_AVAILABLE -> return fail(FailureReason.UNSUPPORTED, "no Bluetooth adapter")
+                else -> return fail(FailureReason.BLUETOOTH_OFF, "Bluetooth is off")
+            }
+
+            if (bluetooth.isConnected(local)) {
+                step(StepKind.ALREADY_CONNECTED)
+                move(TransferPhase.COMPLETE)
+                publish(HandoffResult.AlreadyConnected)
+                val generation = nextGeneration()
+                devices.applyOwnership(id, selfId, generation)
+                announce(generation)
+                return HandoffResult.AlreadyConnected
+            }
+
+            refreshStatus()
+            val current = devices.find(id) ?: device
+            val owner = resolver.resolve(current, localConnected = false, ownership.reportsFor(id), onlinePeers())
+            events.record(EventType.OWNER_RESOLVED, id, details = mapOf("owner" to describe(owner)))
+            initialHolders = when (owner) {
+                is Ownership.Peer -> setOf(owner.peerId)
+                is Ownership.Conflict -> owner.holders
+                is Ownership.Multipoint -> owner.holders
+                is Ownership.Unknown -> setOfNotNull(owner.lastKnownOwner)
+                else -> emptySet()
+            }
+
+            val releaseTargets: List<PeerId>? = when (owner) {
+                is Ownership.Peer -> listOf(owner.peerId)
+                is Ownership.Conflict -> (owner.holders - selfId).toList()
+                is Ownership.Multipoint ->
+                    if (policy.releaseOthersOnMultipoint) (owner.holders - selfId).toList() else emptyList()
+                Ownership.None, Ownership.Local -> emptyList()
+                is Ownership.Unknown -> {
+                    ownerPeer = owner.lastKnownOwner
+                    null
+                }
+            }
+
+            when {
+                releaseTargets == null -> startTakeover("owner unknown")
+                releaseTargets.isEmpty() -> {
+                    path = if (owner is Ownership.Multipoint) TransferPath.MULTIPOINT_JOIN else TransferPath.UNCONTESTED
+                }
+                else -> {
+                    ownerPeer = releaseTargets.first()
+                    when (val outcome = requestReleases(releaseTargets)) {
+                        is ReleaseOutcome.Released -> {
+                            path = TransferPath.COORDINATED
+                            releaseMs = outcome.durationMs
+                            delay(policy.releaseSettleDelayMs)
+                        }
+                        is ReleaseOutcome.Contention -> return fail(
+                            FailureReason.CONTENTION,
+                            "${peerName(outcome.peer)} is handing the headset to another device",
+                        )
+                        is ReleaseOutcome.Fallback -> startTakeover(outcome.reason)
+                    }
+                }
+            }
+            return connectWithVerification(local)
+        }
+
+        private suspend fun requestReleases(targets: List<PeerId>): ReleaseOutcome {
+            val started = clock()
+            for (peer in targets) {
+                val name = peerName(peer)
+                move(TransferPhase.REQUESTING_RELEASE)
+                step(StepKind.REQUESTING_RELEASE, name)
+                if (!transport.isReachable(peer, policy.reachabilityTimeoutMs)) {
+                    step(StepKind.PEER_UNREACHABLE, name)
+                    events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to "unreachable"))
+                    return ReleaseOutcome.Fallback("$name unreachable")
+                }
+                val command = ReleaseAudioDevice(
+                    commandId = PeerMessage.newCommandId(),
+                    timestamp = clock(),
+                    senderPeerId = selfId.value,
+                    logicalDeviceId = id.value,
+                    requestingPeerId = selfId.value,
+                )
+                events.record(EventType.RELEASE_SENT, id, peer, mapOf("commandId" to command.commandId.take(8)))
+                move(TransferPhase.WAITING_RELEASE)
+                val result = transport.request(peer, command, policy.releaseTimeoutMs)
+                val reply = (result as? CommandResult.Reply)?.message as? ReleaseResult
+                when {
+                    reply != null && reply.logicalDeviceId == id.value -> when (reply.status) {
+                        ReleaseStatus.RELEASED, ReleaseStatus.NOT_CONNECTED -> {
+                            step(if (reply.status == ReleaseStatus.RELEASED) StepKind.RELEASED else StepKind.PEER_NOT_CONNECTED, name)
+                            events.record(EventType.RELEASE_ACK, id, peer, mapOf("status" to reply.status.name))
+                            // The peer no longer holds it; do not wait for its own broadcast.
+                            ownership.record(
+                                PeerReport(peer, id, connected = false, generation = device.ownershipGeneration, receivedAtMs = clock()),
+                            )
+                        }
+                        ReleaseStatus.BUSY -> {
+                            step(StepKind.PEER_BUSY, name)
+                            events.record(EventType.RELEASE_FAILED, id, peer, mapOf("status" to "BUSY"))
+                            return ReleaseOutcome.Contention(peer)
+                        }
+                        else -> {
+                            step(StepKind.RELEASE_REFUSED, name, reply.detail ?: reply.status.name)
+                            events.record(
+                                EventType.RELEASE_FAILED, id, peer,
+                                mapOf("status" to reply.status.name, "detail" to (reply.detail ?: "-")),
+                            )
+                            return ReleaseOutcome.Fallback("$name: ${reply.detail ?: reply.status}")
+                        }
+                    }
+                    result is CommandResult.Timeout -> {
+                        step(StepKind.RELEASE_TIMEOUT, name)
+                        events.record(EventType.RELEASE_TIMEOUT, id, peer)
+                        return ReleaseOutcome.Fallback("$name did not respond")
+                    }
+                    result is CommandResult.Unreachable -> {
+                        step(StepKind.PEER_UNREACHABLE, name)
+                        events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to "unreachable"))
+                        return ReleaseOutcome.Fallback("$name unreachable")
+                    }
+                    else -> {
+                        val why = (result as? CommandResult.Rejected)?.reason ?: "unexpected reply"
+                        step(StepKind.RELEASE_REFUSED, name, why)
+                        events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to why))
+                        return ReleaseOutcome.Fallback("$name: $why")
+                    }
+                }
+            }
+            return ReleaseOutcome.Released(clock() - started)
+        }
+
+        private fun startTakeover(reason: String) {
+            path = TransferPath.DIRECT_TAKEOVER
+            takeover = true
+            move(TransferPhase.DIRECT_TAKEOVER)
+            step(StepKind.DIRECT_TAKEOVER, detail = reason)
+            events.record(EventType.DIRECT_TAKEOVER_STARTED, id, ownerPeer, mapOf("reason" to reason))
+        }
+
+        private suspend fun connectWithVerification(local: BluetoothDeviceId): HandoffResult {
+            var lastFailure = FailureReason.CONNECT_FAILED
+            var lastDetail: String? = null
+            for (n in 1..policy.maxConnectAttempts) {
+                if (n > 1) {
+                    move(TransferPhase.RETRYING)
+                    step(StepKind.RETRYING)
+                    delay(policy.retryDelayMs)
+                    // If another host grabbed the headset meanwhile, do not steal it back.
+                    refreshStatus()
+                    contender()?.let { peer ->
+                        return fail(FailureReason.CONTENTION, "${peerName(peer)} connected to the headset")
+                    }
+                }
+                attempt = n
+                move(TransferPhase.CONNECTING)
+                step(StepKind.CONNECTING)
+                if (connectStartedAt == null) connectStartedAt = clock()
+                val reason = when {
+                    takeover -> ConnectReason.DIRECT_TAKEOVER
+                    n > 1 -> ConnectReason.RETRY
+                    trigger == TransferTrigger.AUTOMATIC -> ConnectReason.AUTOMATIC
+                    else -> ConnectReason.USER_MOVE_HERE
+                }
+                events.record(EventType.CONNECT_ATTEMPT, id, details = mapOf("attempt" to "$n", "reason" to reason.name))
+                when (val op = bluetooth.connect(local, reason)) {
+                    is BluetoothOperationResult.Failed -> {
+                        events.record(
+                            EventType.CONNECT_FAILED, id,
+                            details = mapOf("attempt" to "$n", "error" to op.error.name, "strategy" to (op.strategy ?: "-"), "detail" to op.detail),
+                        )
+                        op.strategy?.let { strategy = it }
+                        nonRetryable(op.error)?.let { return fail(it, op.detail) }
+                        lastFailure = FailureReason.CONNECT_FAILED
+                        lastDetail = op.detail
+                        continue
+                    }
+                    is BluetoothOperationResult.Requested -> strategy = op.strategy
+                    BluetoothOperationResult.AlreadyInState -> Unit
+                }
+                move(TransferPhase.VERIFYING)
+                step(StepKind.VERIFYING)
+                if (bluetooth.verifyConnected(local, policy.verifyTimeoutMs)) {
+                    return succeed()
+                }
+                events.record(EventType.CONNECT_FAILED, id, details = mapOf("attempt" to "$n", "error" to "VERIFY_TIMEOUT"))
+                lastFailure = FailureReason.VERIFY_TIMEOUT
+                lastDetail = "A2DP did not report connected within ${policy.verifyTimeoutMs} ms"
+            }
+            return fail(lastFailure, lastDetail)
+        }
+
+        private suspend fun succeed(): HandoffResult {
+            val now = clock()
+            val timings = TransferTimings(
+                releaseMs = releaseMs,
+                connectMs = connectStartedAt?.let { now - it },
+                totalMs = now - startedAt,
+            )
+            val result = HandoffResult.Success(path ?: TransferPath.UNCONTESTED, timings, strategy, attempt)
+            step(StepKind.CONNECTED)
+            move(TransferPhase.COMPLETE)
+            publish(result)
+            events.record(EventType.CONNECT_VERIFIED, id, details = mapOf("attempt" to "$attempt", "strategy" to (strategy ?: "-")))
+            val generation = nextGeneration()
+            devices.applyOwnership(id, selfId, generation)
+            events.record(
+                EventType.TRANSFER_COMPLETE, id, ownerPeer,
+                mapOf(
+                    "path" to result.path.name,
+                    "releaseMs" to (timings.releaseMs?.toString() ?: "-"),
+                    "connectMs" to (timings.connectMs?.toString() ?: "-"),
+                    "totalMs" to timings.totalMs.toString(),
+                ),
+            )
+            announce(generation)
+            record("SUCCESS", result.path, null, null, timings)
+            return result
+        }
+
+        suspend fun fail(reason: FailureReason, detail: String?): HandoffResult {
+            val result = HandoffResult.Failed(reason, detail)
+            if (!machine.phase.isTerminal) {
+                step(StepKind.FAILED, detail = detail)
+                if (machine.phase == TransferPhase.IDLE) machine.moveTo(TransferPhase.RESOLVING_OWNER)
+                move(TransferPhase.FAILED)
+            }
+            publish(result)
+            events.record(EventType.TRANSFER_FAILED, id, ownerPeer, mapOf("reason" to reason.name, "detail" to (detail ?: "-")))
+            record("FAILED", path, reason, detail, TransferTimings(releaseMs, connectStartedAt?.let { clock() - it }, clock() - startedAt))
+            return result
+        }
+
+        /** A host that newly connected to the headset during this transfer. */
+        private fun contender(): PeerId? = ownership.reportsFor(id)
+            .firstOrNull {
+                it.connected && it.receivedAtMs >= startedAt && it.peerId != selfId && it.peerId !in initialHolders
+            }
+            ?.peerId
+
+        private suspend fun refreshStatus() {
+            try {
+                ownership.refresh(policy.statusRefreshTimeoutMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Stale status only degrades to direct takeover; never fail the transfer here.
+            }
+        }
+
+        private fun nextGeneration(): Long {
+            val reported = ownership.reportsFor(id).maxOfOrNull { it.generation } ?: 0
+            val stored = devices.find(id)?.ownershipGeneration ?: device.ownershipGeneration
+            return maxOf(reported, stored) + 1
+        }
+
+        private fun announce(generation: Long) {
+            backgroundScope.launch {
+                runCatching { broadcaster.announce(id, senderConnected = true, owner = selfId, generation = generation) }
+            }
+        }
+
+        private suspend fun record(outcome: String, path: TransferPath?, failure: FailureReason?, detail: String?, timings: TransferTimings) {
+            runCatching {
+                history.add(
+                    TransferRecord(id, device.displayName, trigger, startedAt, outcome, path, failure, detail, ownerPeer, strategy, attempt, timings),
+                )
+            }
+        }
+
+        private fun nonRetryable(error: BluetoothError): FailureReason? = when (error) {
+            BluetoothError.BLUETOOTH_OFF -> FailureReason.BLUETOOTH_OFF
+            BluetoothError.PERMISSION_DENIED -> FailureReason.PERMISSION_DENIED
+            BluetoothError.DEVICE_NOT_BONDED -> FailureReason.DEVICE_NOT_BONDED
+            BluetoothError.UNSUPPORTED -> FailureReason.UNSUPPORTED
+            BluetoothError.RATE_LIMITED -> FailureReason.RATE_LIMITED
+            BluetoothError.PROFILE_UNAVAILABLE, BluetoothError.REJECTED,
+            BluetoothError.TIMEOUT, BluetoothError.INTERNAL,
+            -> null
+        }
+
+        private fun move(next: TransferPhase) {
+            machine.moveTo(next)
+            publish(null)
+        }
+
+        private fun step(kind: StepKind, peerName: String? = null, detail: String? = null) {
+            steps = steps + TransferStep(kind, peerName, detail)
+            publish(null)
+        }
+
+        private fun publish(result: HandoffResult?) {
+            val snapshot = HandoffState(
+                logicalId = id,
+                deviceName = device.displayName,
+                trigger = trigger,
+                phase = machine.phase,
+                phases = machine.history,
+                steps = steps,
+                attempt = attempt,
+                takeover = takeover,
+                ownerPeer = ownerPeer,
+                result = result,
+                startedAtMs = startedAt,
+            )
+            _state.value = snapshot
+            _transfers.update { it + (id to snapshot) }
+        }
+
+        private fun describe(owner: Ownership): String = when (owner) {
+            is Ownership.Peer -> "peer:${owner.peerId.short}"
+            is Ownership.Multipoint -> "multipoint:${owner.holders.size}"
+            is Ownership.Conflict -> "conflict:${owner.holders.size}"
+            is Ownership.Unknown -> "unknown(last=${owner.lastKnownOwner?.short ?: "-"})"
+            Ownership.None -> "none"
+            Ownership.Local -> "local"
+        }
+    }
+}

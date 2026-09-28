@@ -1,0 +1,11 @@
+* text=auto
+
+# Shell scripts must keep LF to run on macOS/Linux; Windows scripts keep CRLF.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.jar binary
