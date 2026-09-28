@@ -1,5 +1,7 @@
 package dev.handoff.app.di
 
+import dev.handoff.app.mesh.NetworkAddresses
+import dev.handoff.core.mesh.transport.networkPrefix
 import android.util.Log
 import dev.handoff.app.BuildConfig
 import dev.handoff.app.automation.PlaybackWatcher
@@ -165,7 +167,13 @@ val appModule = module {
         )
     }
     single { HandoffActions(get(APP_SCOPE), get(), get(), get()) }
-    single { OverviewRepository(get(APP_SCOPE), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        val context = androidContext()
+        OverviewRepository(
+            get(APP_SCOPE), get(), get(), get(), get(), get(), get(), get(), get(),
+            localNetworks = { NetworkAddresses.lanIpv4(context).mapNotNull(::networkPrefix).toSet() },
+        )
+    }
     single {
         val overview = get<OverviewRepository>()
         PlaybackWatcher(

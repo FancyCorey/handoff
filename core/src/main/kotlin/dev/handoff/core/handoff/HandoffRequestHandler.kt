@@ -105,14 +105,17 @@ class HandoffRequestHandler(
     /** This host's view of every headset it has mapped locally. */
     suspend fun localReports(): List<DeviceReport> = devices.devices.value.mapNotNull { device ->
         val local = device.localBluetoothMapping() ?: return@mapNotNull null
+        // Holding the headset through *any* profile counts: a call-only (HFP) link still blocks it.
+        val connected = bluetooth.adapterState.value == AdapterState.ON && bluetooth.connectedProfiles(local).isNotEmpty()
         DeviceReport(
             logicalDeviceId = device.logicalId.value,
             displayName = device.displayName,
             deviceType = device.deviceType,
             fingerprint = device.fingerprint,
-            connected = bluetooth.adapterState.value == AdapterState.ON && bluetooth.isConnected(local),
+            connected = connected,
             generation = device.ownershipGeneration,
             multipoint = device.multipoint,
+            batteryPercent = if (connected) bluetooth.batteryLevels.value[local.address.uppercase()] else null,
         )
     }
 

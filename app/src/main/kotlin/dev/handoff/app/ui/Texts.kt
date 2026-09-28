@@ -44,6 +44,10 @@ object Texts {
 
     fun result(result: HandoffResult): String = HandoffTexts.result(result)
 
+    fun help(result: HandoffResult): String? = HandoffTexts.help(result)
+
+    fun offline(probablyOtherNetwork: Boolean): String = HandoffTexts.offline(probablyOtherNetwork)
+
     fun failure(reason: FailureReason): String = HandoffTexts.failure(reason)
 
     fun compatibility(level: CompatibilityLevel): String = HandoffTexts.compatibility(level)

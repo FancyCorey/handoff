@@ -107,7 +107,23 @@ CONNECTING -> VERIFYING (A2DP CONNECTED within 8 s) -> COMPLETE
 COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
 ```
 
-`UNSUPPORTED`, `PERMISSION_DENIED`, `BLUETOOTH_OFF`, `DEVICE_NOT_BONDED` and `RATE_LIMITED` are never retried. The legal transitions are declared in `TransferStateMachine.TRANSITIONS`. An illegal one throws, and the coordinator turns that into `Failed(INTERNAL)`.
+`UNSUPPORTED`, `PERMISSION_DENIED`, `BLUETOOTH_OFF`, `DEVICE_NOT_BONDED` and `RATE_LIMITED` are never retried.
+
+**Automatic retry and error classification (0.3).**
+
+* A peer that doesn't answer is probed once more (after 1.5 s) before the transfer falls back to a direct takeover.
+* If both connect attempts of a round fail, the coordinator waits 3 s and runs **one more full round**: owner lookup, release, connect and verify. The progress shows *"That didn't work. Trying once more…"*.
+* The retry round is skipped if Bluetooth went off, or if another device took the headset during the pause (that is `CONTENTION`, never a steal-back).
+* After the last round, the failure is classified by *why* the transfer fell back:
+
+  | Result | When |
+  |---|---|
+  | `OWNER_UNREACHABLE` | The holder couldn't be reached (another Wi-Fi, asleep, not running, firewall). The detail is its name. |
+  | `OWNER_REFUSED` | The holder answered but couldn't let go. The detail is its reason, e.g. a call profile Android refused to drop. |
+  | `HEADSET_NOT_RESPONDING` | Nobody else held the headset, or it was released, but it still didn't connect. |
+
+* `HandoffDiagnosis` turns transport rejections into plain language: clock skew over 5 minutes, a different app version, a no-longer-linked device, a reinstalled device.
+* A host holding the headset through *any* profile (A2DP, HFP or LE Audio) reports it as connected, so a call-only link is never mistaken for "free". The legal transitions are declared in `TransferStateMachine.TRANSITIONS`. An illegal one throws, and the coordinator turns that into `Failed(INTERNAL)`.
 
 **Deviation from the original pseudocode:** a `BUSY` reply does *not* trigger direct takeover. `BUSY` means the owner is mid-transfer or has just released to another peer. Taking over then would make two hosts fight over the headset.
 

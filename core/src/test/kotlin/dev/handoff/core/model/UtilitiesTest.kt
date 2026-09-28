@@ -90,4 +90,23 @@ class UtilitiesTest {
         assertEquals("10.0.0.5", directory.endpointsFor(peer).single().host)
         assertTrue(directory.isOnline(peer))
     }
+
+    @Test
+    fun `peers remember the network they were last seen on`() {
+        val directory = PeerDirectory(clock = { 0L })
+        val peer = PeerId("p")
+        directory.onContactSucceeded(peer, "192.168.1.8", 47_474)
+        directory.onNetworkChanged()
+        assertEquals("192.168.1", directory.presence.value.getValue(peer).lastNetwork)
+        assertEquals(null, dev.handoff.core.mesh.transport.networkPrefix("fe80::1"))
+    }
+
+    @Test
+    fun `transport rejections are explained in plain language`() {
+        val d = dev.handoff.core.handoff.HandoffDiagnosis
+        assertTrue(d.rejection("STALE: timestamp outside freshness window").contains("clock"))
+        assertTrue(d.rejection("handshake: server rejected: not trusted").contains("Link the two devices again"))
+        assertTrue(d.rejection("UNSUPPORTED_VERSION: protocol 2").contains("Update Handoff"))
+        assertEquals("something else", d.rejection("something else"))
+    }
 }

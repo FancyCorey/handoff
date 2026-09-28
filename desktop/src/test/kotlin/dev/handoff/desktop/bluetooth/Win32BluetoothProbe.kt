@@ -26,6 +26,7 @@ class Win32BluetoothTest {
         println("available: ${Win32Bluetooth.available()} ${BthProps.loadError ?: ""}")
         val devices = Win32Bluetooth.rememberedDevices()
         println("radio on: ${Win32Bluetooth.radioOn()}")
+        println("battery (all remembered, incl. stale): " + WinBattery.levels(devices.filter { it.isAudio }.map { it.address }).mapKeys { "**:" + it.key.takeLast(5) })
         devices.forEach { println("${it.name} class=0x%06X audio=${it.isAudio} connected=${it.connected} addr=**:${it.address.takeLast(5)}".format(it.classOfDevice)) }
     }
 }

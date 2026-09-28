@@ -70,6 +70,8 @@ data class DeviceReport(
     val connected: Boolean,
     val generation: Long,
     val multipoint: Boolean,
+    /** 0..100 when this host is connected and the headset reports it. Optional; added in 0.2. */
+    val batteryPercent: Int? = null,
 )
 
 @Serializable

@@ -150,14 +150,16 @@ class PeerServer(
             return
         }
         when (session.mode) {
-            HandshakeMode.PAIRING -> servePairing(socket, session)
+            HandshakeMode.PAIRING -> servePairing(socket, session, socket.inetAddress?.hostAddress)
             HandshakeMode.SESSION -> serveSession(session, socket.inetAddress?.hostAddress)
         }
     }
 
-    private suspend fun servePairing(socket: Socket, session: ServerSession) {
+    private suspend fun servePairing(socket: Socket, session: ServerSession, remoteHost: String?) {
         socket.soTimeout = (PairingManager.APPROVAL_TIMEOUT_MS + 5_000).toInt()
         val approved = pairing.awaitApproval(session)
+        // Reachable straight away, without waiting for mDNS: the linked device is right there.
+        if (approved) directory.onInboundContact(session.clientPeerId, remoteHost, DEFAULT_PORT)
         val me = identity.identity()
         runCatching {
             Handshake.sendServerFinish(

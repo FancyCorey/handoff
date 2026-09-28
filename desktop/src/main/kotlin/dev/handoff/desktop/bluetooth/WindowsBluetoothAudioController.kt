@@ -58,13 +58,20 @@ class WindowsBluetoothAudioController(
 
     data class Operation(val description: String, val atMs: Long)
 
+    private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    /** Only for headsets connected to this PC: Windows keeps a stale value after disconnecting. */
+    override val batteryLevels: StateFlow<Map<String, Int>> = _batteryLevels.asStateFlow()
+
     private val _lastOperation = MutableStateFlow<Operation?>(null)
     val lastOperation: StateFlow<Operation?> = _lastOperation.asStateFlow()
 
     fun start() {
         scope.launch(Dispatchers.IO) {
+            var tick = 0
             while (isActive) {
                 refresh()
+                if (tick++ % BATTERY_EVERY_N_POLLS == 0) refreshBattery()
                 delay(POLL_MS)
             }
         }
@@ -77,6 +84,11 @@ class WindowsBluetoothAudioController(
             else -> AdapterState.OFF
         }
         snapshot.value = if (_adapterState.value == AdapterState.ON) Win32Bluetooth.rememberedDevices() else emptyList()
+    }
+
+    private fun refreshBattery() {
+        val connected = snapshot.value.filter { it.isAudio && it.connected }.map { it.address }
+        _batteryLevels.value = WinBattery.levels(connected)
     }
 
     // ---- observation -------------------------------------------------------------------
@@ -212,6 +224,7 @@ class WindowsBluetoothAudioController(
     companion object {
         const val STRATEGY = "WindowsServiceToggle"
         private const val POLL_MS = 1_500L
+        private const val BATTERY_EVERY_N_POLLS = 10
         private const val VERIFY_POLL_MS = 400L
         private const val TOGGLE_GAP_MS = 1_000L
         private const val ENABLE_RETRIES = 3

@@ -1,5 +1,6 @@
 package dev.handoff.desktop
 
+import dev.handoff.core.mesh.transport.networkPrefix
 import dev.handoff.core.diagnostics.EventType
 import dev.handoff.core.diagnostics.InMemoryEventLog
 import dev.handoff.core.handoff.AudioReleaseHandler
@@ -92,7 +93,9 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
     )
     private val reconciler = MappingReconciler(selfId, { identity.identity().displayName }, devices)
     private val discovery = JmdnsDiscovery(directory, events)
-    val overview = OverviewRepository(scope, identity, devices, bluetooth, ownership, resolver, directory, trust, coordinator, thisDeviceLabel = "This PC")
+    val overview = OverviewRepository(scope, identity, devices, bluetooth, ownership, resolver, directory, trust, coordinator, thisDeviceLabel = "This PC",
+        localNetworks = { JmdnsDiscovery.lanAddresses().mapNotNull { it.hostAddress?.let(::networkPrefix) }.toSet() },
+    )
 
     private val sync = MeshSync(
         selfId, devices, bluetooth, ownership, reconciler, broadcaster, coordinator, directory, trust,

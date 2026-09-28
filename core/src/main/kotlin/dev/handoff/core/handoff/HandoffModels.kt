@@ -27,8 +27,18 @@ enum class FailureReason {
     PERMISSION_DENIED,
     UNSUPPORTED,
     DEVICE_NOT_BONDED,
-    CONNECT_FAILED,
-    VERIFY_TIMEOUT,
+
+    /**
+     * The device holding the headset could not be reached (different Wi-Fi, asleep, Handoff not
+     * running, firewall) and connecting directly did not work either. detail = its name.
+     */
+    OWNER_UNREACHABLE,
+
+    /** The holding device answered but could not let go, and taking over did not work. */
+    OWNER_REFUSED,
+
+    /** Nobody else held the headset (or it was released) but it did not connect: off, out of range, busy. */
+    HEADSET_NOT_RESPONDING,
 
     /** Another host is taking the headset at the same time. */
     CONTENTION,
@@ -75,6 +85,9 @@ enum class StepKind {
     VERIFYING,
     CONNECTED,
     ALREADY_CONNECTED,
+
+    /** The whole transfer is being tried once more after a short pause. */
+    AUTO_RETRY,
     FAILED,
 }
 
@@ -124,6 +137,14 @@ data class HandoffPolicy(
     val verifyTimeoutMs: Long = 8_000,
     val retryDelayMs: Long = 1_500,
     val maxConnectAttempts: Int = 2,
+    /**
+     * Full transfer rounds (owner lookup, release, connect, verify). 2 = one automatic retry of
+     * the whole transfer after a transient failure; permanent failures are never retried.
+     */
+    val transferRounds: Int = 2,
+    val autoRetryDelayMs: Long = 3_000,
+    /** A peer that doesn't answer is probed once more after this pause before falling back. */
+    val reachabilityRetryDelayMs: Long = 1_500,
     val ownershipBroadcastTimeoutMs: Long = 3_000,
     /** For multipoint headsets, "Move here" joins by default and never disconnects others. */
     val releaseOthersOnMultipoint: Boolean = false,

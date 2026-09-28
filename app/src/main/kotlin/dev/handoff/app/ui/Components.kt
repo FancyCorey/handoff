@@ -1,5 +1,10 @@
 package dev.handoff.app.ui
 
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.Battery3Bar
+import androidx.compose.material.icons.filled.Battery2Bar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -188,6 +193,23 @@ fun IconBadge(
 fun HeroIcon(icon: ImageVector, size: Dp = 72.dp, brush: androidx.compose.ui.graphics.Brush = Brand.gradient) {
     Box(Modifier.size(size).clip(CircleShape).background(brush), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(size * 0.48f))
+    }
+}
+
+/** Compact battery read-out, e.g. "80%", with an icon that reflects the level. */
+@Composable
+fun BatteryChip(percent: Int, modifier: Modifier = Modifier) {
+    val icon = when {
+        percent >= 90 -> Icons.Filled.BatteryFull
+        percent >= 60 -> Icons.Filled.Battery5Bar
+        percent >= 35 -> Icons.Filled.Battery3Bar
+        percent >= 15 -> Icons.Filled.Battery2Bar
+        else -> Icons.Filled.BatteryAlert
+    }
+    val tint = if (percent < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Icon(icon, contentDescription = "Battery", tint = tint, modifier = Modifier.size(16.dp))
+        Text("$percent%", style = MaterialTheme.typography.labelMedium, color = tint)
     }
 }
 

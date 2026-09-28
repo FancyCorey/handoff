@@ -9,6 +9,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 
+internal const val ACTION_BATTERY_LEVEL_CHANGED = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"
+internal const val EXTRA_BATTERY_LEVEL = "android.bluetooth.device.extra.BATTERY_LEVEL"
+
 /**
  * Listens to the Bluetooth system broadcasts that can change what Handoff shows. All of these
  * are protected broadcasts (only the system/Bluetooth stack can send them), so the receiver is
@@ -36,6 +39,9 @@ internal class SystemBluetoothEvents(
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            // Hidden (@SystemApi) constant, stable string since Android 8.1; delivered to holders of
+            // BLUETOOTH_CONNECT. Used only for the battery read-out.
+            addAction(ACTION_BATTERY_LEVEL_CHANGED)
         }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
         registered = true

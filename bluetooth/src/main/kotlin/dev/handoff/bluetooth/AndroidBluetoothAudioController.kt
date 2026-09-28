@@ -15,6 +15,7 @@ import dev.handoff.bluetooth.oem.FutureOemStrategy
 import dev.handoff.bluetooth.publicapi.PublicApiStrategy
 import dev.handoff.bluetooth.reflection.CompanionProfileReleaser
 import dev.handoff.bluetooth.reflection.HiddenMethodInvoker
+import kotlinx.coroutines.launch
 import dev.handoff.bluetooth.reflection.ReflectionA2dpStrategy
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.bluetooth.BluetoothAudioController
@@ -99,6 +100,13 @@ class AndroidBluetoothAudioController(
 
     @Volatile private var lastConnectStrategy: Pair<String, Long>? = null
 
+    private val backgroundScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private val batteryInvoker = HiddenMethodInvoker(callTimeoutMs = 2_000)
+    private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    /** Best effort: the battery broadcast plus a hidden getBatteryLevel() read (see [readBatteries]). */
+    override val batteryLevels: StateFlow<Map<String, Int>> = _batteryLevels.asStateFlow()
+
     init {
         changes.tryEmit(Unit)
     }
@@ -106,6 +114,7 @@ class AndroidBluetoothAudioController(
     /** Register receivers and request the A2DP proxy. Idempotent; call from Application. */
     fun start() {
         events.register()
+        readBatteries()
         reflection.probe()
         acquireProxies()
         refresh()
@@ -125,6 +134,14 @@ class AndroidBluetoothAudioController(
     }
 
     private fun onSystemEvent(action: String, intent: Intent) {
+        if (action == ACTION_BATTERY_LEVEL_CHANGED) {
+            val device = deviceExtra(intent) ?: return
+            setBattery(device.address, intent.getIntExtra(EXTRA_BATTERY_LEVEL, -1))
+            return
+        }
+        if (action == android.bluetooth.BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED || action == BluetoothDevice.ACTION_ACL_CONNECTED) {
+            readBatteries()
+        }
         if (action == BluetoothAdapter.ACTION_STATE_CHANGED) {
             val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
             if (state != BluetoothAdapter.STATE_ON) {
@@ -133,6 +150,51 @@ class AndroidBluetoothAudioController(
             }
         }
         refresh()
+    }
+
+    private fun setBattery(address: String, level: Int) {
+        val key = address.uppercase()
+        _batteryLevels.update { if (level in 0..100) it + (key to level) else it - key }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun deviceExtra(intent: Intent): BluetoothDevice? = try {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+        } else {
+            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+        }
+    } catch (_: RuntimeException) {
+        null
+    }
+
+    /**
+     * Initial read for connected audio devices. `BluetoothDevice.getBatteryLevel()` is a hidden
+     * @SystemApi: called through [HiddenMethodInvoker], so a blocked or missing method just means
+     * no battery is shown.
+     */
+    private fun readBatteries() {
+        if (!hasConnectPermission()) return
+        val adapter = adapter ?: return
+        backgroundScope.launch {
+            val bonded = try {
+                adapter.bondedDevices.orEmpty()
+            } catch (_: SecurityException) {
+                return@launch
+            }
+            for (device in bonded) {
+                val connected = try {
+                    proxies.current?.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED
+                } catch (_: SecurityException) {
+                    false
+                }
+                if (!connected) {
+                    setBattery(device.address, -1)
+                    continue
+                }
+                batteryInvoker.invokeIntOrNull(device, "getBatteryLevel")?.let { setBattery(device.address, it) }
+            }
+        }
     }
 
     // ---- observation -------------------------------------------------------------------

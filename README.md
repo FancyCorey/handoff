@@ -13,7 +13,7 @@ On Galaxy Tab
 
 Press **Move here** on your phone, and the tablet in your bag lets go of the earbuds. Then the phone connects and checks that audio is really connected. You don't need to unlock the tablet, open Bluetooth settings or re-pair anything.
 
-> **Status: 0.2.0, not yet hardware-validated.** Everything builds, all 117 tests pass, and both apps have been smoke-tested: Android on an Android 15 emulator, Windows on a real Windows 11 PC, and the two linked with each other. Moving a real headset has **not** been validated yet on either platform. See [docs/HARDWARE_TEST_PLAN.md](docs/HARDWARE_TEST_PLAN.md) and [What is and isn't verified](#what-is-and-isnt-verified).
+> **Status: 0.3.0, not yet hardware-validated.** Everything builds, all 123 tests pass, and both apps have been smoke-tested: Android on an Android 15 emulator, Windows on a real Windows 11 PC, and the two linked with each other. Moving a real headset has **not** been validated yet on either platform. See [docs/HARDWARE_TEST_PLAN.md](docs/HARDWARE_TEST_PLAN.md) and [What is and isn't verified](#what-is-and-isnt-verified).
 
 ## What Handoff is (and is not)
 
@@ -38,6 +38,17 @@ Press **Move here** on your phone, and the tablet in your bag lets go of the ear
    * B connects and verifies, retrying once if needed.
    * B tells the other devices it is the new owner.
 6. If A is offline or doesn't answer, B tries a **direct takeover**: it just connects. Many single-point headsets then drop the old connection by themselves.
+
+### When something goes wrong
+
+* A failed move gets **one automatic retry** of the whole handoff a few seconds later.
+* Errors say what actually happened, with a next step:
+  * *Couldn't reach Galaxy Tab* (another Wi-Fi, asleep, or Handoff not running)
+  * *The other device couldn't let go*
+  * *The headset didn't connect*
+  * *Bluetooth permission needed*, and so on.
+* A linked device that is offline and was last seen on a different network is shown as **On another network**.
+* **Battery:** headset cards show the battery level when the headset reports it. When the headset is on another device, the level comes from that device.
 
 ### Different Wi-Fi networks
 
@@ -141,7 +152,7 @@ tools/       IconGen (renders the logo PNG/ICO from the same geometry as the And
 
 | Verified | Still needs real hardware |
 |---|---|
-| Builds; Android lint clean; 117 unit/integration tests pass | Moving a real headset (Android ↔ Android, Android ↔ Windows) |
+| Builds; Android lint clean; 123 unit/integration tests pass | Moving a real headset (Android ↔ Android, Android ↔ Windows) |
 | Android 15 emulator: setup, permissions, foreground service, mDNS, hidden A2DP *and* HFP methods resolve, diagnostics, tile, no crashes | Hidden-API calls on real OEM builds (Samsung, Pixel, …) |
 | Windows 11 PC: the packaged app (bundled runtime) runs; paired headsets read correctly via Win32; DPAPI identity; no crashes. Installers are built but were not installed here | `BluetoothSetServiceState` release/connect on a real headset |
 | **Windows app ↔ Android app linked** over real TCP: matching 6-digit codes, approval on the PC, the phone shows the PC online with a PC icon | Two physical devices on a real Wi-Fi, incl. switching networks |

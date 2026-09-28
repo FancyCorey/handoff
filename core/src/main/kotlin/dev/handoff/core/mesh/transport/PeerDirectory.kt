@@ -33,7 +33,15 @@ data class PeerPresence(
     val endpoints: List<PeerEndpoint>,
     /** The most recent contact attempt failed and nothing positive has happened since. */
     val failing: Boolean = false,
+    /** IPv4 /24 prefix of the network the peer was last seen on (kept across network changes). */
+    val lastNetwork: String? = null,
 )
+
+/** "192.168.1.23" -> "192.168.1"; null for anything that isn't an IPv4 address. */
+fun networkPrefix(host: String): String? {
+    val parts = host.split('.')
+    return if (parts.size == 4 && parts.all { it.toIntOrNull() in 0..255 }) parts.take(3).joinToString(".") else null
+}
 
 /**
  * Where trusted peers can be reached and whether they look online.
@@ -53,6 +61,7 @@ class PeerDirectory(
         it.copy(
             discovered = true,
             failing = false,
+            lastNetwork = networkPrefix(host) ?: it.lastNetwork,
             endpoints = it.endpoints.upsert(PeerEndpoint(host, port, EndpointSource.DISCOVERY, clock())),
         )
     }
@@ -67,6 +76,7 @@ class PeerDirectory(
         it.copy(
             lastContactMs = clock(),
             failing = false,
+            lastNetwork = networkPrefix(host) ?: it.lastNetwork,
             endpoints = it.endpoints.upsert(PeerEndpoint(host, port, EndpointSource.LAST_SUCCESS, clock())),
         )
     }
@@ -82,7 +92,12 @@ class PeerDirectory(
         } else {
             it.endpoints
         }
-        it.copy(lastContactMs = clock(), failing = false, endpoints = endpoints)
+        it.copy(
+            lastContactMs = clock(),
+            failing = false,
+            endpoints = endpoints,
+            lastNetwork = host?.let(::networkPrefix) ?: it.lastNetwork,
+        )
     }
 
     fun onContactFailed(peerId: PeerId) = mutate(peerId) { it.copy(lastFailureMs = clock(), failing = true) }

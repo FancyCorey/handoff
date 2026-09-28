@@ -108,8 +108,14 @@ class DefaultHandoffCoordinator(
     private sealed interface ReleaseOutcome {
         data class Released(val durationMs: Long) : ReleaseOutcome
         data class Contention(val peer: PeerId) : ReleaseOutcome
-        data class Fallback(val reason: String) : ReleaseOutcome
+        data class Fallback(val cause: TakeoverCause, val peer: PeerId?, val reason: String) : ReleaseOutcome
     }
+
+    /** Why a transfer fell back to direct takeover; decides the final error if that fails too. */
+    private enum class TakeoverCause { OWNER_UNREACHABLE, OWNER_REFUSED, OWNER_UNKNOWN }
+
+    /** Both connect attempts of a round failed. */
+    private class RoundExhausted(val detail: String?) : Exception()
 
     /** One transfer attempt; owns its state machine and published state. */
     private inner class Run(val device: LogicalAudioDevice, val trigger: TransferTrigger) {
@@ -127,6 +133,10 @@ class DefaultHandoffCoordinator(
 
         /** Hosts that held the headset when ownership was resolved (we are taking it from them). */
         var initialHolders: Set<PeerId> = emptySet()
+
+        var takeoverCause: TakeoverCause? = null
+        var refusal: String? = null
+        var round = 1
 
         suspend fun execute(): HandoffResult {
             move(TransferPhase.RESOLVING_OWNER)
@@ -153,6 +163,34 @@ class DefaultHandoffCoordinator(
                 return HandoffResult.AlreadyConnected
             }
 
+            while (true) {
+                try {
+                    return attemptRound(local)
+                } catch (e: RoundExhausted) {
+                    val bluetoothStillOn = bluetooth.adapterState.value == AdapterState.ON
+                    if (round >= policy.transferRounds || !bluetoothStillOn) return fail(classify(), e.detail)
+                    // One automatic retry of the whole transfer: networks settle, a peer wakes up,
+                    // a headset finishes switching. Contention and permanent errors never get here.
+                    move(TransferPhase.RETRYING)
+                    step(StepKind.AUTO_RETRY)
+                    events.record(EventType.CONNECT_FAILED, id, details = mapOf("autoRetry" to "round ${round + 1}"))
+                    delay(policy.autoRetryDelayMs)
+                    if (bluetooth.isConnected(local)) return succeed()
+                    // Never take the headset back from a device that grabbed it during the pause.
+                    refreshStatus()
+                    contender()?.let { peer -> return fail(FailureReason.CONTENTION, "${peerName(peer)} connected to the headset") }
+                    round++
+                    takeover = false
+                    takeoverCause = null
+                    refusal = null
+                    path = null
+                    move(TransferPhase.RESOLVING_OWNER)
+                }
+            }
+        }
+
+        /** Owner lookup, release, connect and verify. Throws [RoundExhausted] if the connect fails. */
+        private suspend fun attemptRound(local: BluetoothDeviceId): HandoffResult {
             refreshStatus()
             val current = devices.find(id) ?: device
             val owner = resolver.resolve(current, localConnected = false, ownership.reportsFor(id), onlinePeers())
@@ -178,7 +216,7 @@ class DefaultHandoffCoordinator(
             }
 
             when {
-                releaseTargets == null -> startTakeover("owner unknown")
+                releaseTargets == null -> startTakeover(TakeoverCause.OWNER_UNKNOWN, "owner unknown")
                 releaseTargets.isEmpty() -> {
                     path = if (owner is Ownership.Multipoint) TransferPath.MULTIPOINT_JOIN else TransferPath.UNCONTESTED
                 }
@@ -194,7 +232,10 @@ class DefaultHandoffCoordinator(
                             FailureReason.CONTENTION,
                             "${peerName(outcome.peer)} is handing the headset to another device",
                         )
-                        is ReleaseOutcome.Fallback -> startTakeover(outcome.reason)
+                        is ReleaseOutcome.Fallback -> {
+                            outcome.peer?.let { ownerPeer = it }
+                            startTakeover(outcome.cause, outcome.reason)
+                        }
                     }
                 }
             }
@@ -207,10 +248,10 @@ class DefaultHandoffCoordinator(
                 val name = peerName(peer)
                 move(TransferPhase.REQUESTING_RELEASE)
                 step(StepKind.REQUESTING_RELEASE, name)
-                if (!transport.isReachable(peer, policy.reachabilityTimeoutMs)) {
+                if (!reachable(peer)) {
                     step(StepKind.PEER_UNREACHABLE, name)
                     events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to "unreachable"))
-                    return ReleaseOutcome.Fallback("$name unreachable")
+                    return ReleaseOutcome.Fallback(TakeoverCause.OWNER_UNREACHABLE, peer, "$name unreachable")
                 }
                 val command = ReleaseAudioDevice(
                     commandId = PeerMessage.newCommandId(),
@@ -244,31 +285,50 @@ class DefaultHandoffCoordinator(
                                 EventType.RELEASE_FAILED, id, peer,
                                 mapOf("status" to reply.status.name, "detail" to (reply.detail ?: "-")),
                             )
-                            return ReleaseOutcome.Fallback("$name: ${reply.detail ?: reply.status}")
+                            refusal = "$name: ${reply.detail ?: reply.status.name.lowercase().replace('_', ' ')}"
+                            return ReleaseOutcome.Fallback(TakeoverCause.OWNER_REFUSED, peer, refusal!!)
                         }
                     }
                     result is CommandResult.Timeout -> {
                         step(StepKind.RELEASE_TIMEOUT, name)
                         events.record(EventType.RELEASE_TIMEOUT, id, peer)
-                        return ReleaseOutcome.Fallback("$name did not respond")
+                        return ReleaseOutcome.Fallback(TakeoverCause.OWNER_UNREACHABLE, peer, "$name did not respond")
                     }
                     result is CommandResult.Unreachable -> {
                         step(StepKind.PEER_UNREACHABLE, name)
                         events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to "unreachable"))
-                        return ReleaseOutcome.Fallback("$name unreachable")
+                        return ReleaseOutcome.Fallback(TakeoverCause.OWNER_UNREACHABLE, peer, "$name unreachable")
                     }
                     else -> {
                         val why = (result as? CommandResult.Rejected)?.reason ?: "unexpected reply"
-                        step(StepKind.RELEASE_REFUSED, name, why)
+                        val explained = HandoffDiagnosis.rejection(why)
+                        step(StepKind.RELEASE_REFUSED, name, explained)
                         events.record(EventType.RELEASE_FAILED, id, peer, mapOf("reason" to why))
-                        return ReleaseOutcome.Fallback("$name: $why")
+                        refusal = "$name: $explained"
+                        return ReleaseOutcome.Fallback(TakeoverCause.OWNER_REFUSED, peer, refusal!!)
                     }
                 }
             }
             return ReleaseOutcome.Released(clock() - started)
         }
 
-        private fun startTakeover(reason: String) {
+        /** A peer that doesn't answer gets one more chance (Wi-Fi waking up, network just changed). */
+        private suspend fun reachable(peer: PeerId): Boolean {
+            if (transport.isReachable(peer, policy.reachabilityTimeoutMs)) return true
+            delay(policy.reachabilityRetryDelayMs)
+            return transport.isReachable(peer, policy.reachabilityTimeoutMs)
+        }
+
+        /** The final error after every round failed to connect. */
+        private fun classify(): FailureReason = when (takeoverCause) {
+            TakeoverCause.OWNER_UNREACHABLE -> FailureReason.OWNER_UNREACHABLE
+            TakeoverCause.OWNER_REFUSED -> FailureReason.OWNER_REFUSED
+            TakeoverCause.OWNER_UNKNOWN -> if (ownerPeer != null) FailureReason.OWNER_UNREACHABLE else FailureReason.HEADSET_NOT_RESPONDING
+            null -> FailureReason.HEADSET_NOT_RESPONDING
+        }
+
+        private fun startTakeover(cause: TakeoverCause, reason: String) {
+            takeoverCause = cause
             path = TransferPath.DIRECT_TAKEOVER
             takeover = true
             move(TransferPhase.DIRECT_TAKEOVER)
@@ -277,7 +337,6 @@ class DefaultHandoffCoordinator(
         }
 
         private suspend fun connectWithVerification(local: BluetoothDeviceId): HandoffResult {
-            var lastFailure = FailureReason.CONNECT_FAILED
             var lastDetail: String? = null
             for (n in 1..policy.maxConnectAttempts) {
                 if (n > 1) {
@@ -290,7 +349,7 @@ class DefaultHandoffCoordinator(
                         return fail(FailureReason.CONTENTION, "${peerName(peer)} connected to the headset")
                     }
                 }
-                attempt = n
+                attempt = (round - 1) * policy.maxConnectAttempts + n
                 move(TransferPhase.CONNECTING)
                 step(StepKind.CONNECTING)
                 if (connectStartedAt == null) connectStartedAt = clock()
@@ -309,7 +368,6 @@ class DefaultHandoffCoordinator(
                         )
                         op.strategy?.let { strategy = it }
                         nonRetryable(op.error)?.let { return fail(it, op.detail) }
-                        lastFailure = FailureReason.CONNECT_FAILED
                         lastDetail = op.detail
                         continue
                     }
@@ -322,10 +380,15 @@ class DefaultHandoffCoordinator(
                     return succeed()
                 }
                 events.record(EventType.CONNECT_FAILED, id, details = mapOf("attempt" to "$n", "error" to "VERIFY_TIMEOUT"))
-                lastFailure = FailureReason.VERIFY_TIMEOUT
-                lastDetail = "A2DP did not report connected within ${policy.verifyTimeoutMs} ms"
+                lastDetail = "the headset did not connect within ${policy.verifyTimeoutMs / 1000} s"
             }
-            return fail(lastFailure, lastDetail)
+            throw RoundExhausted(refusal ?: finalDetail(lastDetail))
+        }
+
+        /** Detail for the final error: who we couldn't reach, or what the stack said. */
+        private fun finalDetail(technical: String?): String? = when (classify()) {
+            FailureReason.OWNER_UNREACHABLE -> ownerPeer?.let(peerName)
+            else -> technical
         }
 
         private suspend fun succeed(): HandoffResult {

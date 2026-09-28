@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.transfer
 
+import android.net.Uri
+import dev.handoff.core.handoff.FailureReason
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -141,6 +143,15 @@ fun TransferScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+            result?.let(Texts::help)?.let { help ->
+                Text(
+                    help,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (result is HandoffResult.Success) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
                     result.timings.releaseMs?.let { TimingChip("Release", "$it ms") }
@@ -180,12 +191,18 @@ fun TransferScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("Try again")
                     }
+                    val needsPermission = (result as? HandoffResult.Failed)?.reason == FailureReason.PERMISSION_DENIED
                     OutlinedButton(
                         onClick = {
-                            context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            val intent = if (needsPermission) {
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                            } else {
+                                Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+                            }
+                            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Open Bluetooth settings") }
+                    ) { Text(if (needsPermission) "Open app settings" else "Open Bluetooth settings") }
                     TextButton(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("Diagnostics") }
                 }
             }

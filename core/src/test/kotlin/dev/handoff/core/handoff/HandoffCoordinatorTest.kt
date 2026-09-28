@@ -195,8 +195,10 @@ class HandoffCoordinatorTest {
 
         val result = phone.moveHere()
 
-        assertEquals(HandoffResult.Failed(FailureReason.VERIFY_TIMEOUT, "A2DP did not report connected within 8000 ms"), result)
-        assertEquals(2, phone.bluetooth.connectCalls)
+        assertEquals(HandoffResult.Failed(FailureReason.HEADSET_NOT_RESPONDING, "the headset did not connect within 8 s"), result)
+        // Two attempts per round, and exactly one automatic retry round: never more.
+        assertEquals(4, phone.bluetooth.connectCalls)
+        assertTrue(phone.coordinator.state.value!!.steps.any { it.kind == StepKind.AUTO_RETRY })
         assertEquals(TransferPhase.FAILED, phone.coordinator.state.value!!.phase)
         assertEquals("FAILED", phone.history.records.single().outcome)
     }
@@ -400,4 +402,63 @@ class HandoffCoordinatorTest {
         logicalDeviceId = msg.logicalDeviceId,
         status = status,
     )
+
+    @Test
+    fun `automatic retry round recovers a transfer that failed twice`() = runTest {
+        val (hosts, _) = TestHost.mesh(this, "phone", "tablet")
+        val phone = hosts[0]
+        repeat(2) { phone.bluetooth.connectPlan += ConnectStep(becomesConnected = false) }
+
+        val result = phone.moveHere()
+
+        assertSuccess(result, TransferPath.UNCONTESTED, attempts = 3)
+        val steps = phone.coordinator.state.value!!.steps.map { it.kind }
+        assertTrue(StepKind.AUTO_RETRY in steps)
+        assertEquals(StepKind.CONNECTED, steps.last())
+    }
+
+    @Test
+    fun `unreachable owner plus failed takeover names the owner`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet", headset = dev.handoff.core.fakes.SimulatedHeadset(acceptsTakeover = false))
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        // The phone knows the tablet had it, but the tablet is on another network now.
+        phone.devices.applyOwnership(HEADSET_ID, tablet.id, 1)
+        phone.goOffline(tablet)
+
+        val result = phone.moveHere()
+
+        assertEquals(HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "tablet"), result)
+    }
+
+    @Test
+    fun `owner that cannot let go is reported with its reason`() = runTest {
+        val (hosts, headset) = TestHost.mesh(
+            this, "phone", "tablet",
+            headset = dev.handoff.core.fakes.SimulatedHeadset(acceptsTakeover = false, withCallProfile = true),
+        )
+        val (phone, tablet) = hosts
+        tablet.bluetooth.connect(tablet.localBt, ConnectReason.DEBUG)
+        tablet.bluetooth.companionReleaseWorks = false
+
+        val result = phone.moveHere() as HandoffResult.Failed
+
+        assertEquals(FailureReason.OWNER_REFUSED, result.reason)
+        assertTrue(result.detail!!, result.detail!!.startsWith("tablet: ") && result.detail!!.contains("HFP"))
+    }
+
+    @Test
+    fun `bluetooth switched off during the transfer is not retried`() = runTest {
+        val (hosts, _) = TestHost.mesh(this, "phone", "tablet")
+        val phone = hosts[0]
+        repeat(2) { phone.bluetooth.connectPlan += ConnectStep(becomesConnected = false) }
+        val job = async { phone.moveHere() }
+        testScheduler.advanceTimeBy(1_000)
+        phone.bluetooth.adapterState.value = AdapterState.OFF
+
+        val result = job.await() as HandoffResult.Failed
+
+        assertEquals(FailureReason.HEADSET_NOT_RESPONDING, result.reason)
+        assertEquals(2, phone.bluetooth.connectCalls)
+    }
 }

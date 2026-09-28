@@ -1,5 +1,10 @@
 package dev.handoff.desktop.ui
 
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.Battery3Bar
+import androidx.compose.material.icons.filled.Battery2Bar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -119,7 +124,16 @@ fun HomeScreen(
                         DeviceRow(Icons.Filled.Computer, pcName, "This PC", Tone.ACTIVE)
                         peers.forEach { p ->
                             HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            DeviceRow(platformIcon(p.platform), p.peer.displayName, if (p.online) "Online" else "Offline", if (p.online) Tone.POSITIVE else Tone.NEUTRAL)
+                            DeviceRow(
+                                platformIcon(p.platform),
+                                p.peer.displayName,
+                                if (p.online) "Online" else HandoffTexts.offline(p.probablyOtherNetwork),
+                                when {
+                                    p.online -> Tone.POSITIVE
+                                    p.probablyOtherNetwork -> Tone.WARNING
+                                    else -> Tone.NEUTRAL
+                                },
+                            )
                         }
                         if (peers.isEmpty()) {
                             Text(
@@ -193,8 +207,11 @@ private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit
                 Column(Modifier.weight(1f)) {
                     Text(d.device.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(4.dp))
-                    val (label, tone) = status(d, released)
-                    StatusPill(label, tone)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        val (label, tone) = status(d, released)
+                        StatusPill(label, tone)
+                        d.batteryPercent?.let { BatteryChip(it) }
+                    }
                 }
                 IconButton(onClick = onMore) { Icon(Icons.Filled.MoreVert, contentDescription = "Options") }
             }
@@ -210,7 +227,7 @@ private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit
                 }
             }
             AnimatedVisibility(visible = !d.transferRunning && t?.result != null && t.result !is HandoffResult.Success) {
-                t?.result?.let { ResultLine(it, t.steps.lastOrNull { s -> s.kind == StepKind.RELEASE_REFUSED }?.let(HandoffTexts::step)) }
+                t?.result?.let { ResultLine(it) }
             }
         }
     }
@@ -225,7 +242,7 @@ private fun TransferProgress(step: String) {
 }
 
 @Composable
-private fun ResultLine(result: HandoffResult, detail: String?) {
+private fun ResultLine(result: HandoffResult) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val ok = result is HandoffResult.AlreadyConnected
         Icon(
@@ -234,11 +251,12 @@ private fun ResultLine(result: HandoffResult, detail: String?) {
             tint = if (ok) Brand.Success else MaterialTheme.colorScheme.error,
             modifier = Modifier.size(18.dp),
         )
-        Text(
-            listOfNotNull(HandoffTexts.result(result), detail).joinToString("\n"),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(HandoffTexts.result(result), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            HandoffTexts.help(result)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 
@@ -276,6 +294,22 @@ fun status(d: DeviceOverview, released: Boolean): Pair<String, Tone> = when (val
         d.device.localDeviceId == null -> "Not set up on this PC" to Tone.WARNING
         o.lastKnownOwner != null -> "Last seen on another device" to Tone.NEUTRAL
         else -> "Not connected here" to Tone.NEUTRAL
+    }
+}
+
+@Composable
+fun BatteryChip(percent: Int) {
+    val icon = when {
+        percent >= 90 -> Icons.Filled.BatteryFull
+        percent >= 60 -> Icons.Filled.Battery5Bar
+        percent >= 35 -> Icons.Filled.Battery3Bar
+        percent >= 15 -> Icons.Filled.Battery2Bar
+        else -> Icons.Filled.BatteryAlert
+    }
+    val tint = if (percent < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Icon(icon, contentDescription = "Battery", tint = tint, modifier = Modifier.size(16.dp))
+        Text("$percent%", style = MaterialTheme.typography.labelMedium, color = tint)
     }
 }
 

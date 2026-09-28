@@ -66,6 +66,31 @@ internal class HiddenMethodInvoker(
         return withTimeoutOrNull(callTimeoutMs) { call.await() } ?: Invocation.TimedOut
     }
 
+    /** Reflectively call a no-argument method returning `int`; null for any failure. */
+    suspend fun invokeIntOrNull(target: Any, name: String): Int? {
+        val method = try {
+            target.javaClass.getMethod(name).takeIf { it.returnType == Integer.TYPE } ?: return null
+        } catch (_: NoSuchMethodException) {
+            return null
+        } catch (_: SecurityException) {
+            return null
+        } catch (_: LinkageError) {
+            return null
+        }
+        val call = callScope.async {
+            try {
+                method.invoke(target) as? Int
+            } catch (_: InvocationTargetException) {
+                null
+            } catch (_: IllegalAccessException) {
+                null
+            } catch (_: RuntimeException) {
+                null
+            }
+        }
+        return withTimeoutOrNull(callTimeoutMs) { call.await() }
+    }
+
     private fun invokeBlocking(method: Method, target: Any, argument: Any): Invocation = try {
         when (val value = method.invoke(target, argument)) {
             is Boolean -> Invocation.Returned(value)

@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.device
 
+import dev.handoff.app.ui.BatteryChip
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -115,8 +117,11 @@ fun DeviceDetailScreen(
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     HeroIcon(kindIcon(o.device.deviceType), size = 80.dp)
                     Text(o.device.displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    val (label, tone) = Texts.status(o)
-                    StatusPill(label, tone)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        val (label, tone) = Texts.status(o)
+                        StatusPill(label, tone)
+                        o.batteryPercent?.let { BatteryChip(it) }
+                    }
                     if (o.device.localDeviceId != null && !o.connectedHere && !o.transferRunning) {
                         Button(
                             onClick = {

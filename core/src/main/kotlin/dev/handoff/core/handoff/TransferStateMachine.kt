@@ -77,7 +77,11 @@ class TransferStateMachine(
                 TransferPhase.RETRYING,
                 ANY_ACTIVE_TO_FAILED,
             ),
-            TransferPhase.RETRYING to setOf(TransferPhase.CONNECTING, ANY_ACTIVE_TO_FAILED),
+            TransferPhase.RETRYING to setOf(
+                TransferPhase.CONNECTING,
+                TransferPhase.RESOLVING_OWNER, // automatic retry of the whole transfer
+                ANY_ACTIVE_TO_FAILED,
+            ),
             TransferPhase.COMPLETE to emptySet(),
             TransferPhase.FAILED to emptySet(),
         )

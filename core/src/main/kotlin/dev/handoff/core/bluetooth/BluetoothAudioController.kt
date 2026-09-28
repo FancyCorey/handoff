@@ -40,9 +40,19 @@ interface BluetoothAudioController {
      */
     suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean
 
+    /**
+     * Last known battery level (0..100) per headset, keyed by upper-case Bluetooth address.
+     * Best effort: many headsets don't report it, and platforms expose it differently.
+     */
+    val batteryLevels: StateFlow<Map<String, Int>> get() = NoBattery.levels
+
     /** Audio profiles ("A2DP", "HFP", "LE_AUDIO") currently connected to [deviceId]. */
     suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> =
         if (isConnected(deviceId)) setOf("A2DP") else emptySet()
+}
+
+private object NoBattery {
+    val levels: StateFlow<Map<String, Int>> = kotlinx.coroutines.flow.MutableStateFlow(emptyMap())
 }
 
 enum class AdapterState { ON, OFF, TURNING_ON, TURNING_OFF, NO_PERMISSION, NOT_AVAILABLE }

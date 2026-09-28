@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.peers
 
+import dev.handoff.app.ui.Texts
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -160,7 +161,14 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(p.peer.displayName, style = MaterialTheme.typography.bodyLarge)
-                                    StatusPill(if (p.online) "Online" else "Offline", if (p.online) Tone.POSITIVE else Tone.NEUTRAL)
+                                    StatusPill(
+                                        if (p.online) "Online" else Texts.offline(p.probablyOtherNetwork),
+                                        when {
+                                            p.online -> Tone.POSITIVE
+                                            p.probablyOtherNetwork -> Tone.WARNING
+                                            else -> Tone.NEUTRAL
+                                        },
+                                    )
                                 }
                                 IconButton(onClick = { removing = p }) { Icon(Icons.Outlined.LinkOff, contentDescription = "Unlink") }
                             }
@@ -192,6 +200,9 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
         )
     }
 }
+
+/** How long the "Linked" confirmation stays before the screen closes itself. */
+private const val AUTO_CLOSE_MS = 1_500L
 
 // ---- Show QR (inviting side) ---------------------------------------------------------------
 
@@ -279,6 +290,11 @@ fun AddPeerScreen(onBack: () -> Unit, vm: AddPeerViewModel = koinViewModel()) {
             val invitation = state.invitation
             when {
                 state.linkedName != null -> {
+                    // Approval here completes the link for both devices: close without a "Done" tap.
+                    LaunchedEffect(state.linkedName) {
+                        delay(AUTO_CLOSE_MS)
+                        onBack()
+                    }
                     HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
                     Text("Linked with ${state.linkedName}", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                     Text("It can now move headsets to and from this device, on any Wi-Fi you both use.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -376,9 +392,11 @@ class ScanPeerViewModel(private val client: PairingClient) : ViewModel() {
                 is PairingOutcome.Declined -> ScanState.Failed("The other device declined the link.")
                 PairingOutcome.Expired -> ScanState.Failed("That code has expired or was already used. Show a new one on the other device.")
                 PairingOutcome.SelfInvitation -> ScanState.Failed("That's this device's own code.")
-                is PairingOutcome.Failed -> ScanState.Failed(
-                    "Couldn't link: ${outcome.reason}. Make sure both devices are on the same Wi-Fi and the code is still shown.",
+                is PairingOutcome.Unreachable -> ScanState.Failed(
+                    "Couldn't reach the other device. Make sure both are on the same Wi-Fi and the code is still showing. " +
+                        "If it's a Windows PC, allow Handoff through Windows Firewall (private networks).",
                 )
+                is PairingOutcome.Failed -> ScanState.Failed("Couldn't link: ${outcome.reason}.")
             }
         }
     }
@@ -455,6 +473,10 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                     CircularProgressIndicator()
                 }
                 is ScanState.Linked -> {
+                    LaunchedEffect(s) {
+                        delay(AUTO_CLOSE_MS)
+                        onBack()
+                    }
                     HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
                     Text("Linked with ${s.peerName}", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                     Text("You won't need to link again, even on another Wi-Fi.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)

@@ -62,6 +62,7 @@ class MeshOwnershipRepository(
                     displayName = it.displayName,
                     fingerprint = it.fingerprint,
                     deviceType = it.deviceType,
+                    batteryPercent = it.batteryPercent,
                 )
             },
         )

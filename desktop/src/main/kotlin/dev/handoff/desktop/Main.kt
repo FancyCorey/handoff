@@ -1,5 +1,6 @@
 package dev.handoff.desktop
 
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -206,6 +207,14 @@ private fun LinkSheet(app: DesktopApp, onClose: () -> Unit) {
     var attempt by remember { mutableIntStateOf(0) }
     var shown by remember { mutableStateOf(false) }
     val linked = peers.firstOrNull { it.peerId !in before }?.displayName
+
+    // Approving on this PC completes the link for both devices: close without another click.
+    LaunchedEffect(linked) {
+        if (linked != null) {
+            delay(1_500)
+            onClose()
+        }
+    }
 
     LaunchedEffect(attempt) {
         error = null

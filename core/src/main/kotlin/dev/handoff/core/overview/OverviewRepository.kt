@@ -6,6 +6,7 @@ import dev.handoff.core.ownership.MeshOwnershipRepository
 import dev.handoff.core.handoff.HandoffCoordinator
 import dev.handoff.core.handoff.HandoffState
 import dev.handoff.core.mesh.transport.PeerDirectory
+import dev.handoff.core.mesh.transport.networkPrefix
 import dev.handoff.core.model.AudioConnectionState
 import dev.handoff.core.model.LogicalAudioDevice
 import dev.handoff.core.model.LogicalDeviceId
@@ -33,6 +34,8 @@ data class DeviceOverview(
     /** Human-readable holder names, "This device" first. */
     val holders: List<String>,
     val transfer: HandoffState?,
+    /** Battery of the headset: read locally when it's here, else as reported by the holder. */
+    val batteryPercent: Int? = null,
 ) {
     val connectedHere: Boolean get() = localState == AudioConnectionState.CONNECTED
     val transferRunning: Boolean get() = transfer != null && !transfer.phase.isTerminal
@@ -44,6 +47,8 @@ data class PeerOverview(
     val lastContactMs: Long?,
     /** From the peer's last status reply, e.g. "android-phone", "windows"; null if not heard yet. */
     val platform: String?,
+    /** Offline and last seen on a different network than this device is on now. */
+    val probablyOtherNetwork: Boolean = false,
 )
 
 /** A peer-announced headset, used by the mapping screen to link the same headset. */
@@ -69,6 +74,8 @@ class OverviewRepository(
     coordinator: HandoffCoordinator,
     /** How this host is named in holder lists ("This device", "This PC"). */
     private val thisDeviceLabel: String = THIS_DEVICE,
+    /** IPv4 /24 prefixes of the networks this host is on now (see [networkPrefix]). */
+    private val localNetworks: () -> Set<String> = { emptySet() },
 ) {
     fun peerName(peer: PeerId): String = when (peer) {
         identity.identity().peerId -> thisDeviceLabel
@@ -84,13 +91,15 @@ class OverviewRepository(
         }
     }
 
+    private val reportsAndBattery = combine(ownership.reports, bluetooth.batteryLevels) { r, b -> r to b }
+
     val devices: StateFlow<List<DeviceOverview>> = combine(
         devices.devices,
         localStates,
-        ownership.reports,
+        reportsAndBattery,
         directory.presence,
         coordinator.transfers,
-    ) { list, states, reports, presence, transfers ->
+    ) { list, states, (reports, batteries), presence, transfers ->
         val online = presence.values.filter { it.online }.map { it.peerId }.toSet()
         list.map { device ->
             val state = states[device.logicalId] ?: AudioConnectionState.UNAVAILABLE
@@ -101,13 +110,26 @@ class OverviewRepository(
             }
             val reportsForDevice: List<PeerReport> = reports.values.mapNotNull { it[device.logicalId] }
             val owner = resolver.resolve(device, localConnected, reportsForDevice, online)
-            DeviceOverview(device, state, owner, holderNames(owner), transfers[device.logicalId])
+            val battery = when {
+                state == AudioConnectionState.CONNECTED -> device.localDeviceId?.let { batteries[it.address.uppercase()] }
+                else -> reportsForDevice.firstOrNull { it.connected && it.peerId in online }?.batteryPercent
+            }
+            DeviceOverview(device, state, owner, holderNames(owner), transfers[device.logicalId], battery)
         }
     }.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val peers: StateFlow<List<PeerOverview>> = combine(trust.peers, directory.presence, ownership.peerInfo) { peers, presence, info ->
+        val here = localNetworks()
         peers.map {
-            PeerOverview(it, presence[it.peerId]?.online == true, presence[it.peerId]?.lastContactMs, info[it.peerId]?.platform)
+            val p = presence[it.peerId]
+            val online = p?.online == true
+            PeerOverview(
+                peer = it,
+                online = online,
+                lastContactMs = p?.lastContactMs,
+                platform = info[it.peerId]?.platform,
+                probablyOtherNetwork = !online && p?.lastNetwork != null && here.isNotEmpty() && p.lastNetwork !in here,
+            )
         }
     }.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

@@ -36,4 +36,5 @@ data class PeerReport(
     val displayName: String? = null,
     val fingerprint: String? = null,
     val deviceType: AudioDeviceKind = AudioDeviceKind.UNKNOWN,
+    val batteryPercent: Int? = null,
 )

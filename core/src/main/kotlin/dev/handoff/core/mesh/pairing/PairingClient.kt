@@ -28,6 +28,9 @@ sealed interface PairingOutcome {
     data class Declined(val reason: String) : PairingOutcome
     data object Expired : PairingOutcome
     data object SelfInvitation : PairingOutcome
+
+    /** Nothing answered at the addresses in the code (different Wi-Fi, firewall, code closed). */
+    data class Unreachable(val addresses: List<String>) : PairingOutcome
     data class Failed(val reason: String) : PairingOutcome
 }
 
@@ -79,7 +82,10 @@ class PairingClient(
             } catch (e: HandshakeFailure) {
                 // The inviter answered but refused or failed authentication: do not try other hosts.
                 if (e.message?.contains("pairing not open") == true) return@withContext PairingOutcome.Expired
-                return@withContext PairingOutcome.Failed(e.message ?: "handshake failed")
+                if (e.message?.contains("mismatch") == true) {
+                    return@withContext PairingOutcome.Failed("that code belongs to a different device than the one answering at its address")
+                }
+                return@withContext PairingOutcome.Failed("the secure connection failed (${e.message ?: "handshake"})")
             } catch (e: IOException) {
                 lastError = "could not reach $host:$port"
             } catch (e: SecurityException) {
@@ -88,7 +94,7 @@ class PairingClient(
                 runCatching { socket.close() }
             }
         }
-        PairingOutcome.Failed(lastError)
+        if (hosts.isEmpty()) PairingOutcome.Failed(lastError) else PairingOutcome.Unreachable(hosts.distinct().map { "${it.first}:${it.second}" })
     }
 
     private companion object {

@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.home
 
+import dev.handoff.app.ui.BatteryChip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -184,8 +185,12 @@ fun HomeScreen(
                                 DeviceRow(
                                     platformIcon(p.platform),
                                     p.peer.displayName,
-                                    if (p.online) "Online" else "Offline",
-                                    if (p.online) Tone.POSITIVE else Tone.NEUTRAL,
+                                    if (p.online) "Online" else Texts.offline(p.probablyOtherNetwork),
+                                    when {
+                                        p.online -> Tone.POSITIVE
+                                        p.probablyOtherNetwork -> Tone.WARNING
+                                        else -> Tone.NEUTRAL
+                                    },
                                     onClick = onPeers,
                                 )
                             }
@@ -220,8 +225,11 @@ private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: ()
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val (label, tone) = Texts.status(overview)
-                    StatusPill(label, tone)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        val (label, tone) = Texts.status(overview)
+                        StatusPill(label, tone)
+                        overview.batteryPercent?.let { BatteryChip(it) }
+                    }
                 }
                 Icon(Icons.Filled.ChevronRight, contentDescription = "Details", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -249,7 +257,10 @@ private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: ()
                 failed?.let {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                         Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                        Text(Texts.result(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(Texts.result(it), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(Texts.help(it) ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
