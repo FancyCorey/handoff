@@ -21,22 +21,21 @@ Handoff lets one device make another device disconnect its headphones. The desig
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant A as Device A (shows the code)
-    participant B as Device B (scans it)
-
-    User->>A: Show a link code
-    A-->>B: QR / text code: peer id, key fingerprint, one-time token, addresses
-    B->>A: CLIENT_HELLO (mode PAIRING)
-    A->>B: SERVER_HELLO with A's key
-    B->>B: A's key must match the fingerprint in the code
-    B->>A: CLIENT_FINISH: B's key, signature, proof of the one-time token
-    A->>A: consume the token
-    A-->>User: "Link B?" with a 6-digit number
-    B-->>User: the same 6-digit number
-    User->>A: Link (within 90 s)
-    A->>B: SERVER_FINISH (accepted)
-    Note over A,B: both store the other's public key
+    participant U as You
+    participant A as Device A
+    participant B as Device B
+    U->>A: Show a link code
+    A-->>B: Code with peer id, key fingerprint, one-time token and addresses
+    B->>A: CLIENT_HELLO in pairing mode
+    A->>B: SERVER_HELLO with the key of A
+    Note over B: the key must match the fingerprint in the code
+    B->>A: CLIENT_FINISH with the key of B, a signature and proof of the token
+    Note over A: the token is used up
+    A-->>U: Link B, with a 6-digit number
+    B-->>U: The same 6-digit number
+    U->>A: Link, within 90 seconds
+    A->>B: SERVER_FINISH accepted
+    Note over A,B: both store the public key of the other
 ```
 
 1. Device A shows a QR code: `HANDOFF:` followed by Base32 of a ~56-byte binary payload. It contains:
