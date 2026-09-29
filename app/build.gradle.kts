@@ -23,8 +23,8 @@ android {
         applicationId = "dev.handoff.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.5.0"
+        versionCode = 10
+        versionName = "0.5.1"
     }
 
     signingConfigs {

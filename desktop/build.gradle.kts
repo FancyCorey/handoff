@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
-val appVersion = "0.5.0"
+val appVersion = "0.5.1"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
