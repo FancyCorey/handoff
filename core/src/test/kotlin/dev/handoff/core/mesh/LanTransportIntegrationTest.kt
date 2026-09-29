@@ -1,5 +1,6 @@
 package dev.handoff.core.mesh
 
+import dev.handoff.core.mesh.transport.EndpointSource
 import dev.handoff.core.diagnostics.InMemoryEventLog
 import dev.handoff.core.fakes.HEADSET_ID
 import dev.handoff.core.fakes.TestHost
@@ -58,7 +59,7 @@ class LanTransportIntegrationTest {
         val directory = PeerDirectory()
         val events = InMemoryEventLog()
         val pairing = PairingManager(identity, trust, events)
-        val transport = LanPeerTransport(identity, trust, directory, events)
+        val transport: LanPeerTransport = LanPeerTransport(identity, trust, directory, events, listenPort = { server.port.value })
         val devices = InMemoryLogicalDeviceRepository()
 
         // Real request handler backed by a fake Bluetooth stack.
@@ -71,7 +72,7 @@ class LanTransportIntegrationTest {
         )
         val server = PeerServer(identity, trust, pairing, handler, directory, events)
         val port = server.start(scope, preferredPort = 0)
-        val pairingClient = PairingClient(identity, trust, directory, events)
+        val pairingClient: PairingClient = PairingClient(identity, trust, directory, events, listenPort = { server.port.value })
 
         fun ping(commandId: String = PeerMessage.newCommandId(), timestamp: Long = System.currentTimeMillis()) =
             Ping(commandId, timestamp, id.value)
@@ -240,5 +241,27 @@ class LanTransportIntegrationTest {
         assertEquals(CommandResult.Unreachable, result)
         assertTrue(System.currentTimeMillis() - started < 3_500)
         assertTrue(!b.directory.isOnline(a.id))
+    }
+
+    @Test
+    fun `a device's real listening port is recorded when it connects in`() = runBlocking {
+        val (a, b) = linked()
+        assertTrue(b.transport.request(a.id, b.ping(), 3_000) is CommandResult.Reply)
+        val inbound = a.directory.presence.value.getValue(b.id).endpoints.single { it.source == EndpointSource.INBOUND }
+        assertEquals("B's server port, not the default port", b.port, inbound.port)
+    }
+
+    @Test
+    fun `an address answered by another copy of Handoff is skipped`() = runBlocking {
+        val (a, b) = linked()
+        // A second, unlinked copy of Handoff sits on the address A tries first.
+        val otherCopy = Node("other copy")
+        a.directory.onContactSucceeded(b.id, "127.0.0.1", otherCopy.port)
+        assertEquals(otherCopy.port, a.directory.endpointsFor(b.id).first().port)
+
+        val result = a.transport.request(b.id, a.ping(), 5_000)
+
+        assertTrue("$result", result is CommandResult.Reply && result.message is Pong)
+        assertEquals("the working address is now tried first", b.port, a.directory.endpointsFor(b.id).first().port)
     }
 }

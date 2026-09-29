@@ -482,4 +482,29 @@ class HandoffCoordinatorTest {
         // The per-headset lock was released: a new move runs normally.
         assertTrue(phone.moveHere() is HandoffResult.Success)
     }
+
+    @Test
+    fun `a device that doesn't recognise this one is named instead of blaming the headset`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "tablet", "phone", headset = dev.handoff.core.fakes.SimulatedHeadset(acceptsTakeover = false))
+        val (tablet, phone) = hosts
+        headset.connect(phone.bluetooth, phone.localBt)
+        // The link only exists on the tablet's side: the phone refuses every connection.
+        tablet.transport.script(phone.id) { CommandResult.Rejected("handshake: server rejected: not trusted") }
+
+        val result = tablet.moveHere()
+
+        assertEquals(HandoffResult.Failed(FailureReason.PEER_NOT_LINKED, "phone"), result)
+    }
+
+    @Test
+    fun `a silent linked device is blamed rather than the headset when nobody reported holding it`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "tablet", "phone", headset = dev.handoff.core.fakes.SimulatedHeadset(acceptsTakeover = false))
+        val (tablet, phone) = hosts
+        headset.connect(phone.bluetooth, phone.localBt)
+        tablet.goOffline(phone)
+
+        val result = tablet.moveHere()
+
+        assertEquals(HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "phone"), result)
+    }
 }

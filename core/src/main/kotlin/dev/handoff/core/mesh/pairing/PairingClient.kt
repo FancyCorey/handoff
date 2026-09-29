@@ -42,6 +42,8 @@ class PairingClient(
     private val events: EventLog,
     private val clock: () -> Long = System::currentTimeMillis,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** This device's own server port, sent so the inviting device can reach it back. */
+    private val listenPort: () -> Int? = { null },
 ) {
     /**
      * Connect to the inviting host, authenticate it against the key in the QR code, prove the
@@ -63,7 +65,7 @@ class PairingClient(
                 socket.soTimeout = HANDSHAKE_TIMEOUT_MS
                 val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
                 val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
-                val session = Handshake.client(input, output, identity, HandshakeMode.PAIRING, inviter, invitation::matchesKey, token)
+                val session = Handshake.client(input, output, identity, HandshakeMode.PAIRING, inviter, invitation::matchesKey, token, listenPort())
                 onCode(session.sas)
                 socket.soTimeout = (PairingManager.APPROVAL_TIMEOUT_MS + 10_000).toInt()
                 val finish = Handshake.awaitServerFinish(session)

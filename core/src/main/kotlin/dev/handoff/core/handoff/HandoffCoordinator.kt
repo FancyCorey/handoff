@@ -147,6 +147,11 @@ class DefaultHandoffCoordinator(
     /** Why a transfer fell back to direct takeover; decides the final error if that fails too. */
     private enum class TakeoverCause { OWNER_UNREACHABLE, OWNER_REFUSED, OWNER_UNKNOWN }
 
+    private companion object {
+        /** How a peer's server reports a device it has no link with. */
+        const val NOT_TRUSTED = "not trusted"
+    }
+
     /** Both connect attempts of a round failed. */
     private class RoundExhausted(val detail: String?) : Exception()
 
@@ -353,11 +358,18 @@ class DefaultHandoffCoordinator(
         }
 
         /** The final error after every round failed to connect. */
-        private fun classify(): FailureReason = when (takeoverCause) {
-            TakeoverCause.OWNER_UNREACHABLE -> FailureReason.OWNER_UNREACHABLE
-            TakeoverCause.OWNER_REFUSED -> FailureReason.OWNER_REFUSED
-            TakeoverCause.OWNER_UNKNOWN -> if (ownerPeer != null) FailureReason.OWNER_UNREACHABLE else FailureReason.HEADSET_NOT_RESPONDING
-            null -> FailureReason.HEADSET_NOT_RESPONDING
+        private fun classify(): FailureReason {
+            val silent = ownership.unreachableSince(startedAt)
+            // A linked device that doesn't recognise us probably still holds the headphones.
+            if (silent.values.any { it?.contains(NOT_TRUSTED) == true }) return FailureReason.PEER_NOT_LINKED
+            return when (takeoverCause) {
+                TakeoverCause.OWNER_UNREACHABLE -> FailureReason.OWNER_UNREACHABLE
+                TakeoverCause.OWNER_REFUSED -> FailureReason.OWNER_REFUSED
+                TakeoverCause.OWNER_UNKNOWN, null ->
+                    // Nobody reported holding the headphones, but a linked device may simply not
+                    // have answered: then that device, not the headphones, is the likely cause.
+                    if (ownerPeer != null || silent.isNotEmpty()) FailureReason.OWNER_UNREACHABLE else FailureReason.HEADSET_NOT_RESPONDING
+            }
         }
 
         private fun startTakeover(cause: TakeoverCause, reason: String) {
@@ -420,7 +432,10 @@ class DefaultHandoffCoordinator(
 
         /** Detail for the final error: who we couldn't reach, or what the stack said. */
         private fun finalDetail(technical: String?): String? = when (classify()) {
-            FailureReason.OWNER_UNREACHABLE -> ownerPeer?.let(peerName)
+            FailureReason.PEER_NOT_LINKED ->
+                ownership.unreachableSince(startedAt).filterValues { it?.contains(NOT_TRUSTED) == true }.keys.joinToString(" and ", transform = peerName)
+            FailureReason.OWNER_UNREACHABLE ->
+                ownerPeer?.let(peerName) ?: ownership.unreachableSince(startedAt).keys.joinToString(" and ", transform = peerName).ifEmpty { null }
             else -> technical
         }
 

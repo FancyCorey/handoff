@@ -44,6 +44,8 @@ class LanPeerTransport(
     private val clock: () -> Long = System::currentTimeMillis,
     private val connectTimeoutMs: Int = 2_500,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** This device's own server port, sent in the handshake so peers can reach it back. */
+    private val listenPort: () -> Int? = { null },
 ) : PeerTransport {
 
     override suspend fun isReachable(peerId: PeerId, timeoutMs: Long): Boolean {
@@ -67,13 +69,17 @@ class LanPeerTransport(
                     break
                 }
                 result = exchange(endpoint, peerId, trusted.publicKey, message, deadline)
-                if (result != CommandResult.Unreachable) break
+                // An address that doesn't answer, or answers as some other Handoff (for example a
+                // second copy on the same device, or a new device on an old address), is the wrong
+                // address: try the next one.
+                if (result != CommandResult.Unreachable && !(result is CommandResult.Rejected && result.isWrongEndpoint())) break
             }
             when (result) {
                 is CommandResult.Reply -> Unit
-                is CommandResult.Rejected -> events.record(
-                    EventType.PEER_AUTH_FAILED, peerId = peerId, details = mapOf("reason" to result.reason),
-                )
+                is CommandResult.Rejected -> {
+                    events.record(EventType.PEER_AUTH_FAILED, peerId = peerId, details = mapOf("reason" to result.reason))
+                    if (result.isWrongEndpoint()) directory.onContactFailed(peerId)
+                }
                 else -> directory.onContactFailed(peerId)
             }
             result
@@ -100,7 +106,10 @@ class LanPeerTransport(
             val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
 
             socket.soTimeout = remaining(deadline)
-            val session = Handshake.client(input, output, identity, HandshakeMode.SESSION, peerId, { Crypto.constantTimeEquals(it, pinnedKey) })
+            val session = Handshake.client(
+                input, output, identity, HandshakeMode.SESSION, peerId, { Crypto.constantTimeEquals(it, pinnedKey) },
+                listenPort = listenPort(),
+            )
             socket.soTimeout = remaining(deadline)
             val finish = Handshake.awaitServerFinish(session)
             if (!finish.accepted) return CommandResult.Rejected(finish.reason ?: "session refused")
@@ -139,3 +148,7 @@ class LanPeerTransport(
 
     private fun remaining(deadline: Long): Int = (deadline - clock()).coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
 }
+
+/** The handshake failed or the session was refused: nothing was delivered to the right peer. */
+private fun CommandResult.Rejected.isWrongEndpoint(): Boolean =
+    reason.startsWith("handshake:") || reason == "session refused" || reason.startsWith("not trusted")

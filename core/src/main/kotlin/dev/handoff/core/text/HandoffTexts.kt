@@ -60,6 +60,7 @@ object HandoffTexts {
     fun failureTitle(reason: FailureReason, detail: String?): String = when (reason) {
         FailureReason.OWNER_UNREACHABLE -> "Couldn't reach ${detail ?: "the other device"}"
         FailureReason.OWNER_REFUSED -> "The other device couldn't let go"
+        FailureReason.PEER_NOT_LINKED -> "${detail ?: "The other device"} doesn't recognise this device"
         FailureReason.HEADSET_NOT_RESPONDING -> "The headset didn't connect"
         FailureReason.MISSING_LOCAL_MAPPING -> "Not set up on this device"
         FailureReason.BLUETOOTH_OFF -> "Bluetooth is off"
@@ -77,6 +78,10 @@ object HandoffTexts {
                 "connected to it. Put both devices on the same network, or disconnect the headset there."
         FailureReason.OWNER_REFUSED ->
             (detail?.let { "$it. " } ?: "") + "Disconnect the headset in that device's Bluetooth settings, then try again."
+        FailureReason.PEER_NOT_LINKED ->
+            "The link between the two devices only exists on this side, so it can't ask ${detail ?: "the other device"} " +
+                "to let go of the headset. In My devices, unlink it and link the two devices again. If an older copy " +
+                "of Handoff is installed on either device, uninstall it first."
         FailureReason.HEADSET_NOT_RESPONDING ->
             "Make sure it's switched on and nearby, and not connected to a phone or computer that doesn't run Handoff. " +
                 "Some earbuds only connect when they're out of the case."

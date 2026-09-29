@@ -37,6 +37,12 @@ enum class FailureReason {
     /** The holding device answered but could not let go, and taking over did not work. */
     OWNER_REFUSED,
 
+    /**
+     * A linked device refused to talk to this one because it doesn't recognise it (for example
+     * it was reinstalled, or the link only exists on one side). detail = its name.
+     */
+    PEER_NOT_LINKED,
+
     /** Nobody else held the headset (or it was released) but it did not connect: off, out of range, busy. */
     HEADSET_NOT_RESPONDING,
 

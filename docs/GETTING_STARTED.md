@@ -199,6 +199,7 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 |---|---|
 | **Couldn't reach …** or **On another network** | Make sure the other device is on, on the same Wi-Fi as this one, and running Handoff. No shared Wi-Fi? Use a hotspot. |
 | **The other device couldn't let go** | Disconnect the headphones on that device yourself, then tap **Move here** again. |
+| **… doesn't recognise this device** | The link only exists on one of the two devices. In **My devices**, unlink the other device and link them again. If an older copy of Handoff is installed on either device, uninstall it first. |
 | **The headset didn't connect** | Check that your headphones are on, charged and close by, and not connected to a device without Handoff. |
 | **Another device is taking it** | Two devices asked for the headphones at the same moment. Wait a second and try again. |
 | **Bluetooth permission needed** | Tap **Open app settings** and allow **Nearby devices**. |
@@ -207,6 +208,8 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 | **Too many attempts** | Handoff pauses briefly to protect your Bluetooth. Wait a minute. |
 
 **On Windows**, after your headphones move to another device, they no longer appear in the PC's sound settings. That's on purpose: it stops Windows from pulling them back. Tap **Move here** on the PC to get them back, or choose **Restore Windows audio** in the headphones' options.
+
+**Two copies of Handoff on one device?** If you installed a test version of Handoff earlier, it can still be on your device next to the current one, and your other devices may link to the wrong copy. Handoff shows a warning on its home screen when it finds one; tap **Uninstall the older copy**, then link your devices again.
 
 **Windows won't start Handoff?** If your PC has *Smart App Control* switched on, Windows blocks apps that aren't code-signed yet and offers no "Run anyway" option. Code signing is planned.
 

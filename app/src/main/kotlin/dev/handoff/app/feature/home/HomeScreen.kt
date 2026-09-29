@@ -1,5 +1,9 @@
 package dev.handoff.app.feature.home
 
+import dev.handoff.app.ui.OtherCopies
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.compose.material.icons.filled.Warning
 import dev.handoff.app.update.AppUpdates
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Close
@@ -131,6 +135,9 @@ fun HomeScreen(
     val peers by vm.peers.collectAsStateWithLifecycle()
     val selfName by vm.selfName.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var otherCopy by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { otherCopy = OtherCopies.testBuildInstalled(context) }
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
 
@@ -152,6 +159,28 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 LazyColumn(Modifier.fillMaxSize().navigationBarsPadding(), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    if (otherCopy) {
+                        item {
+                            SectionCard(Modifier.padding(top = 10.dp)) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                        Spacer(Modifier.width(12.dp))
+                                        Text("Another copy of Handoff is installed", fontWeight = FontWeight.Medium)
+                                    }
+                                    Text(
+                                        "An older test version of Handoff is also on this device. Your other devices can end up linked " +
+                                            "to that copy instead of this one. Uninstall it, then link your devices again here.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    TextButton(onClick = { OtherCopies.openTestBuildInfo(context) }, contentPadding = PaddingValues(0.dp)) {
+                                        Text("Uninstall the older copy")
+                                    }
+                                }
+                            }
+                        }
+                    }
                     (update as? AppUpdates.State.Available)?.let { available ->
                         item {
                             SectionCard(Modifier.padding(top = 10.dp).clickable(onClick = onSettings)) {

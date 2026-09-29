@@ -106,9 +106,15 @@ val appModule = module {
         arrayOf(BluetoothAudioController::class, BluetoothDiagnosticsSource::class)
 
     // Peer mesh
-    single { LanPeerTransport(get(), get(), get(), get()) } binds arrayOf(PeerTransport::class)
+    single {
+        val koin = getKoin()
+        LanPeerTransport(get(), get(), get(), get(), listenPort = { koin.get<PeerServer>().port.value })
+    } binds arrayOf(PeerTransport::class)
     single { PairingManager(get(), get(), get()) }
-    single { PairingClient(get(), get(), get(), get()) }
+    single {
+        val koin = getKoin()
+        PairingClient(get(), get(), get(), get(), listenPort = { koin.get<PeerServer>().port.value })
+    }
     single { DiscoveryTags(get()) }
     single {
         val identity = get<IdentityProvider>()

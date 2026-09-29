@@ -31,6 +31,19 @@ class MeshOwnershipRepository(
     /** Latest self-description of each peer (name, platform), from STATUS_RESPONSE. */
     val peerInfo: StateFlow<Map<PeerId, PeerInfo>> = _peerInfo.asStateFlow()
 
+    private data class Failure(val atMs: Long, val refusal: String?)
+
+    private val failures = java.util.concurrent.ConcurrentHashMap<PeerId, Failure>()
+
+    override fun unreachableSince(sinceMs: Long): Map<PeerId, String?> =
+        peers().filter { it != selfId }
+            .mapNotNull { peer ->
+                val failure = failures[peer]?.takeIf { it.atMs >= sinceMs } ?: return@mapNotNull null
+                val heard = _peerInfo.value[peer]?.seenAtMs ?: Long.MIN_VALUE
+                if (heard >= failure.atMs) null else peer to failure.refusal
+            }
+            .toMap()
+
     override suspend fun refresh(timeoutMs: Long) {
         coroutineScope {
             peers().filter { it != selfId }.map { peer -> async { refreshPeer(peer, timeoutMs) } }.awaitAll()
@@ -45,9 +58,13 @@ class MeshOwnershipRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
+            failures[peer] = Failure(clock(), null)
             return null
         }
-        val response = (result as? CommandResult.Reply)?.message as? StatusResponse ?: return null
+        val response = (result as? CommandResult.Reply)?.message as? StatusResponse ?: run {
+            failures[peer] = Failure(clock(), (result as? CommandResult.Rejected)?.reason)
+            return null
+        }
         val now = clock()
         _peerInfo.update { it + (peer to PeerInfo(response.displayName, response.platform, response.bluetoothEnabled, now)) }
         recordSnapshot(

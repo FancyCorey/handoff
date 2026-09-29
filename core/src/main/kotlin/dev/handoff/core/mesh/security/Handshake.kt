@@ -55,6 +55,11 @@ data class ClientFinish(
     val displayName: String,
     val signature: String,
     val pairingProof: String? = null,
+    /**
+     * The TCP port the client's own server listens on. Lets the server reach the client back
+     * even when it isn't on the default port (e.g. another app holds it). Older clients omit it.
+     */
+    val listenPort: Int? = null,
 ) : HandshakeMessage()
 
 /** Sent encrypted. Confirms the server accepted the client (after user approval when pairing). */
@@ -96,6 +101,8 @@ class ServerSession(
     val clientIdentityKey: ByteArray,
     val clientDisplayName: String,
     val sas: String,
+    /** Where the client's own server listens, if it said so. */
+    val clientListenPort: Int? = null,
 )
 
 /**
@@ -130,6 +137,7 @@ object Handshake {
         /** Pins the server key: the trust-store key (session) or the QR fingerprint (pairing). */
         acceptServerKey: (ByteArray) -> Boolean,
         pairingToken: ByteArray? = null,
+        listenPort: Int? = null,
     ): ClientSession {
         require(mode == HandshakeMode.SESSION || pairingToken != null) { "pairing requires a token" }
         val me = identity.identity()
@@ -178,6 +186,7 @@ object Handshake {
             displayName = me.displayName,
             signature = Crypto.b64(identity.sign(CLIENT_SIG_LABEL + th + me.publicKey)),
             pairingProof = pairingToken?.let { Crypto.b64(Crypto.hmacSha256(it, PAIRING_PROOF_LABEL + th)) },
+            listenPort = listenPort,
         )
         writeEncrypted(channel, finish)
         return ClientSession(channel, expectedServer, serverKey, sas(th))
@@ -269,6 +278,7 @@ object Handshake {
             clientIdentityKey = clientKey,
             clientDisplayName = finish.displayName.take(MAX_NAME_LENGTH),
             sas = sas(th),
+            clientListenPort = finish.listenPort?.takeIf { it in 1..65535 },
         )
     }
 

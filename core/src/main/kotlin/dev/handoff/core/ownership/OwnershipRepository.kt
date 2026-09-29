@@ -25,6 +25,12 @@ interface OwnershipRepository {
 
     /** Actively ask reachable peers for fresh status. Bounded by [timeoutMs]; never throws. */
     suspend fun refresh(timeoutMs: Long)
+
+    /**
+     * Linked peers that couldn't be reached by any refresh since [sinceMs], each with the
+     * reason it refused the connection (null if it simply didn't answer).
+     */
+    fun unreachableSince(sinceMs: Long): Map<PeerId, String?> = emptyMap()
 }
 
 /** State-holding part of [OwnershipRepository]; subclasses supply [refresh]. */

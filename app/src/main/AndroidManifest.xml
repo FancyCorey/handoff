@@ -22,6 +22,11 @@
     <!-- Installing a downloaded, signature-checked update (Android still asks the user to confirm). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Only to notice an older test build of Handoff installed next to this one. -->
+    <queries>
+        <package android:name="dev.handoff.app.debug" />
+    </queries>
+
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />

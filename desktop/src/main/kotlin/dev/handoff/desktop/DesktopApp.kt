@@ -70,9 +70,9 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
         EndpointMemory(File(dataDir, "peer-endpoints.json"))
             .attach(it, scope) { JmdnsDiscovery.lanAddresses().mapNotNull { a -> a.hostAddress?.let(::networkPrefix) }.toSet() }
     }
-    private val transport = LanPeerTransport(identity, trust, directory, events)
+    private val transport: LanPeerTransport = LanPeerTransport(identity, trust, directory, events, listenPort = { server.port.value })
     val pairing = PairingManager(identity, trust, events)
-    val pairingClient = PairingClient(identity, trust, directory, events)
+    val pairingClient: PairingClient = PairingClient(identity, trust, directory, events, listenPort = { server.port.value })
 
     /** Windows reinstalls audio endpoints on connect, which takes longer than on Android. */
     private val policy = HandoffPolicy(verifyTimeoutMs = 15_000, retryDelayMs = 2_000, remoteDisconnectVerifyMs = 6_000)
