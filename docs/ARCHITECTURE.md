@@ -4,14 +4,16 @@
 
 ```
 ┌──────────────────────────────── :app (Android) ─────────────────────────────────┐
-│ UI (Compose, Material 3): Setup · Home · Device detail · Map · Peers · Add/Scan │
-│    · Transfer · Settings · Diagnostics · Bluetooth test                          │
+│ UI (Compose, Material 3): Setup · Home · Headset details · Add headset ·         │
+│    My devices · Show / scan code · Transfer · Settings (incl. updates) ·         │
+│    Diagnostics · Bluetooth test                                                  │
 │ Android services: HandoffService (FGS connectedDevice) · BootReceiver ·          │
 │    NotificationActionReceiver · MoveHereTileService · PlaybackWatcher            │
-│ Runtime: HandoffRuntime (lifecycle) · HandoffActions (single "move" entry)       │
+│ Runtime: HandoffRuntime (lifecycle) · HandoffActions (single "move" entry,       │
+│    cancel) · AppUpdates (check, verified download, system installer)             │
 │ Mesh (Android): NsdPeerDiscovery · NetworkAddresses · NetworkMonitor             │
-│ Persistence: Room (peers, logical devices, transfer history) · DataStore         │
-│    (settings) · Android Keystore (identity key)                                  │
+│ Persistence: Room (peers, headsets, transfer history) · DataStore (settings) ·   │
+│    Android Keystore (identity key) · peer-endpoints.json (no-backup dir)         │
 ├──────────────────────────────── :bluetooth (Android lib) ───────────────────────┤
 │ AndroidBluetoothAudioController ─ strategy chain:                                │
 │    PublicApiStrategy → ReflectionA2dpStrategy (non-SDK) → FutureOemStrategy      │
@@ -19,21 +21,26 @@
 │ ProfileProxyProvider · SystemBluetoothEvents · DeviceClassifier ·                │
 │    HiddenMethodInvoker                                                           │
 ├──────────────────────────────── :desktop (Windows, Compose Desktop) ────────────┤
-│ DesktopApp (composition root) · UI (HomeScreen, dialogs) · tray · Autostart      │
+│ DesktopApp (composition root) · UI (HomeScreen, dialogs) · tray · Autostart ·    │
+│    SingleInstance · DesktopUpdates (verified MSI → Windows Installer)            │
 │ WindowsBluetoothAudioController ─ Win32 BluetoothSetServiceState via JNA          │
 │ DesktopIdentityProvider (DPAPI) · JSON stores · JmdnsDiscovery                   │
 ├──────────────────────────────── :core (pure Kotlin/JVM) ────────────────────────┤
-│ handoff:   HandoffCoordinator · TransferStateMachine · HandoffPolicy ·           │
-│            AudioReleaseHandler · HandoffRequestHandler · OwnershipBroadcaster ·  │
-│            AutoSwitchPolicy · MeshSync (push / reconcile / refresh jobs)         │
+│ handoff:   HandoffCoordinator (move, cancel) · TransferStateMachine ·            │
+│            HandoffPolicy · AudioReleaseHandler · HandoffRequestHandler ·         │
+│            OwnershipBroadcaster · AutoSwitchPolicy · MeshSync                    │
 │ ownership: OwnershipResolver · OwnershipRepository · MeshOwnershipRepository ·   │
 │            MappingReconciler                                                     │
-│ bluetooth: BluetoothAudioController (port) · diagnostics model · throttle        │
+│ bluetooth: BluetoothAudioController (port) · DemoBluetoothAudioController ·      │
+│            diagnostics model · throttle                                          │
 │ mesh:      protocol (PeerMessage, codec) · security (handshake, channel, guard,  │
 │            invitation) · transport (PeerTransport, LanPeerTransport, PeerServer, │
-│            PeerDirectory) · pairing (PairingManager, PairingClient)              │
+│            ConnectionPolicy, PeerDirectory, EndpointMemory, DiscoveryTags) ·     │
+│            pairing (PairingManager, PairingClient)                               │
+│ update:    UpdateChecker (signed manifest, verified download) · UpdateKeys ·     │
+│            ReleaseTool (maintainer signing)                                      │
 │ overview:  OverviewRepository (dashboard read model, shared by both apps)        │
-│ text:      HandoffTexts (shared wording for steps and results)                   │
+│ text:      HandoffTexts (shared wording) · OpenSourceNotices                     │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,11 +52,12 @@ Dependency direction: `app → bluetooth → core`, `app → core`, `desktop →
 
 * **Identity:** a random UUID `PeerId`, a display name, and a P-256 signing key generated in the Android Keystore (non-exportable).
 * **Trust:** `TrustedPeer(peerId, name, publicKey)` rows in Room. Only these peers can open a session (see [SECURITY.md](SECURITY.md)).
-* **Discovery:** NSD advertises `_handoff._tcp` / `handoff-<daily tag>` (`DiscoveryTags`; see SECURITY.md). `PeerDirectory` merges endpoints from four sources:
+* **Discovery:** NSD advertises `_handoff._tcp` / `handoff-<daily tag>` (`DiscoveryTags`; see SECURITY.md). `PeerDirectory` merges endpoints from five sources, tried in this order:
   1. the last successful contact
   2. mDNS
-  3. the pairing QR code
+  3. the link code
   4. the source address of authenticated inbound sessions
+  5. an address remembered from an earlier run on another network (`EndpointMemory`)
 
   Online status comes from mDNS plus recent authenticated contact.
 * **Transport:** one short-lived TCP connection per request. Each one does a handshake, one encrypted request and one encrypted reply. `PeerTransport` is an interface, so a relay can implement it later.
@@ -109,7 +117,7 @@ COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
 
 `UNSUPPORTED`, `PERMISSION_DENIED`, `BLUETOOTH_OFF`, `DEVICE_NOT_BONDED` and `RATE_LIMITED` are never retried.
 
-**Automatic retry and error classification (0.3).**
+**Automatic retry and error classification.**
 
 * A peer that doesn't answer is probed once more (after 1.5 s) before the transfer falls back to a direct takeover.
 * If both connect attempts of a round fail, the coordinator waits 3 s and runs **one more full round**: owner lookup, release, connect and verify. The progress shows *"That didn't work. Trying once more…"*.
@@ -125,7 +133,9 @@ COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
 * `HandoffDiagnosis` turns transport rejections into plain language: clock skew over 5 minutes, a different app version, a no-longer-linked device, a reinstalled device.
 * A host holding the headset through *any* profile (A2DP, HFP or LE Audio) reports it as connected, so a call-only link is never mistaken for "free". The legal transitions are declared in `TransferStateMachine.TRANSITIONS`. An illegal one throws, and the coordinator turns that into `Failed(INTERNAL)`.
 
-**Deviation from the original pseudocode:** a `BUSY` reply does *not* trigger direct takeover. `BUSY` means the owner is mid-transfer or has just released to another peer. Taking over then would make two hosts fight over the headset.
+**Cancelling.** `HandoffCoordinator.cancel(logicalId)` cancels the running attempt, which runs as a child job of `moveToThisDevice`. The transfer ends with `HandoffResult.Cancelled`, a `CANCELLED` step and a history record, and the per-headset lock is released. Anything already done (for example the other host's release) stays done. On Android, `HandoffActions.cancel` also stops a move that is still waiting for discovery before the coordinator has started it.
+
+**Why `BUSY` doesn't lead to a takeover:** a `BUSY` reply does *not* trigger direct takeover. `BUSY` means the owner is mid-transfer or has just released to another peer. Taking over then would make two hosts fight over the headset.
 
 ### Remote side (`AudioReleaseHandler`)
 
@@ -140,7 +150,7 @@ The handler runs headless, so it works with the screen off:
    * If only a call profile is stuck, reply `FAILED` with a detail naming it.
    * Otherwise, reply `TIMEOUT`.
 
-   A single-point headset stays attached to a host while *any* profile is connected. The first hardware report showed that an A2DP-only release is not enough.
+   A single-point headset stays attached to a host while *any* profile is connected, so releasing A2DP alone is not enough: the headset would keep refusing the new host.
 6. If the disconnect call itself failed, reply `UNSUPPORTED`, `PERMISSION_DENIED` or `FAILED`.
 
 Duplicate command ids get the cached reply (`CommandGuard`), which makes release idempotent.
@@ -190,16 +200,35 @@ A link is bound to two identity keys, never to a network, SSID or IP address, so
   * On a change they call `PeerDirectory.onNetworkChanged()`. This drops every address learned on the old network and clears online/failing flags.
   * They then restart mDNS advertisement and discovery on the new network, and refresh peer status.
 * **Fallback addresses:** the last successful address and the source address of authenticated inbound sessions. These help on networks where multicast is flaky.
+* **Remembered addresses:** `EndpointMemory` keeps each peer's last working address per network (at most 8) in app-private storage. At start-up, and after a network change, `PeerDirectory.restore` puts back the addresses for the networks this host is on now, so devices reach each other immediately, even where mDNS is blocked.
+* **Hotspots:** the addresses of this device's own hotspot (tethering interfaces on Android, the Mobile Hotspot adapter on Windows) count as local networks, for link codes and discovery.
+* **Who may connect:** `ConnectionPolicy` in `PeerServer` accepts only local-network addresses and limits how often an address may connect (see SECURITY.md).
 * **Limitation:** devices on *different* networks cannot reach each other until a relay exists (below).
 
 ## Windows host
 
 `WindowsBluetoothAudioController` implements the same `BluetoothAudioController` port with the documented Win32 API. There is no hidden API on Windows.
 
-* **Release:** `BluetoothSetServiceState(DISABLE)` for A2DP sink, hands-free and headset. The link drops, and Windows cannot auto-reconnect while the services are off, which prevents the old host from stealing the headset back. The released headset is remembered, so the UI can offer *Restore Windows audio*.
-* **Connect:** disable, then enable those services (calls first, media last). Windows pages the headset and reinstalls its audio endpoints. `HandoffPolicy` gives Windows a longer verify timeout (15 s).
+* **Release:** `BluetoothSetServiceState(DISABLE)` for A2DP sink, hands-free, headset and both AVRCP services. With every one of them off, the link drops, and Windows cannot reconnect on its own, which prevents the old host from taking the headset back. A service that is already off (reported as `ERROR_NOT_FOUND` or missing from `BluetoothEnumerateInstalledServices`) counts as released.
+* **Connect:** disable, then enable those services (calls, then media, then remote control). Windows pages the headset and reinstalls its audio endpoints. `HandoffPolicy` gives Windows a longer verify timeout (15 s).
+* **Restore Windows audio:** offered for a headset whose media service is off. The controller reads this from Windows (`mediaOff`), not only from its own records, so it stays right after a reinstall.
 * **State:** `BLUETOOTH_DEVICE_INFO.fConnected` (link level), polled every 1.5 s.
 * **Background:** the app keeps running in the tray, starts with Windows (per-user `Run` key, `--minimized`), and refreshes peers every 15 s.
+* **One copy:** `SingleInstance` holds a lock file in the data folder. Starting Handoff again writes a small request file instead, and the running copy brings its window forward.
+
+## Updates
+
+Both apps check GitHub Releases only when asked, or once a day if the user turns that on.
+
+* `UpdateChecker` downloads `update.json` and `update.json.sig` from the latest release. The signature must verify against the release public key in `UpdateKeys`; the manifest may only point at this repository's release downloads.
+* A download is kept only if its size and SHA-256 match the signed manifest. Every request, including redirects, must be HTTPS to GitHub's release hosts.
+* Android (`AppUpdates`) hands the APK to the system installer through a `FileProvider`; Android asks the user to confirm, and accepts it only if it is signed with the same release key. Debug builds only link to the release page.
+* Windows (`DesktopUpdates`) hands the MSI to Windows Installer and quits so the files can be replaced. Portable copies and development runs open the release page instead.
+* Releases are built and signed on the maintainer's machine with `tools/release.ps1` and `ReleaseTool` (see CONTRIBUTING.md).
+
+## Demo mode
+
+`DemoBluetoothAudioController` stands in for the real Bluetooth stack with two made-up headsets, for screenshots and for trying the apps without hardware. It is enabled with a flag file in debug builds on Android and with `-Dhandoff.demo=true` on Windows (see CONTRIBUTING.md). Everything else, including linking, the protocol and the coordinator, runs as usual.
 
 ## Future remote mode
 

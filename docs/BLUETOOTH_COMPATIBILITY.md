@@ -63,7 +63,7 @@ A "requested" result is never treated as success. The coordinator always calls `
 |---|---|
 | **Supported** | A connect through the reflection strategy was *verified* on this device and OS build. The flag resets when the OS build fingerprint changes. |
 | **Experimental** | The hidden methods resolve, but no verified move has happened yet. |
-| **Unsupported on this Android build** | No adapter, or hidden `connect()` is missing or blocked. Handoff explains this and offers Android Bluetooth settings. |
+| **Not supported on this device** | No adapter, or hidden `connect()` is missing or blocked. Handoff explains this and offers Android Bluetooth settings. |
 
 ## Failure behaviour
 
@@ -113,12 +113,14 @@ Some phone makers close background apps aggressively to save battery. If a locke
 |---|---|---|
 | `BluetoothFindFirstDevice` / `BluetoothFindNextDevice` | public Win32 (bluetoothapis.h) | paired devices, class of device, link state (`fConnected`) |
 | `BluetoothFindFirstRadio` | public Win32 | adapter present / on |
-| `BluetoothSetServiceState` | public Win32 | release (disable A2DP sink, HFP, HSP) and connect (disable → enable) |
+| `BluetoothSetServiceState` | public Win32 | release (disable A2DP sink, HFP, HSP and AVRCP) and connect (disable → enable) |
+| `BluetoothEnumerateInstalledServices` | public Win32 | which of those services are currently on, so services that are already off count as released |
+| `CM_Get_DevNode_PropertyW` (cfgmgr32) | public Win32 | headset battery level |
 
-Enumeration, link state and battery level were read correctly on Windows 11 with a Realtek adapter (class `0x240404`). The release and connect path can be exercised on any PC with `WindowsHeadsetHardwareTest` (see [CONTRIBUTING.md](../CONTRIBUTING.md)). On some systems `BluetoothSetServiceState` may need rights the user lacks, in which case Handoff reports "Windows denied changing Bluetooth services".
+Paired devices, link state, enabled services and battery level are read correctly on Windows 11. The release and connect path can be exercised on any PC with `WindowsHeadsetHardwareTest` (see [CONTRIBUTING.md](../CONTRIBUTING.md)). On some systems `BluetoothSetServiceState` may need rights the user lacks, in which case Handoff reports "Windows denied changing Bluetooth services".
 
 ## Local network
 
 * NSD needs no location permission.
-* Some routers or guest networks isolate clients or drop multicast. Linking then fails, or peers show offline. To mitigate this, Handoff remembers the last working address and each peer's inbound address.
+* Some routers or guest networks isolate clients or drop multicast. Linking can then fail, or devices show as offline. Handoff remembers each device's last working address per network (also across restarts) and each device's inbound address, which covers most such networks. Where devices can't talk to each other at all, a hotspot from one of them works.
 * Handoff targets SDK 36. A future target SDK may require Android's upcoming local-network permission; re-check this when raising `targetSdk`.

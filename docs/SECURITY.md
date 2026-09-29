@@ -5,7 +5,7 @@ Handoff lets one device make another device disconnect its headphones. The desig
 ## Threat model
 
 * The LAN is **untrusted**: others on the Wi-Fi can sniff traffic, spoof mDNS, connect to the port and replay packets.
-* Your linked devices are trusted for exactly one thing: asking to release or connect headsets and reading which headsets you have mapped.
+* Your linked devices are trusted for exactly one thing: asking to release or connect headsets and reading which headsets you have added.
 * Out of scope: a compromised or rooted device you linked, and physical access to an unlocked device.
 
 ## Identity and keys

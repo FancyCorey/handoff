@@ -104,7 +104,7 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
             item {
                 Hint(
                     "Pick the headset as it appears on this device. It must already be paired in Android Bluetooth settings. " +
-                        "Map the same headset on each of your devices.",
+                        "Add the same headset on each of your devices.",
                 )
             }
             item { SectionHeader("Paired audio devices") }
@@ -119,10 +119,10 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
                     supportingContent = {
                         Text(
                             listOfNotNull(
-                                device.kind.name.lowercase().replace('_', ' '),
-                                if (device.likelyA2dp) "audio (A2DP)" else "no A2DP advertised",
-                                already?.let { "mapped as ${it.displayName}" },
-                                match?.let { "same headset as on ${it.announcedBy.joinToString()}" },
+                                device.kind.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                if (device.likelyA2dp) null else "may not play music",
+                                already?.let { "already added" },
+                                match?.let { "also on ${it.announcedBy.joinToString()}" },
                             ).joinToString(" · "),
                         )
                     },
@@ -138,7 +138,7 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
         var choice by remember(device) { mutableStateOf(matches.firstOrNull()) }
         AlertDialog(
             onDismissRequest = { selected = null },
-            title = { Text("Map ${device.name}") },
+            title = { Text("Add ${device.name}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Is this a headset your other devices already know?", style = MaterialTheme.typography.bodyMedium)
@@ -157,7 +157,7 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
                     }
                     ListItem(
                         headlineContent = { Text("New headset") },
-                        supportingContent = { Text("Not mapped on any other device yet") },
+                        supportingContent = { Text("Not added on any other device yet") },
                         leadingContent = { RadioButton(selected = choice == null, onClick = { choice = null }) },
                         modifier = Modifier.clickable { choice = null },
                     )
@@ -167,7 +167,7 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
                 TextButton(onClick = {
                     vm.map(device, choice) { onBack() }
                     selected = null
-                }) { Text("Map") }
+                }) { Text("Add") }
             },
             dismissButton = { TextButton(onClick = { selected = null }) { Text("Cancel") } },
         )

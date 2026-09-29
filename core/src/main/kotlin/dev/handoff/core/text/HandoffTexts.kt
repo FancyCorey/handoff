@@ -96,7 +96,7 @@ object HandoffTexts {
     fun compatibility(level: CompatibilityLevel): String = when (level) {
         CompatibilityLevel.SUPPORTED -> "Supported"
         CompatibilityLevel.EXPERIMENTAL -> "Experimental"
-        CompatibilityLevel.UNSUPPORTED -> "Unsupported on this Android build"
+        CompatibilityLevel.UNSUPPORTED -> "Not supported on this device"
     }
 
     /** "Offline" wording for a linked device, with a hint when it was last seen on another network. */

@@ -168,7 +168,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             )
 
             SectionHeader("Quick Settings tile")
-            if (devices.isEmpty()) Hint("Map a headset first.")
+            if (devices.isEmpty()) Hint("Add a headset first.")
             devices.forEach { d ->
                 ListItem(
                     headlineContent = { Text(d.device.displayName) },
@@ -180,7 +180,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             }
 
             SectionHeader("Automatic switching (experimental)")
-            Hint("When audio starts playing on this device and the tile headset is elsewhere. Manual Move here always works.")
+            Hint("When something starts playing on this device while your Quick Settings headset is on another device. Move here always works too.")
             listOf(
                 AutoSwitchMode.OFF to "Off",
                 AutoSwitchMode.ASK to "Ask with a notification",

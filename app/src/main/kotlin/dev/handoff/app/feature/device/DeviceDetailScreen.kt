@@ -109,7 +109,7 @@ fun DeviceDetailScreen(
 
     HandoffScaffold(title = o?.device?.displayName ?: "Headset", onBack = onBack) { padding ->
         if (o == null) {
-            Text("This headset is no longer mapped.", Modifier.padding(padding).padding(16.dp))
+            Text("This headset was removed from Handoff on this device.", Modifier.padding(padding).padding(16.dp))
             return@HandoffScaffold
         }
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -144,13 +144,13 @@ fun DeviceDetailScreen(
             SectionHeader("Status")
             KeyValue("This device", o.localState.name.lowercase().replaceFirstChar { it.uppercase() })
             KeyValue("Type", o.device.deviceType.name.lowercase().replace('_', ' '))
-            KeyValue("Mapped on", o.device.hostMappings.joinToString { vm.peerName(it.hostId) }.ifEmpty { "This device" })
+            KeyValue("Added on", o.device.hostMappings.joinToString { vm.peerName(it.hostId) }.ifEmpty { "This device" })
             KeyValue("Last known owner", o.device.lastKnownOwner?.let(vm::peerName) ?: "—")
             KeyValue("Ownership generation", o.device.ownershipGeneration.toString())
 
             SectionHeader("Options")
             ListItem(
-                headlineContent = { Text("Quick Settings tile headset") },
+                headlineContent = { Text("Use for the Quick Settings tile") },
                 supportingContent = { Text("The tile moves this headset.") },
                 trailingContent = { Switch(checked = preferred, onCheckedChange = { vm.setPreferred(it) }) },
             )

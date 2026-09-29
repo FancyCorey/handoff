@@ -1,5 +1,13 @@
 package dev.handoff.app.feature.setup
 
+import dev.handoff.core.bluetooth.CompatibilityLevel
+import dev.handoff.core.bluetooth.MethodAvailability
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import dev.handoff.app.ui.Brand
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -176,20 +184,30 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                     Button(onClick = vm::next, enabled = state.name.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Continue") }
                 }
                 else -> {
-                    Text("Bluetooth compatibility", style = MaterialTheme.typography.headlineSmall)
+                    Text("Can this device switch headphones?", style = MaterialTheme.typography.headlineSmall)
                     Card {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(Texts.compatibility(diagnostics.compatibility), style = MaterialTheme.typography.titleMedium)
-                            Text("Android ${Build.VERSION.RELEASE} · ${Build.MANUFACTURER} ${Build.MODEL}")
-                            Text("Hidden connect(): ${diagnostics.reflectionConnect}")
-                            Text("Hidden disconnect(): ${diagnostics.reflectionDisconnect}")
+                            Text(
+                                when (diagnostics.compatibility) {
+                                    CompatibilityLevel.SUPPORTED -> "Handoff has already moved headphones on this device."
+                                    CompatibilityLevel.EXPERIMENTAL ->
+                                        "Everything Handoff needs is available. It will show “Supported” after your first successful move."
+                                    CompatibilityLevel.UNSUPPORTED ->
+                                        "This device doesn't let apps connect headphones, so Handoff can't move them here. " +
+                                            "Your other devices can still take the headphones from it."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            CheckRow("Connect headphones", diagnostics.reflectionConnect)
+                            CheckRow("Let go of headphones", diagnostics.reflectionDisconnect)
+                            Text(
+                                "Android ${Build.VERSION.RELEASE} · ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
-                    Text(
-                        "“Experimental” means the required Android functions are present but haven't been confirmed on this " +
-                            "device yet. It becomes “Supported” after the first verified move.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
                     Text(
                         "Handoff works while it is open. If you also want your other devices to take the headset while this " +
                             "one is locked, turn on “Stay reachable in the background” in Settings. It is off by default because " +
@@ -218,5 +236,19 @@ private fun PermissionRow(title: String, why: String, granted: Boolean, onReques
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CheckRow(label: String, availability: MethodAvailability) {
+    val ok = availability == MethodAvailability.AVAILABLE
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(
+            if (ok) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+            contentDescription = null,
+            tint = if (ok) Brand.Success else MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }

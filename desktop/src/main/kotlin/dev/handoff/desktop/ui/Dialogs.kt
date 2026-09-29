@@ -317,7 +317,7 @@ fun SettingsDialog(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
                     TextButton(onClick = { openInBrowser(HandoffTexts.REPO_URL) }, contentPadding = PaddingValues(0.dp)) { Text("Source code on GitHub") }
                     TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Open-source licenses") }
                 }

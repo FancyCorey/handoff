@@ -26,7 +26,7 @@ Put domain logic in `:core` with tests that use the fakes in `core/src/test/.../
 
 `DevicePeerE2ETest` (skipped by default) makes the JVM act as a second Handoff peer:
 
-1. Screenshot the device's *Add device* QR code.
+1. On the device, open **My devices → Show my code instead** and take a screenshot of the code.
 2. Run `adb forward tcp:47474 tcp:47474`.
 3. Run `./gradlew :core:test --tests '*DevicePeerE2ETest*' -Dhandoff.e2e.qr=shot.png -Dhandoff.e2e.out=out.txt`.
 4. Approve on the device when the code in `out.txt` matches.
