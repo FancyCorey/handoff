@@ -49,7 +49,7 @@ Attach the exported diagnostics report from both devices to every run. Exports a
 
 ## Test 0: Bluetooth feasibility (single device, no peers)
 
-This is Milestone 0 and must pass before anything else is meaningful.
+Run this first: it shows whether the phone lets Handoff control Bluetooth at all. If it fails, the other tests can't pass on this phone.
 
 1. Open Handoff → Diagnostics (wrench icon) → **Bluetooth test (developer)**.
 2. Tap **Probe hidden methods** and record connect()/disconnect() availability.

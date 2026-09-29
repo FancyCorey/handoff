@@ -81,8 +81,9 @@ The Windows files are not code-signed yet, so SmartScreen shows "Windows protect
 * Protocol changes must stay backward compatible within `protocolVersion` 1 (only add optional fields), or bump the version and handle both.
 * If you adapt third-party code or add a dependency, update `THIRD_PARTY_NOTICES.md` and `core/src/main/resources/dev/handoff/core/NOTICES.txt` in the same PR, and credit the source in the file header.
 
-## Known follow-ups
+## Where you can help
 
-* Move remaining inline UI strings to `strings.xml` for translation. Notification and tile strings are already resources.
-* Enable R8 for release builds once keep-rules are validated on hardware.
-* Internet relay transport (see `docs/ARCHITECTURE.md#future-remote-mode`).
+* **Test on your devices.** Reports from more phones, PCs and headphones are the most valuable contribution; see the [hardware test plan](docs/HARDWARE_TEST_PLAN.md).
+* **Translations.** Some screen text still lives in code and needs moving to `strings.xml` before the apps can be translated. Notification and tile text already can be.
+* **Smaller downloads.** Code shrinking (R8) is off for release builds until its rules are checked on real devices; turning it on would make the Android download much smaller.
+* **Moving between networks.** Today both devices must share a local network. An optional relay could remove that limit (see [the architecture notes](docs/ARCHITECTURE.md#future-remote-mode)).

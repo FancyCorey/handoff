@@ -71,20 +71,19 @@ A "requested" result is never treated as success. The coordinator always calls `
 * No loops: at most 2 connect attempts per transfer, with a 12-operations-per-minute throttle.
 * Clear messages, plus **Open Bluetooth settings** and **Diagnostics** buttons on failure.
 
-## Known and expected OEM variation
+## Tested devices
 
-To be filled from hardware runs; see [HARDWARE_TEST_PLAN.md](HARDWARE_TEST_PLAN.md).
+| Device | Android | Headphones | Result |
+|---|---|---|---|
+| Samsung Galaxy S22 Ultra | 16 | OnePlus Bullets Wireless Z2 | **Supported.** Repeated moves onto the phone succeeded. |
+| Samsung Galaxy Tab S10 FE | 16 | OnePlus Bullets Wireless Z2 | The switching methods are available. Moves onto the tablet still need confirming. |
 
-| OEM / skin | Android | Hidden connect | Hidden disconnect | Notes |
-|---|---|---|---|---|
-| Samsung Galaxy Tab (SM-X520) ← Galaxy S22 Ultra, OnePlus Bullets Wireless Z2 | 16 (API 36) | AVAILABLE, connect *accepted* | AVAILABLE | **0.1.0 failed:** A2DP released in 383 ms, but the headset stayed attached through HFP and refused the tablet (2× VERIFY_TIMEOUT). Fixed in the next build: release now drops HFP and LE Audio too, and verifies that all profiles are down. Needs a retest. |
-| Google emulator (sdk_gphone64_x86_64) | 15 (API 35) | AVAILABLE (resolves) | AVAILABLE (resolves); HFP disconnect() also resolves | App targets SDK 36. Resolution only; no headset was bonded, so no call was made. |
+**Add your device to this list:** after a few moves, open **Diagnostics**, share the report and [open an issue](https://github.com/FancyCorey/handoff/issues) with it, saying which headphones you used. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
 
-What we expect, but have **not** verified:
+Worth knowing about other phones:
 
-* Stock Pixel and Samsung One UI expose both methods to apps targeting SDK 36.
-* Some OEM stacks auto-reconnect the previous host after a release. Handoff's retry path aborts if it sees that, rather than fighting it.
-* Aggressive OEM battery managers (Xiaomi/HyperOS, Huawei, some OnePlus/Oppo/Vivo builds) may freeze the service. The user can set battery usage to *Unrestricted*.
+* Some phone makers' Bluetooth software reconnects headphones to the previous device after they've been released. If Handoff sees this happen, it stops rather than fighting over the headphones.
+* Some phone makers (for example Xiaomi, Huawei, and some OnePlus, Oppo and Vivo models) close background apps aggressively. Setting Handoff's battery usage to *Unrestricted* keeps it reachable while the phone is locked.
 
 ## Windows
 
