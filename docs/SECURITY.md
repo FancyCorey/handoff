@@ -66,7 +66,7 @@ sequenceDiagram
     Note over S: reject unless idC is a linked device
     S->>C: SERVER_HELLO {idS, ephS, nonceS, keyS, Sign_S("server" ‖ th)}
     Note over C: reject unless idS and keyS match the trust store
-    Note over C,S: th = transcript hash; keys = HKDF(th, ECDH(ephC, ephS))
+    Note over C,S: th = transcript hash, keys = HKDF(th, ECDH(ephC, ephS))
     C->>S: [AES-GCM] CLIENT_FINISH {keyC, name, Sign_C("client" ‖ th ‖ keyC)}
     Note over S: reject unless keyC equals the stored key
     S->>C: [AES-GCM] SERVER_FINISH {accepted}
