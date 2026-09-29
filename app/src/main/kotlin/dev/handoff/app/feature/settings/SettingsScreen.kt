@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.settings
 
+import dev.handoff.app.update.AppUpdates
 import dev.handoff.core.text.HandoffTexts
 import dev.handoff.core.text.OpenSourceNotices
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +62,7 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val identity: KeystoreIdentityProvider,
     overview: OverviewRepository,
+    val updates: AppUpdates,
 ) : ViewModel() {
     val state: StateFlow<AppSettings> = settings.settings
     val name: StateFlow<String> = identity.displayName
@@ -77,6 +79,10 @@ class SettingsViewModel(
     fun setRestoreOnBoot(value: Boolean) = viewModelScope.launch { settings.setRestoreOnBoot(value) }
     fun setAutoMode(mode: AutoSwitchMode) = viewModelScope.launch { settings.setAutoSwitchMode(mode) }
     fun setPreferred(id: LogicalDeviceId?) = viewModelScope.launch { settings.setPreferredDevice(id) }
+    fun setAutoUpdate(value: Boolean) = viewModelScope.launch {
+        settings.setAutoUpdateCheck(value)
+        if (value) updates.check()
+    }
 }
 
 @Composable
@@ -84,6 +90,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
     val s by vm.state.collectAsStateWithLifecycle()
     val name by vm.name.collectAsStateWithLifecycle()
     val devices by vm.devices.collectAsStateWithLifecycle()
+    val update by vm.updates.state.collectAsStateWithLifecycle()
     var editingName by remember { mutableStateOf<String?>(null) }
     var showLicenses by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -196,6 +203,15 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             if (s.autoSwitchMode != AutoSwitchMode.OFF && !s.backgroundEnabled) {
                 Hint("Automatic switching only runs while “Stay reachable in the background” is on.")
             }
+
+            SectionHeader("Updates")
+            UpdateSection(
+                state = update,
+                canInstallInApp = vm.updates.canInstallInApp,
+                autoCheck = s.autoUpdateCheck,
+                onAutoCheck = vm::setAutoUpdate,
+                updates = vm.updates,
+            )
 
             SectionHeader("About")
             ListItem(headlineContent = { Text("Handoff ${BuildConfig.VERSION_NAME}") }, supportingContent = { Text("MIT License") })

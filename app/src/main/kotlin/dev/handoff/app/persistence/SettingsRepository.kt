@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -23,6 +24,9 @@ data class AppSettings(
     val restoreOnBoot: Boolean = true,
     val preferredDevice: LogicalDeviceId? = null,
     val autoSwitchMode: AutoSwitchMode = AutoSwitchMode.OFF,
+    /** Opt-in: look for a new release on GitHub once a day. */
+    val autoUpdateCheck: Boolean = false,
+    val lastUpdateCheckMs: Long = 0,
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -46,6 +50,8 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         backgroundEnabled = p[BACKGROUND] ?: false,
         restoreOnBoot = p[BOOT] ?: true,
         preferredDevice = p[PREFERRED]?.let(::LogicalDeviceId),
+        autoUpdateCheck = p[AUTO_UPDATE] ?: false,
+        lastUpdateCheckMs = p[LAST_UPDATE_CHECK] ?: 0,
         autoSwitchMode = p[AUTO_MODE]?.let { runCatching { AutoSwitchMode.valueOf(it) }.getOrNull() } ?: AutoSwitchMode.OFF,
     )
 
@@ -53,6 +59,8 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
     suspend fun setBackgroundEnabled(value: Boolean) = store.edit { it[BACKGROUND] = value }
     suspend fun setRestoreOnBoot(value: Boolean) = store.edit { it[BOOT] = value }
     suspend fun setAutoSwitchMode(value: AutoSwitchMode) = store.edit { it[AUTO_MODE] = value.name }
+    suspend fun setAutoUpdateCheck(value: Boolean) = store.edit { it[AUTO_UPDATE] = value }
+    suspend fun setLastUpdateCheck(atMs: Long) = store.edit { it[LAST_UPDATE_CHECK] = atMs }
     suspend fun setPreferredDevice(value: LogicalDeviceId?) = store.edit {
         if (value == null) it.remove(PREFERRED) else it[PREFERRED] = value.value
     }
@@ -63,5 +71,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val BOOT = booleanPreferencesKey("restore_on_boot")
         val PREFERRED = stringPreferencesKey("preferred_device")
         val AUTO_MODE = stringPreferencesKey("auto_switch_mode")
+        val AUTO_UPDATE = booleanPreferencesKey("auto_update_check")
+        val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
     }
 }

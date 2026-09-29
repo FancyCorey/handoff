@@ -1,5 +1,7 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.desktop.DesktopUpdates
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -98,6 +100,7 @@ fun HomeScreen(
     devices: List<DeviceOverview>,
     peers: List<PeerOverview>,
     released: Set<String>,
+    update: DesktopUpdates.State,
     actions: HomeActions,
 ) {
     // Surface provides the on-background content colour (dark mode text would be black otherwise).
@@ -109,6 +112,18 @@ fun HomeScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (update is DesktopUpdates.State.Available) {
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.SystemUpdate, contentDescription = null)
+                            Spacer(Modifier.width(12.dp))
+                            Text("Handoff ${update.manifest.version} is available", modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                            TextButton(onClick = actions.settings) { Text("Update") }
+                        }
+                    }
+                }
+            }
             item { SectionTitle("Your audio", action = "Add headset", onAction = actions.addHeadset) }
             if (devices.isEmpty()) {
                 item {

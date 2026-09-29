@@ -50,6 +50,30 @@ Demo mode swaps in made-up headsets ("Aurora Buds", "Studio Headphones") and nev
 * Windows: `./gradlew :desktop:run -Phandoff.dataDir=build/demo -Phandoff.demo=true "-Phandoff.demo.name=Studio PC" -Phandoff.demo.connected=0A:DE:40:00:00:01` (`-Phandoff.port=<port>` if 47474 is taken).
 * Android (debug builds only): `adb shell run-as dev.handoff.app.debug touch files/demo`, then restart the app. Each line of that file can list a demo headset address that starts out connected, and a line `connect-ms=8000` makes demo connects slow enough to try leaving, reopening and cancelling a move.
 
+## Releases
+
+Releases are built and signed on the maintainer's machine; no key is ever stored in the repository or on GitHub.
+
+**Keys** live in `%USERPROFILE%\.handoff-release\` and must be backed up somewhere safe and private:
+
+| File | Purpose | If lost |
+|---|---|---|
+| `handoff-release.jks` + `signing.properties` | Android release signing. Android only installs an update over an app signed with the same key. | Existing Android installs can't update in place; users must uninstall and reinstall. |
+| `update-signing.pk8` | Signs `update.json`, which the apps check before offering or installing an update. Its public half is `UpdateKeys` in `:core`. | Apps can't verify new releases until they are updated to a new public key by hand. |
+
+To create them on a new machine (only for a brand-new project; otherwise restore the backup): `keytool -genkeypair -keystore handoff-release.jks -storetype PKCS12 -alias handoff -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Handoff"`, write `signing.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), and run `./gradlew :core:releaseTool -PtoolArgs="keygen,<dir>"` for the update key.
+
+**Cutting a release:**
+
+1. Set the version in `app/build.gradle.kts` (`versionName`, and increase `versionCode`) and `desktop/build.gradle.kts` (`appVersion`).
+2. Write the notes in `docs/releases/v<version>.md`.
+3. `powershell -ExecutionPolicy Bypass -File tools\release.ps1` builds and signs everything into `build/release/v<version>/`: the APK, the MSI and setup EXE, a portable zip, `update.json`, `update.json.sig` and `SHA256SUMS.txt`.
+4. Check the files, then run it again with `-Publish` to tag the version and create the GitHub release (`HANDOFF_GH` can point to a `gh` executable that isn't on the PATH).
+
+The Windows files are not code-signed yet, so SmartScreen shows "Windows protected your PC" for new downloads and Smart App Control blocks them. Code signing (e.g. through the SignPath Foundation's free program for open-source projects) removes both.
+
+**CI:** `.github/workflows/ci.yml` runs the tests and lint and builds the debug APK and MSI on every push and pull request. It needs no secrets.
+
 ## Pull requests
 
 * Keep changes focused and include tests.

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Windows: the desktop app packages with WiX, and the runner image includes the Android SDK.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test, lint and build
+        run: ./gradlew test lintDebug assembleDebug :desktop:packageMsi --console=plain
+      - name: Upload builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: handoff-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            desktop/build/compose/binaries/main/msi/*.msi
+          retention-days: 14

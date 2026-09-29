@@ -70,6 +70,7 @@ Audio always flows directly between a device and the headphones. Handoff decides
 | **Network** | Only local-network addresses are served, so Handoff can't be reached from the internet. Addresses that keep failing are rate-limited and blocked. |
 | **Discovery** | Devices announce themselves under a name that changes daily and that only linked devices can recognise. Device names and headset details go to linked devices only. |
 | **Data** | No account, cloud, analytics or ads. Diagnostics stay on the device, and exports remove Bluetooth addresses and keys. |
+| **Updates** | Checked only on request or once a day if enabled. An update is installed only if it carries Handoff's release signature and matches its published checksum. |
 
 The full design is in [docs/SECURITY.md](docs/SECURITY.md).
 
@@ -100,6 +101,10 @@ When no linked device is on the same network, Handoff suggests the simplest fix:
 | [Bluetooth compatibility](docs/BLUETOOTH_COMPATIBILITY.md) | How Android and Windows are driven, compatibility levels |
 | [Hardware test plan](docs/HARDWARE_TEST_PLAN.md) | Scenarios for validating a phone, PC and headset combination |
 | [Contributing](CONTRIBUTING.md) | Building, tests, demo mode and hardware tests |
+
+## Download
+
+Get the latest version from **[Releases](https://github.com/FancyCorey/handoff/releases/latest)**: the APK for Android, an installer or portable zip for Windows. After that, Handoff can update itself: every update is checked against Handoff's release signature before it is installed. See [Getting started](docs/GETTING_STARTED.md#install) for details.
 
 ## Building
 

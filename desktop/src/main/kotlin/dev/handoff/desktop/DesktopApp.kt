@@ -55,6 +55,7 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
 
     val events = InMemoryEventLog()
     val settings = SettingsStore(dataDir)
+    val updates = DesktopUpdates(version, scope, settings)
     val identity = DesktopIdentityProvider(dataDir).apply {
         // Demo/screenshot runs show a made-up PC name instead of the real computer name.
         System.getProperty("handoff.demo.name")?.takeIf { it.isNotBlank() }?.let(::rename)
@@ -116,6 +117,7 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
     private val jobs = mutableListOf<Job>()
 
     fun start() {
+        updates.maybeAutoCheck()
         bluetooth.start()
         // `-Dhandoff.port` for when 47474 is taken (e.g. an emulator port forward during testing).
         val port = server.start(scope, System.getProperty("handoff.port")?.toIntOrNull() ?: PeerServer.DEFAULT_PORT)

@@ -11,8 +11,17 @@
 
 ## Install
 
-* **Android:** install the APK from the release page. Android asks once to allow installs from that source.
-* **Windows:** run `Handoff-<version>.exe`. It installs for the current user without admin rights, adds a Start-menu entry and starts minimized to the tray with Windows (this can be turned off in Settings). When Windows Firewall asks, allow Handoff on **private** networks.
+Download from the [latest release](https://github.com/FancyCorey/handoff/releases/latest).
+
+* **Android:** `Handoff-<version>.apk`. Android asks once to allow installs from your browser or file manager.
+* **Windows:** `Handoff-<version>-setup.exe` or `Handoff-<version>.msi`. Either one installs for the current user without admin rights, adds a Start-menu entry and starts minimized to the tray with Windows (this can be turned off in Settings). When Windows Firewall asks, allow Handoff on **private** networks.
+* **Windows, without installing:** unzip `Handoff-<version>-windows-portable.zip` anywhere and run `Handoff.exe`.
+
+The Windows downloads are not code-signed yet. Windows may show "Windows protected your PC": choose **More info → Run anyway**. On PCs with Smart App Control turned on, Windows blocks unsigned apps without that option. `SHA256SUMS.txt` in each release lists the checksum of every file.
+
+## Updates
+
+**Settings → Check for updates** looks for a newer release on GitHub; **Check automatically** does this once a day. When an update is found, **Download and install** fetches it, checks its signature and checksum, and hands it to Android's installer (which asks you to confirm) or to Windows Installer. Portable copies show a link to the release page instead.
 
 ## Set up
 
@@ -52,7 +61,8 @@ By default, Handoff runs while it is open and shows no permanent notification. A
 | Permission | Why |
 |---|---|
 | `BLUETOOTH_CONNECT` (Nearby devices) | List paired headsets, read their state, connect and disconnect them. |
-| `INTERNET`, `ACCESS_NETWORK_STATE` | Reach linked devices on the local network and follow network changes. |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | Reach linked devices on the local network and follow network changes; check GitHub for updates when asked. |
+| `REQUEST_INSTALL_PACKAGES` | Hand a downloaded, signature-checked update to Android's installer. Android asks you to allow it the first time, and to confirm every install. |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Background mode only. |
 | `POST_NOTIFICATIONS` | Asked only when background mode or "Ask" prompts are turned on. |
 | `RECEIVE_BOOT_COMPLETED` | Restart background mode after a reboot, when it is on. |

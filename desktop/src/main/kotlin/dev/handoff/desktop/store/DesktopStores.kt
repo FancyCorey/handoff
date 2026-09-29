@@ -223,6 +223,9 @@ data class DesktopSettings(
     val welcomeSeen: Boolean = false,
     /** Headsets whose Windows audio services Handoff turned off when handing them away. */
     val releasedServices: Set<String> = emptySet(),
+    /** Opt-in: look for a new release on GitHub once a day. */
+    val autoUpdateCheck: Boolean = false,
+    val lastUpdateCheckMs: Long = 0,
 )
 
 class SettingsStore(dir: File) : ReleasedServicesStore {

@@ -1,5 +1,10 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.desktop.DesktopUpdates
+import dev.handoff.core.update.UpdateManifest
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import dev.handoff.core.text.OpenSourceNotices
 import androidx.compose.foundation.layout.PaddingValues
 import dev.handoff.core.text.HandoffTexts
@@ -272,6 +277,13 @@ fun SettingsDialog(
     autostartAvailable: Boolean,
     onRename: (String) -> Unit,
     onStartWithWindows: (Boolean) -> Unit,
+    update: DesktopUpdates.State,
+    autoUpdateCheck: Boolean,
+    canInstallUpdate: Boolean,
+    onAutoUpdateCheck: (Boolean) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onInstallUpdate: (UpdateManifest) -> Unit,
+    onReleasePage: (UpdateManifest?) -> Unit,
     onClose: () -> Unit,
 ) {
     var editing by remember { mutableStateOf(name) }
@@ -299,6 +311,7 @@ fun SettingsDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                UpdateRow(update, autoUpdateCheck, canInstallUpdate, onAutoUpdateCheck, onCheckUpdate, onInstallUpdate, onReleasePage)
                 Text(
                     "Handoff $version · identity key $keyFingerprint · MIT License",
                     style = MaterialTheme.typography.labelSmall,
@@ -316,6 +329,55 @@ fun SettingsDialog(
 
 private fun openInBrowser(url: String) {
     runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(url)) }
+}
+
+/** Updates from GitHub Releases: check, opt-in daily check, and install a found release. */
+@Composable
+private fun UpdateRow(
+    state: DesktopUpdates.State,
+    autoCheck: Boolean,
+    canInstall: Boolean,
+    onAutoCheck: (Boolean) -> Unit,
+    onCheck: () -> Unit,
+    onInstall: (UpdateManifest) -> Unit,
+    onReleasePage: (UpdateManifest?) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                when (state) {
+                    DesktopUpdates.State.Idle -> "Updates come from Handoff's GitHub releases and are signature-checked."
+                    DesktopUpdates.State.Checking -> "Checking for updates…"
+                    is DesktopUpdates.State.UpToDate -> "You're up to date (${state.latest})."
+                    is DesktopUpdates.State.Available -> "Handoff ${state.manifest.version} is available."
+                    is DesktopUpdates.State.Downloading -> "Downloading Handoff ${state.manifest.version}…"
+                    is DesktopUpdates.State.Failed -> state.message
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onCheck, enabled = state != DesktopUpdates.State.Checking) { Text("Check now") }
+        }
+        val manifest = when (state) {
+            is DesktopUpdates.State.Available -> state.manifest
+            is DesktopUpdates.State.Downloading -> state.manifest
+            is DesktopUpdates.State.Failed -> state.manifest
+            else -> null
+        }
+        if (manifest != null) {
+            if (manifest.notes.isNotBlank()) {
+                Text(manifest.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 6)
+            }
+            if (state is DesktopUpdates.State.Downloading) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (canInstall && state !is DesktopUpdates.State.Downloading) {
+                    Button(onClick = { onInstall(manifest) }) { Text("Download and install") }
+                }
+                OutlinedButton(onClick = { onReleasePage(manifest) }) { Text("Release page") }
+            }
+        }
+        ToggleRow("Check automatically", "Once a day. This contacts GitHub; nothing about you or your devices is sent.", autoCheck, onAutoCheck)
+    }
 }
 
 /** Every bundled component, the PodSwitch credit and the full license texts. */

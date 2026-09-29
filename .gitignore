@@ -11,3 +11,6 @@ captures/
 keystore.properties
 *.jks
 *.keystore
+# Release keys never belong in the repository (they live in ~/.handoff-release)
+*.pk8
+signing.properties

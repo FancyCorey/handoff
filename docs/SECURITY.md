@@ -79,6 +79,14 @@ S → C  [AES-GCM] SERVER_FINISH {accepted}
 * The approval dialog tells the user to link only devices they own and have in front of them, and names what a linked device can do: move the headphones, and see their names and battery level.
 * Link codes are single-use and expire after 5 minutes, and the 6-digit comparison defeats a network attacker who swaps in their own key.
 
+## Updates
+
+* Handoff contacts the internet only to check for updates, and only when the user presses **Check for updates** or turns on the daily check (off by default). The request goes to GitHub and carries no identifiers beyond what any HTTPS request reveals (the IP address).
+* Each release publishes `update.json` and `update.json.sig`. The signature (ECDSA P-256 over a fixed prefix plus the exact file) must verify against the release public key built into the app (`UpdateKeys`). The private key never leaves the maintainer's machine, so a compromised GitHub account or a modified download cannot produce an update the app will accept.
+* The manifest may only point at this repository's release downloads, and every request, including redirects, must be HTTPS to GitHub's release hosts.
+* A downloaded file is used only if its size and SHA-256 match the signed manifest; otherwise it is deleted.
+* Android installs the update through the system installer, which asks the user to confirm and accepts it only if it is signed with the same release key as the installed app. Windows hands the verified MSI to Windows Installer.
+
 ## Logs and diagnostics
 
 * The event log scrubs every Bluetooth-address-shaped string to `**:**:**:**:EE:FF`.

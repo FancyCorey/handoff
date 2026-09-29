@@ -140,6 +140,7 @@ private fun App(app: DesktopApp) {
     // Handed away by Handoff, or media turned off in Windows for any other reason: offer a restore.
     val released = releasedByHandoff + mediaOff
     val pending by app.pairing.pendingApproval.collectAsState()
+    val update by app.updates.state.collectAsState()
     val bonded by remember { app.bluetooth.bondedAudioDevices() }.collectAsState(emptyList())
     var sheet by remember { mutableStateOf<Sheet?>(null) }
 
@@ -149,6 +150,7 @@ private fun App(app: DesktopApp) {
         devices = devices,
         peers = peers,
         released = released,
+        update = update,
         actions = HomeActions(
             moveHere = { app.moveHere(it.device.logicalId) },
             cancelMove = { app.cancelMove(it.device.logicalId) },
@@ -185,6 +187,21 @@ private fun App(app: DesktopApp) {
                 Autostart.setEnabled(enabled)
                 app.settings.update { it.copy(startWithWindows = enabled) }
             },
+            update = update,
+            autoUpdateCheck = settings.autoUpdateCheck,
+            canInstallUpdate = app.updates.canInstallInApp,
+            onAutoUpdateCheck = { on ->
+                app.settings.update { it.copy(autoUpdateCheck = on) }
+                if (on) app.updates.check()
+            },
+            onCheckUpdate = app.updates::check,
+            onInstallUpdate = { manifest ->
+                app.updates.downloadAndInstall(manifest) {
+                    app.shutdown()
+                    exitProcess(0)
+                }
+            },
+            onReleasePage = app.updates::openReleasePage,
             onClose = { sheet = null },
         )
         Sheet.Diagnostics -> DiagnosticsDialog(report = diagnostics(app, devices)) { sheet = null }

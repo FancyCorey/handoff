@@ -1,9 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Release signing lives outside the repository (default ~/.handoff-release/signing.properties,
+// or -Phandoff.signing=<file>). Without it, release builds are simply unsigned.
+val releaseSigning: Properties? =
+    ((findProperty("handoff.signing") as String?) ?: "${System.getProperty("user.home")}/.handoff-release/signing.properties")
+        .let(::file)
+        .takeIf { it.exists() }
+        ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
     namespace = "dev.handoff.app"
@@ -13,8 +23,19 @@ android {
         applicationId = "dev.handoff.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.4.3"
+        versionCode = 9
+        versionName = "0.5.0"
+    }
+
+    signingConfigs {
+        releaseSigning?.let { p ->
+            create("release") {
+                storeFile = file(p.getProperty("storeFile"))
+                storePassword = p.getProperty("storePassword")
+                keyAlias = p.getProperty("keyAlias")
+                keyPassword = p.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -25,6 +46,7 @@ android {
         release {
             // Kept off until keep-rules are validated on hardware; behaviour then matches debug.
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

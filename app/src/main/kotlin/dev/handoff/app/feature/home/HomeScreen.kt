@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.home
 
+import dev.handoff.app.update.AppUpdates
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Close
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -95,7 +97,9 @@ class HomeViewModel(
     private val actions: HandoffActions,
     private val runtime: HandoffRuntime,
     identity: KeystoreIdentityProvider,
+    updates: AppUpdates,
 ) : ViewModel() {
+    val update: StateFlow<AppUpdates.State> = updates.state
     val devices: StateFlow<List<DeviceOverview>> = overview.devices
     val peers: StateFlow<List<PeerOverview>> = overview.peers
     val selfName: StateFlow<String> = identity.displayName
@@ -126,6 +130,7 @@ fun HomeScreen(
     val devices by vm.devices.collectAsStateWithLifecycle()
     val peers by vm.peers.collectAsStateWithLifecycle()
     val selfName by vm.selfName.collectAsStateWithLifecycle()
+    val update by vm.update.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
 
@@ -147,6 +152,18 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 LazyColumn(Modifier.fillMaxSize().navigationBarsPadding(), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    (update as? AppUpdates.State.Available)?.let { available ->
+                        item {
+                            SectionCard(Modifier.padding(top = 10.dp).clickable(onClick = onSettings)) {
+                                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Filled.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text("Handoff ${available.manifest.version} is available", modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                                    TextButton(onClick = onSettings) { Text("Update") }
+                                }
+                            }
+                        }
+                    }
                     item {
                         SectionHeader("Your audio") {
                             TextButton(onClick = onMapDevice) {

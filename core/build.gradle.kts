@@ -30,3 +30,11 @@ tasks.test {
     }
     outputs.upToDateWhen { System.getProperty("handoff.e2e.qr") == null }
 }
+
+// Maintainer release tool (keygen / sign). Arguments separated by "," (cmd treats "|" as a pipe):
+// ./gradlew :core:releaseTool -PtoolArgs="sign,<dir>,<version>,<notes>,<key>"
+tasks.register<JavaExec>("releaseTool") {
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.handoff.core.update.ReleaseTool")
+    args = (project.findProperty("toolArgs") as String?)?.split(",") ?: emptyList()
+}
