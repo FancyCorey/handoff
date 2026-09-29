@@ -10,7 +10,9 @@ One tap moves your headphones between your Android phone, tablet and Windows PC.
   &nbsp;·&nbsp;
   <a href="docs/GETTING_STARTED.md">Getting started</a>
   &nbsp;·&nbsp;
-  <a href="#questions">Questions</a>
+  <a href="#compatibility">Compatibility</a>
+  &nbsp;·&nbsp;
+  <a href="#qa">Q&amp;A</a>
 </p>
 
 <p align="center">
@@ -74,6 +76,16 @@ Then press **Move here** whenever you want to switch. The [getting started guide
   </tr>
 </table>
 
+## Compatibility
+
+| | Works with |
+|---|---|
+| **Android** | Android 12 or newer, on phones and tablets |
+| **Windows** | Windows 10 or 11 (64-bit), on laptops and desktops with Bluetooth |
+| **Headphones** | Bluetooth headphones, earbuds and headsets, including ones that connect to two devices at once |
+
+Not available yet: Android 11 or older, Windows on ARM, macOS, Linux, iPhone and iPad. The full [compatibility list](docs/BLUETOOTH_COMPATIBILITY.md#compatibility) covers speakers, car audio and LE Audio headphones.
+
 ## Private and secure
 
 - **No account, no cloud, no tracking.** Handoff doesn't collect anything. Your devices only talk to each other, on your own network.
@@ -94,7 +106,7 @@ The technical details are in the [security overview](docs/SECURITY.md).
   </tr>
 </table>
 
-## Questions
+## Q&A
 
 **Which headphones work?**
 Any Bluetooth headphones, earbuds or headset that you can pair with your devices. Handoff works best with headphones that connect to one device at a time. For headphones that can already connect to two devices at once, Handoff moves the sound without disconnecting the other device.
@@ -106,7 +118,7 @@ No. Sound always goes straight from your phone or PC to your headphones. Handoff
 No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The internet is only used if you ask Handoff to check for updates.
 
 **Will it work on my Android phone?**
-Android doesn't offer apps an official way to connect headphones, so Handoff uses features that some phone makers restrict. The first time you open Handoff, it tells you whether your phone supports it.
+If it runs Android 12 or newer, most likely. Android doesn't offer apps an official way to connect headphones, so Handoff uses features that some phone makers can restrict. The first time you open Handoff, it tells you whether your phone supports it. See [Compatibility](#compatibility).
 
 **Does it need to stay open?**
 On Windows, Handoff runs in the tray. On Android, it works while the app is open. Turn on **Stay reachable in the background** if you also want other devices to take the headphones while your phone is locked.

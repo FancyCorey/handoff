@@ -8,8 +8,8 @@ Minimum combinations:
 
 | # | Device A | Device B | Headset | Notes |
 |---|---|---|---|---|
-| 1 | Samsung phone | Samsung tablet | single-point earbuds | same-OEM baseline |
-| 2 | Samsung phone | non-Samsung Android (Pixel/OnePlus/Xiaomi/Lenovo) | single-point earbuds | cross-OEM |
+| 1 | Android phone | Android tablet from the same maker | single-point earbuds | same-maker baseline |
+| 2 | Android phone | Android device from a different maker | single-point earbuds | cross-maker |
 | 3 | Android phone | Android tablet (different OEM) | single-point earbuds | phone ↔ tablet |
 | 4 | any pair from above | | **multipoint** headphones (e.g. Sony WH-1000XM5) | multipoint safety |
 | 5 | any pair from above | | Bluetooth speaker | non-headset A2DP sink |

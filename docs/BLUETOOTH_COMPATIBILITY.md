@@ -71,19 +71,41 @@ A "requested" result is never treated as success. The coordinator always calls `
 * No loops: at most 2 connect attempts per transfer, with a 12-operations-per-minute throttle.
 * Clear messages, plus **Open Bluetooth settings** and **Diagnostics** buttons on failure.
 
-## Tested devices
+## Compatibility
 
-| Device | Android | Headphones | Result |
-|---|---|---|---|
-| Samsung Galaxy S22 Ultra | 16 | OnePlus Bullets Wireless Z2 | **Supported.** Repeated moves onto the phone succeeded. |
-| Samsung Galaxy Tab S10 FE | 16 | OnePlus Bullets Wireless Z2 | The switching methods are available. Moves onto the tablet still need confirming. |
+**Systems**
 
-**Add your device to this list:** after a few moves, open **Diagnostics**, share the report and [open an issue](https://github.com/FancyCorey/handoff/issues) with it, saying which headphones you used. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
+| System | Versions | Status |
+|---|---|---|
+| Android | 16 | ✅ Works (tested) |
+| Android | 12, 13, 14, 15 | ✅ Supported. Handoff checks your device the first time it opens. |
+| Android | 11 and older | ❌ Not supported |
+| Windows | 11 (64-bit) | ✅ Works (tested) |
+| Windows | 10 (64-bit) | ✅ Supported |
+| Windows on ARM, macOS, Linux, iPhone, iPad | – | ❌ Not available yet |
 
-Worth knowing about other phones:
+**Devices**
 
-* Some phone makers' Bluetooth software reconnects headphones to the previous device after they've been released. If Handoff sees this happen, it stops rather than fighting over the headphones.
-* Some phone makers (for example Xiaomi, Huawei, and some OnePlus, Oppo and Vivo models) close background apps aggressively. Setting Handoff's battery usage to *Unrestricted* keeps it reachable while the phone is locked.
+| Device | Status |
+|---|---|
+| Android phones and tablets with Bluetooth | ✅ |
+| Windows laptops and desktops with built-in Bluetooth or a USB Bluetooth adapter | ✅ |
+| Chromebooks, Android TV, Wear OS watches | ❌ Not supported |
+
+**Headphones**
+
+| Headphones | Status |
+|---|---|
+| Bluetooth headphones, earbuds and headsets that connect to one device at a time | ✅ Works best. Handoff hands them from one device to the next. |
+| Headphones that connect to two devices at once (multipoint) | ✅ Handoff moves the sound without disconnecting the other device. |
+| Bluetooth speakers and car audio | ⚠️ Should work, as they connect the same way as headphones, but haven't been tested yet. |
+| Headphones that only support Bluetooth LE Audio | ⚠️ Not supported yet. Most LE Audio headphones also support classic Bluetooth, which works. |
+
+Android doesn't give apps an official way to connect headphones, so some phone makers can restrict what Handoff needs. When you first open Handoff, it shows whether your device is **Supported**, **Experimental** (everything is there, but no move has been confirmed on it yet) or **Unsupported**.
+
+Some phone makers close background apps aggressively to save battery. If a locked phone doesn't respond, set Handoff's battery usage to *Unrestricted*.
+
+**Tried Handoff on your device?** Share the report from **Diagnostics** in an [issue](https://github.com/FancyCorey/handoff/issues). Reports from more devices help everyone. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
 
 ## Windows
 
