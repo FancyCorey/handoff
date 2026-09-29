@@ -20,22 +20,18 @@ Handoff lets one device make another device disconnect its headphones. The desig
 ## Linking (pairing)
 
 ```mermaid
-sequenceDiagram
-    participant A as Device A
-    participant U as You
-    participant B as Device B
-    U->>A: Show a link code
-    A-->>B: Code with peer id, key fingerprint, one-time token and addresses
-    B->>A: CLIENT_HELLO in pairing mode
-    A->>B: SERVER_HELLO with the key of A
-    Note over B: the key must match the fingerprint in the code
-    B->>A: CLIENT_FINISH with the key of B, a signature and proof of the token
-    Note over A: the token is used up
-    A-->>U: Link B, with a 6-digit number
-    B-->>U: The same 6-digit number
-    U->>A: Link, within 90 seconds
-    A->>B: SERVER_FINISH accepted
-    Note over A,B: both store the public key of the other
+flowchart TD
+    show["Device A shows a link code<br/>peer id, key fingerprint, one-time token, addresses"] --> scan["Device B scans or pastes the code"]
+    scan --> hello["B connects in pairing mode<br/>and receives the key of A"]
+    hello --> check{"Does the key match<br/>the fingerprint in the code?"}
+    check -- no --> stop1["B stops: someone is impersonating A"]
+    check -- yes --> finish["B sends its own key, a signature<br/>and proof that it knows the token"]
+    finish --> token{"Is the token valid<br/>and unused?"}
+    token -- no --> stop2["A refuses"]
+    token -- yes --> sas["Both screens show the same<br/>6-digit number"]
+    sas --> approve{"You tap Link on A<br/>within 90 seconds?"}
+    approve -- no --> stop3["Nothing is stored"]
+    approve -- yes --> stored["Both devices store<br/>the public key of the other"]
 ```
 
 1. Device A shows a QR code: `HANDOFF:` followed by Base32 of a ~56-byte binary payload. It contains:
