@@ -1,5 +1,8 @@
 package dev.handoff.app.mesh
 
+import dev.handoff.core.mesh.transport.DiscoveryTags
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -18,7 +21,9 @@ import java.util.concurrent.Executors
  * mDNS/DNS-SD advertisement and discovery via Android's [NsdManager] (no location or scan
  * permission required).
  *
- * Advertised: `_handoff._tcp`, service name `handoff-<peerId>`, TXT `id=<peerId>`, `v=1`.
+ * Advertised: `_handoff._tcp`, service name `handoff-<daily tag>` (see [DiscoveryTags]), TXT
+ * `v=2` only, so nothing on the network identifies this device for longer than a day. Only
+ * linked devices are resolved; everything else is ignored.
  * Discovery only provides *addresses*; it grants no trust. A spoofed advertisement leads to a
  * failed handshake, because every connection pins the peer's stored identity key.
  */
@@ -26,10 +31,15 @@ class NsdPeerDiscovery(
     context: Context,
     private val directory: PeerDirectory,
     private val events: EventLog,
+    private val tags: DiscoveryTags,
+    private val ownKey: () -> ByteArray,
 ) {
     private val nsd: NsdManager? = context.applicationContext.getSystemService(NsdManager::class.java)
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newSingleThreadScheduledExecutor()
     private var selfId: PeerId? = null
+    private var port = 0
+    private var advertisedDay = 0L
+    private var rotation: ScheduledFuture<*>? = null
     private var registration: NsdManager.RegistrationListener? = null
     private var discovery: NsdManager.DiscoveryListener? = null
     private val infoCallbacks = ConcurrentHashMap<String, NsdManager.ServiceInfoCallback>()
@@ -41,12 +51,13 @@ class NsdPeerDiscovery(
         val nsd = nsd ?: return
         stop()
         selfId = self
+        this.port = port
+        advertisedDay = tags.currentDay()
         val info = NsdServiceInfo().apply {
-            serviceName = SERVICE_PREFIX + self.value
+            serviceName = tags.instanceName(ownKey())
             serviceType = SERVICE_TYPE
             this.port = port
-            setAttribute("id", self.value)
-            setAttribute("v", "1")
+            setAttribute("v", "2")
         }
         val reg = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(info: NsdServiceInfo) = log("registered ${info.serviceName}")
@@ -61,7 +72,7 @@ class NsdPeerDiscovery(
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = log("stop discovery failed $errorCode")
             override fun onServiceFound(info: NsdServiceInfo) = onFound(info)
             override fun onServiceLost(info: NsdServiceInfo) {
-                peerIdFromName(info.serviceName)?.let {
+                tags.resolve(info.serviceName)?.let {
                     directory.onDiscoveryLost(it)
                     events.record(EventType.PEER_OFFLINE, peerId = it, details = mapOf("source" to "mdns"))
                 }
@@ -79,10 +90,20 @@ class NsdPeerDiscovery(
         } catch (e: RuntimeException) {
             log("discoverServices threw ${e.javaClass.simpleName}")
         }
+        rotation = executor.scheduleWithFixedDelay(::rotateIfNewDay, ROTATION_CHECK_MIN, ROTATION_CHECK_MIN, TimeUnit.MINUTES)
+    }
+
+    /** The advertised tag changes once a day; re-register under the new name. */
+    @Synchronized
+    private fun rotateIfNewDay() {
+        val self = selfId ?: return
+        if (registration != null && tags.currentDay() != advertisedDay) start(self, port)
     }
 
     @Synchronized
     fun stop() {
+        rotation?.cancel(false)
+        rotation = null
         val nsd = nsd ?: return
         registration?.let { runCatching { nsd.unregisterService(it) } }
         discovery?.let { runCatching { nsd.stopServiceDiscovery(it) } }
@@ -97,8 +118,7 @@ class NsdPeerDiscovery(
     }
 
     private fun onFound(info: NsdServiceInfo) {
-        val peer = peerIdFromName(info.serviceName) ?: return
-        if (peer == selfId) return
+        val peer = tags.resolve(info.serviceName) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             resolveModern(info, peer)
         } else {
@@ -174,19 +194,10 @@ class NsdPeerDiscovery(
     }
 
     private fun onResolved(info: NsdServiceInfo, address: InetAddress) {
-        val txtId = info.attributes["id"]?.toString(Charsets.UTF_8)
-        val peer = txtId?.let(::PeerId) ?: peerIdFromName(info.serviceName) ?: return
-        if (peer == selfId) return
+        val peer = tags.resolve(info.serviceName) ?: return
         val wasOnline = directory.isOnline(peer)
         directory.onDiscovered(peer, address.hostAddress ?: return, info.port)
         if (!wasOnline) events.record(EventType.PEER_ONLINE, peerId = peer, details = mapOf("source" to "mdns"))
-    }
-
-    /** Service names may get a " (2)" suffix on conflicts; the id is the fixed-length prefix. */
-    private fun peerIdFromName(name: String?): PeerId? {
-        if (name == null || !name.startsWith(SERVICE_PREFIX)) return null
-        val id = name.removePrefix(SERVICE_PREFIX).take(36)
-        return if (id.length == 36) PeerId(id) else null
     }
 
     private fun log(message: String) {
@@ -196,6 +207,6 @@ class NsdPeerDiscovery(
     private companion object {
         const val TAG = "HandoffNsd"
         const val SERVICE_TYPE = "_handoff._tcp."
-        const val SERVICE_PREFIX = "handoff-"
+        const val ROTATION_CHECK_MIN = 10L
     }
 }

@@ -1,5 +1,6 @@
 package dev.handoff.desktop.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Battery5Bar
@@ -81,6 +82,7 @@ class HomeActions(
     val settings: () -> Unit,
     val diagnostics: () -> Unit,
     val refresh: () -> Unit,
+    val openHotspot: () -> Unit,
 )
 
 @Composable
@@ -142,6 +144,17 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                             )
+                        }
+                    }
+                }
+            }
+            if (peers.isNotEmpty() && peers.none { it.online }) {
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(HandoffTexts.DIRECT_TITLE, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(HandoffTexts.DIRECT_HELP, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = actions.openHotspot, contentPadding = PaddingValues(0.dp)) { Text("Open Mobile hotspot settings") }
                         }
                     }
                 }

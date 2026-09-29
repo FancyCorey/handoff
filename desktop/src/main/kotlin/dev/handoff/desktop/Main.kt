@@ -134,6 +134,7 @@ private fun App(app: DesktopApp) {
             settings = { sheet = Sheet.Settings },
             diagnostics = { sheet = Sheet.Diagnostics },
             refresh = { scope.launch { app.refreshNow() } },
+            openHotspot = { runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-mobilehotspot").start() } },
         ),
     )
 

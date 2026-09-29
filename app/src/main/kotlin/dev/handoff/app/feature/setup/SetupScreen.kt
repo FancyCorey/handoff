@@ -56,7 +56,6 @@ import org.koin.androidx.compose.koinViewModel
 data class SetupState(
     val step: Int = 0,
     val bluetoothGranted: Boolean = false,
-    val notificationsGranted: Boolean = false,
     val name: String = "",
 )
 
@@ -80,8 +79,6 @@ class SetupViewModel(
         _state.update {
             it.copy(
                 bluetoothGranted = granted(Manifest.permission.BLUETOOTH_CONNECT),
-                notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                    granted(Manifest.permission.POST_NOTIFICATIONS),
             )
         }
         bluetooth.refresh()
@@ -160,16 +157,8 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                         granted = state.bluetoothGranted,
                         onRequest = { launcher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT)) },
                     )
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        PermissionRow(
-                            title = "Notifications — recommended",
-                            why = "Android requires a visible notification while Handoff listens for your other devices in the background.",
-                            granted = state.notificationsGranted,
-                            onRequest = { launcher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS)) },
-                        )
-                    }
                     Text(
-                        "Handoff does not ask for location, and does not scan for new Bluetooth devices.",
+                        "Handoff does not ask for location or notifications, and does not scan for new Bluetooth devices.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Button(onClick = vm::next, enabled = state.bluetoothGranted, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
@@ -199,6 +188,12 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                     Text(
                         "“Experimental” means the required Android functions are present but haven't been confirmed on this " +
                             "device yet. It becomes “Supported” after the first verified move.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        "Handoff works while it is open. If you also want your other devices to take the headset while this " +
+                            "one is locked, turn on “Stay reachable in the background” in Settings. It is off by default because " +
+                            "Android then shows a permanent notification.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))

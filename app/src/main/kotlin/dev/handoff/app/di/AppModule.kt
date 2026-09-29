@@ -1,5 +1,7 @@
 package dev.handoff.app.di
 
+import dev.handoff.core.bluetooth.DemoBluetoothAudioController
+import dev.handoff.core.mesh.transport.DiscoveryTags
 import dev.handoff.app.mesh.NetworkAddresses
 import dev.handoff.core.mesh.transport.networkPrefix
 import android.util.Log
@@ -90,14 +92,18 @@ val appModule = module {
     single<CompatibilityStore> { PrefsCompatibilityStore(androidContext()) }
 
     // Bluetooth (the only module that touches android.bluetooth)
-    single { AndroidBluetoothAudioController(androidContext(), get()) } binds
+    single { AndroidBluetoothAudioController(androidContext(), get(), demo = demoBluetooth(androidContext())) } binds
         arrayOf(BluetoothAudioController::class, BluetoothDiagnosticsSource::class)
 
     // Peer mesh
     single { LanPeerTransport(get(), get(), get(), get()) } binds arrayOf(PeerTransport::class)
     single { PairingManager(get(), get(), get()) }
     single { PairingClient(get(), get(), get(), get()) }
-    single { NsdPeerDiscovery(androidContext(), get(), get()) }
+    single { DiscoveryTags(get()) }
+    single {
+        val identity = get<IdentityProvider>()
+        NsdPeerDiscovery(androidContext(), get(), get(), get()) { identity.identity().publicKey }
+    }
     single { CommandGuard() }
 
     // Domain
@@ -209,3 +215,16 @@ val appModule = module {
 }
 
 private fun selfId(identity: KeystoreIdentityProvider): PeerId = identity.identity().peerId
+
+/**
+ * Debug builds only: made-up headsets for screenshots, enabled by creating `files/demo` in the
+ * app's private storage (`adb shell run-as dev.handoff.app.debug touch files/demo`). Each line
+ * of the file may name a demo headset address that starts out connected here.
+ */
+private fun demoBluetooth(context: android.content.Context): DemoBluetoothAudioController? {
+    if (!BuildConfig.DEBUG) return null
+    val flag = java.io.File(context.filesDir, "demo")
+    if (!flag.exists()) return null
+    val connected = runCatching { flag.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    return DemoBluetoothAudioController(connected)
+}

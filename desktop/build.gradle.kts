@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
-val appVersion = "0.3.0"
+val appVersion = "0.4.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -41,6 +41,10 @@ compose.desktop {
         jvmArgs += listOf("-Dhandoff.version=$appVersion")
         // `./gradlew :desktop:run -Phandoff.dataDir=...` keeps development data out of %APPDATA%.
         (project.findProperty("handoff.dataDir") as String?)?.let { jvmArgs += "-Dhandoff.dataDir=$it" }
+        // Screenshots: `-Phandoff.demo=true -Phandoff.demo.name="Studio PC"` uses made-up headsets and names.
+        listOf("handoff.demo", "handoff.demo.name", "handoff.demo.connected", "handoff.port").forEach { key ->
+            (project.findProperty(key) as String?)?.let { jvmArgs += "-D$key=$it" }
+        }
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "Handoff"

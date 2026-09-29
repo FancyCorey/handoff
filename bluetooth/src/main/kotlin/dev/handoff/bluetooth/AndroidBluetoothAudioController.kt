@@ -1,5 +1,6 @@
 package dev.handoff.bluetooth
 
+import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -66,11 +67,13 @@ interface CompatibilityStore {
  * - Connect/disconnect run through an ordered chain of [BluetoothConnectionStrategy]s; hidden
  *   API use is confined to [ReflectionA2dpStrategy].
  * - Every result is structured; no exception from the Bluetooth stack escapes this class.
+ * - With [demo] set (debug builds only), made-up headsets replace the real ones for screenshots.
  */
 class AndroidBluetoothAudioController(
     context: Context,
     private val compatibility: CompatibilityStore,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val demo: DemoBluetoothAudioController? = null,
 ) : BluetoothAudioController, BluetoothDiagnosticsSource {
 
     private val appContext = context.applicationContext
@@ -93,10 +96,14 @@ class AndroidBluetoothAudioController(
     private val events = SystemBluetoothEvents(appContext, ::onSystemEvent)
 
     private val _adapterState = MutableStateFlow(readAdapterState())
-    override val adapterState: StateFlow<AdapterState> = _adapterState.asStateFlow()
+    override val adapterState: StateFlow<AdapterState> = demo?.adapterState ?: _adapterState.asStateFlow()
 
     private val _diagnostics = MutableStateFlow(BluetoothDiagnostics())
-    override val diagnostics: StateFlow<BluetoothDiagnostics> = _diagnostics.asStateFlow()
+    override val diagnostics: StateFlow<BluetoothDiagnostics> = if (demo == null) {
+        _diagnostics.asStateFlow()
+    } else {
+        MutableStateFlow(BluetoothDiagnostics(AdapterState.ON, true, compatibility = CompatibilityLevel.SUPPORTED)).asStateFlow()
+    }
 
     @Volatile private var lastConnectStrategy: Pair<String, Long>? = null
 
@@ -105,7 +112,7 @@ class AndroidBluetoothAudioController(
     private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     /** Best effort: the battery broadcast plus a hidden getBatteryLevel() read (see [readBatteries]). */
-    override val batteryLevels: StateFlow<Map<String, Int>> = _batteryLevels.asStateFlow()
+    override val batteryLevels: StateFlow<Map<String, Int>> = demo?.batteryLevels ?: _batteryLevels.asStateFlow()
 
     init {
         changes.tryEmit(Unit)
@@ -199,23 +206,24 @@ class AndroidBluetoothAudioController(
 
     // ---- observation -------------------------------------------------------------------
 
-    override fun bondedAudioDevices(): Flow<List<AudioDevice>> =
+    override fun bondedAudioDevices(): Flow<List<AudioDevice>> = demo?.bondedAudioDevices() ?:
         changes.map { readBonded(includeNonAudio = false) }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     /** Every bonded device, audio or not; for the internal Bluetooth test screen. */
-    fun allBondedDevices(): Flow<List<AudioDevice>> =
+    fun allBondedDevices(): Flow<List<AudioDevice>> = demo?.bondedAudioDevices() ?:
         changes.map { readBonded(includeNonAudio = true) }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
-    override fun connectionState(deviceId: BluetoothDeviceId): Flow<AudioConnectionState> =
+    override fun connectionState(deviceId: BluetoothDeviceId): Flow<AudioConnectionState> = demo?.connectionState(deviceId) ?:
         changes.map { stateNow(deviceId) }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
-    override suspend fun isConnected(deviceId: BluetoothDeviceId): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun isConnected(deviceId: BluetoothDeviceId): Boolean = demo?.isConnected(deviceId) ?: withContext(Dispatchers.IO) {
         if (_adapterState.value != AdapterState.ON) return@withContext false
         proxies.await(PROXY_WAIT_MS)
         stateNow(deviceId) == AudioConnectionState.CONNECTED
     }
 
     override suspend fun verifyConnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean {
+        demo?.let { return it.verifyConnected(deviceId, timeoutMs) }
         val ok = awaitState(deviceId, AudioConnectionState.CONNECTED, timeoutMs)
         if (ok) {
             lastConnectStrategy?.let { (strategy, at) ->
@@ -229,14 +237,14 @@ class AndroidBluetoothAudioController(
     }
 
     /** Released means *every* audio profile is down, not only A2DP; see [CompanionProfileReleaser]. */
-    override suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean =
+    override suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean = demo?.verifyDisconnected(deviceId, timeoutMs) ?:
         awaitCondition(timeoutMs) {
             stateNow(deviceId) != AudioConnectionState.CONNECTED &&
                 stateNow(deviceId) != AudioConnectionState.DISCONNECTING &&
                 companionsConnected(deviceId).isEmpty()
         }
 
-    override suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> = withContext(Dispatchers.IO) {
+    override suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> = demo?.connectedProfiles(deviceId) ?: withContext(Dispatchers.IO) {
         proxies.await(PROXY_WAIT_MS)
         buildSet {
             if (stateNow(deviceId) == AudioConnectionState.CONNECTED) add("A2DP")
@@ -270,7 +278,7 @@ class AndroidBluetoothAudioController(
 
     // ---- operations --------------------------------------------------------------------
 
-    override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult =
+    override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult = demo?.connect(deviceId, reason) ?:
         operate("connect", deviceId, AudioConnectionState.CONNECTED) { strategy, device -> strategy.connect(device) }
             .also { result ->
                 if (result is BluetoothOperationResult.Requested) lastConnectStrategy = result.strategy to clock()
@@ -280,7 +288,7 @@ class AndroidBluetoothAudioController(
      * Disconnect A2DP through the strategy chain, then release the companion profiles (HFP,
      * LE Audio) so a single-point headset is actually free for the next host.
      */
-    override suspend fun disconnect(deviceId: BluetoothDeviceId, reason: DisconnectReason): BluetoothOperationResult =
+    override suspend fun disconnect(deviceId: BluetoothDeviceId, reason: DisconnectReason): BluetoothOperationResult = demo?.disconnect(deviceId, reason) ?:
         withContext(Dispatchers.IO) {
             val started = clock()
             val a2dp = operate("disconnect", deviceId, AudioConnectionState.DISCONNECTED) { strategy, device -> strategy.disconnect(device) }

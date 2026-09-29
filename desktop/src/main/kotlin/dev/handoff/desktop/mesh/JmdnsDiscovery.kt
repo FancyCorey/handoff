@@ -1,5 +1,8 @@
 package dev.handoff.desktop.mesh
 
+import dev.handoff.core.mesh.transport.DiscoveryTags
+import java.util.Timer
+import kotlin.concurrent.timerTask
 import dev.handoff.core.diagnostics.EventLog
 import dev.handoff.core.diagnostics.EventType
 import dev.handoff.core.mesh.transport.PeerDirectory
@@ -14,12 +17,23 @@ import javax.jmdns.ServiceListener
 
 /**
  * mDNS/DNS-SD for Windows via JmDNS, wire-compatible with Android's NsdManager:
- * `_handoff._tcp.local.`, instance `handoff-<peerId>`, TXT `id=<peerId>`, `v=1`.
- * Discovery only yields addresses; every connection still pins the peer's key.
+ * `_handoff._tcp.local.`, instance `handoff-<daily tag>` (see [DiscoveryTags]), TXT `v=2`.
+ * Nothing advertised identifies this PC for longer than a day, and only linked devices are
+ * resolved. Discovery only yields addresses; every connection still pins the peer's key.
  */
-class JmdnsDiscovery(private val directory: PeerDirectory, private val events: EventLog) {
+class JmdnsDiscovery(
+    private val directory: PeerDirectory,
+    private val events: EventLog,
+    private val tags: DiscoveryTags,
+    private val ownKey: () -> ByteArray,
+) {
     private val instances = mutableListOf<JmDNS>()
     private var self: PeerId? = null
+    private var port = 0
+    private var advertisedDay = 0L
+    private val rotation = Timer("handoff-mdns-rotation", true).apply {
+        schedule(timerTask { rotateIfNewDay() }, ROTATION_CHECK_MS, ROTATION_CHECK_MS)
+    }
 
     private val listener = object : ServiceListener {
         override fun serviceAdded(event: ServiceEvent) {
@@ -27,13 +41,12 @@ class JmdnsDiscovery(private val directory: PeerDirectory, private val events: E
         }
 
         override fun serviceRemoved(event: ServiceEvent) {
-            peerIdFromName(event.name)?.let { directory.onDiscoveryLost(it) }
+            tags.resolve(event.name)?.let { directory.onDiscoveryLost(it) }
         }
 
         override fun serviceResolved(event: ServiceEvent) {
             val info = event.info ?: return
-            val peer = info.getPropertyString("id")?.let(::PeerId) ?: peerIdFromName(info.name) ?: return
-            if (peer == self) return
+            val peer = tags.resolve(info.name) ?: return
             val address = info.inet4Addresses.firstOrNull() ?: info.inetAddresses.firstOrNull() ?: return
             val wasOnline = directory.isOnline(peer)
             directory.onDiscovered(peer, address.hostAddress, info.port)
@@ -46,13 +59,15 @@ class JmdnsDiscovery(private val directory: PeerDirectory, private val events: E
     fun start(selfId: PeerId, port: Int) {
         stop()
         self = selfId
+        this.port = port
+        advertisedDay = tags.currentDay()
+        val name = tags.instanceName(ownKey())
         for (address in lanAddresses()) {
             try {
-                val dns = JmDNS.create(address, "handoff-" + selfId.short)
+                // The mDNS host name is advertised too, so it uses the rotating name as well.
+                val dns = JmDNS.create(address, name)
                 dns.addServiceListener(TYPE, listener)
-                dns.registerService(
-                    ServiceInfo.create(TYPE, PREFIX + selfId.value, port, 0, 0, mapOf("id" to selfId.value, "v" to "1")),
-                )
+                dns.registerService(ServiceInfo.create(TYPE, name, port, 0, 0, mapOf("v" to "2")))
                 instances += dns
             } catch (_: Exception) {
                 // One bad interface must not stop discovery on the others.
@@ -71,23 +86,33 @@ class JmdnsDiscovery(private val directory: PeerDirectory, private val events: E
         instances.clear()
     }
 
-    private fun peerIdFromName(name: String?): PeerId? {
-        if (name == null || !name.startsWith(PREFIX)) return null
-        val id = name.removePrefix(PREFIX).take(36)
-        return if (id.length == 36) PeerId(id) else null
+    /** The advertised tag changes once a day; re-register under the new name. */
+    @Synchronized
+    private fun rotateIfNewDay() {
+        val selfId = self ?: return
+        if (instances.isNotEmpty() && tags.currentDay() != advertisedDay) start(selfId, port)
     }
 
     companion object {
         const val TYPE = "_handoff._tcp.local."
-        private const val PREFIX = "handoff-"
         private const val RESOLVE_TIMEOUT_MS = 3_000L
+        private const val ROTATION_CHECK_MS = 10 * 60_000L
         private val VIRTUAL = listOf("virtual", "hyper-v", "vethernet", "vmware", "virtualbox", "wsl", "loopback", "bluetooth", "tap", "vpn", "tailscale", "zerotier")
 
-        /** Private IPv4 addresses on real, up interfaces (skips VM, VPN and Bluetooth adapters). */
+        /** Windows Mobile Hotspot runs on a "Wi-Fi Direct Virtual Adapter": a real local network, not a VM. */
+        private const val HOTSPOT = "wi-fi direct"
+
+        /**
+         * Private IPv4 addresses on real, up interfaces, including this PC's own Mobile Hotspot
+         * (skips VM, VPN and Bluetooth adapters).
+         */
         fun lanAddresses(): List<InetAddress> = try {
             NetworkInterface.getNetworkInterfaces().toList()
                 .filter { it.isUp && !it.isLoopback && !it.isVirtual && !it.isPointToPoint }
-                .filter { nif -> VIRTUAL.none { nif.displayName.lowercase().contains(it) || nif.name.lowercase().contains(it) } }
+                .filter { nif ->
+                    val names = listOf(nif.displayName.lowercase(), nif.name.lowercase())
+                    names.any { HOTSPOT in it } || VIRTUAL.none { v -> names.any { v in it } }
+                }
                 .flatMap { it.inetAddresses.toList() }
                 .filter { it is Inet4Address && it.isSiteLocalAddress }
                 .distinct()

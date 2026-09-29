@@ -1,5 +1,6 @@
 package dev.handoff.desktop.bluetooth
 
+import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.bluetooth.BluetoothAudioController
 import dev.handoff.core.bluetooth.BluetoothError
@@ -48,11 +49,13 @@ class WindowsBluetoothAudioController(
     private val scope: CoroutineScope,
     private val releasedStore: ReleasedServicesStore,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Made-up headsets for screenshots (`-Dhandoff.demo=true`); the real Bluetooth stack is left alone. */
+    private val demo: DemoBluetoothAudioController? = null,
 ) : BluetoothAudioController {
 
     private val snapshot = MutableStateFlow<List<WinBtDevice>>(emptyList())
     private val _adapterState = MutableStateFlow(AdapterState.NOT_AVAILABLE)
-    override val adapterState: StateFlow<AdapterState> = _adapterState.asStateFlow()
+    override val adapterState: StateFlow<AdapterState> = demo?.adapterState ?: _adapterState.asStateFlow()
 
     private val throttle = OperationThrottle(maxOperations = 12, windowMs = 60_000, clock = clock)
 
@@ -61,12 +64,13 @@ class WindowsBluetoothAudioController(
     private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     /** Only for headsets connected to this PC: Windows keeps a stale value after disconnecting. */
-    override val batteryLevels: StateFlow<Map<String, Int>> = _batteryLevels.asStateFlow()
+    override val batteryLevels: StateFlow<Map<String, Int>> = demo?.batteryLevels ?: _batteryLevels.asStateFlow()
 
     private val _lastOperation = MutableStateFlow<Operation?>(null)
     val lastOperation: StateFlow<Operation?> = _lastOperation.asStateFlow()
 
     fun start() {
+        if (demo != null) return
         scope.launch(Dispatchers.IO) {
             var tick = 0
             while (isActive) {
@@ -78,6 +82,7 @@ class WindowsBluetoothAudioController(
     }
 
     fun refresh() {
+        if (demo != null) return
         _adapterState.value = when {
             !Win32Bluetooth.available() -> AdapterState.NOT_AVAILABLE
             Win32Bluetooth.radioOn() -> AdapterState.ON
@@ -93,11 +98,11 @@ class WindowsBluetoothAudioController(
 
     // ---- observation -------------------------------------------------------------------
 
-    override fun bondedAudioDevices(): Flow<List<AudioDevice>> = snapshot.map { list ->
+    override fun bondedAudioDevices(): Flow<List<AudioDevice>> = demo?.bondedAudioDevices() ?: snapshot.map { list ->
         list.filter { it.isAudio }.map { it.toAudioDevice() }.sortedBy { it.name.lowercase() }
     }.distinctUntilChanged()
 
-    override fun connectionState(deviceId: BluetoothDeviceId): Flow<AudioConnectionState> = snapshot.map { list ->
+    override fun connectionState(deviceId: BluetoothDeviceId): Flow<AudioConnectionState> = demo?.connectionState(deviceId) ?: snapshot.map { list ->
         when {
             _adapterState.value != AdapterState.ON -> AudioConnectionState.UNAVAILABLE
             else -> when (list.firstOrNull { it.address.equals(deviceId.address, ignoreCase = true) }?.connected) {
@@ -108,17 +113,17 @@ class WindowsBluetoothAudioController(
         }
     }.distinctUntilChanged()
 
-    override suspend fun isConnected(deviceId: BluetoothDeviceId): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun isConnected(deviceId: BluetoothDeviceId): Boolean = demo?.isConnected(deviceId) ?: withContext(Dispatchers.IO) {
         Win32Bluetooth.device(deviceId.address)?.connected == true
     }
 
     override suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> =
         if (isConnected(deviceId)) setOf("BLUETOOTH") else emptySet()
 
-    override suspend fun verifyConnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean =
+    override suspend fun verifyConnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean = demo?.verifyConnected(deviceId, timeoutMs) ?:
         awaitLink(deviceId, connected = true, timeoutMs)
 
-    override suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean =
+    override suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean = demo?.verifyDisconnected(deviceId, timeoutMs) ?:
         awaitLink(deviceId, connected = false, timeoutMs)
 
     private suspend fun awaitLink(deviceId: BluetoothDeviceId, connected: Boolean, timeoutMs: Long): Boolean =
@@ -131,7 +136,7 @@ class WindowsBluetoothAudioController(
 
     // ---- operations --------------------------------------------------------------------
 
-    override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult =
+    override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult = demo?.connect(deviceId, reason) ?:
         withContext(Dispatchers.IO) {
             val started = clock()
             precheck(deviceId)?.let { return@withContext it }
@@ -155,7 +160,7 @@ class WindowsBluetoothAudioController(
             }
         }
 
-    override suspend fun disconnect(deviceId: BluetoothDeviceId, reason: DisconnectReason): BluetoothOperationResult =
+    override suspend fun disconnect(deviceId: BluetoothDeviceId, reason: DisconnectReason): BluetoothOperationResult = demo?.disconnect(deviceId, reason) ?:
         withContext(Dispatchers.IO) {
             val started = clock()
             precheck(deviceId)?.let { return@withContext it }

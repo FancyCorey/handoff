@@ -49,7 +49,8 @@ fun interface PeerRequestHandler {
  * LAN listener. Accepts TCP connections, runs the server side of the handshake and serves
  * encrypted requests from trusted peers only. Unknown peers are rejected before any
  * application message is read; pairing connections are only accepted while an invitation is
- * open and still require explicit user approval.
+ * open and still require explicit user approval. Connections from outside the local network
+ * are dropped, and [ConnectionPolicy] limits how often one address may connect.
  */
 class PeerServer(
     private val identity: IdentityProvider,
@@ -59,6 +60,7 @@ class PeerServer(
     private val directory: PeerDirectory,
     private val events: EventLog,
     private val guard: CommandGuard = CommandGuard(),
+    private val policy: ConnectionPolicy = ConnectionPolicy(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val maxConcurrentConnections: Int = 8,
     private val idleTimeoutMs: Int = 10_000,
@@ -123,7 +125,7 @@ class PeerServer(
             } catch (_: IOException) {
                 break
             }
-            if (!permits.tryAcquire()) {
+            if (!policy.admit(socket.inetAddress) || !permits.tryAcquire()) {
                 runCatching { socket.close() }
                 continue
             }
@@ -146,6 +148,7 @@ class PeerServer(
         val session = try {
             Handshake.server(input, output, identity, authority)
         } catch (e: Exception) {
+            policy.onHandshakeFailed(socket.inetAddress)
             events.record(EventType.PEER_AUTH_FAILED, details = mapOf("reason" to (e.message ?: e.javaClass.simpleName)))
             return
         }

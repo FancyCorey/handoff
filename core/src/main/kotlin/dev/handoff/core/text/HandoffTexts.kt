@@ -98,4 +98,14 @@ object HandoffTexts {
 
     /** "Offline" wording for a linked device, with a hint when it was last seen on another network. */
     fun offline(probablyOtherNetwork: Boolean): String = if (probablyOtherNetwork) "On another network" else "Offline"
+
+    /** Shown when approving a new link. */
+    const val LINK_WARNING = "Only link devices you own and have in front of you. A linked device can move your " +
+        "headphones and see their names and battery level. Nobody else ever needs this code."
+
+    const val DIRECT_TITLE = "No shared Wi-Fi?"
+
+    /** How to connect two devices directly, with no router and no internet involved. */
+    const val DIRECT_HELP = "Turn on the hotspot on one device and join it from the other. Handoff finds your " +
+        "devices on that local network by itself; mobile data is not needed and nothing goes over the internet."
 }

@@ -1,5 +1,6 @@
 package dev.handoff.app
 
+import dev.handoff.core.text.HandoffTexts
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -146,7 +147,7 @@ class MainActivity : ComponentActivity() {
                             request.sas.chunked(3).joinToString(" "),
                             style = MaterialTheme.typography.headlineMedium,
                         )
-                        Text("A linked device can ask this device to release your headphones.")
+                        Text(HandoffTexts.LINK_WARNING, style = MaterialTheme.typography.bodySmall)
                     }
                 },
                 confirmButton = { TextButton(onClick = { pairing.respond(true) }) { Text("Link") } },

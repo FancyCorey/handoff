@@ -35,6 +35,8 @@ data class PeerPresence(
     val failing: Boolean = false,
     /** IPv4 /24 prefix of the network the peer was last seen on (kept across network changes). */
     val lastNetwork: String? = null,
+    /** Last working address per network prefix, restored when this host returns to that network. */
+    val knownNetworks: Map<String, PeerEndpoint> = emptyMap(),
 )
 
 /** "192.168.1.23" -> "192.168.1"; null for anything that isn't an IPv4 address. */
@@ -73,11 +75,14 @@ class PeerDirectory(
     }
 
     fun onContactSucceeded(peerId: PeerId, host: String, port: Int) = mutate(peerId) {
+        val endpoint = PeerEndpoint(host, port, EndpointSource.LAST_SUCCESS, clock())
+        val prefix = networkPrefix(host)
         it.copy(
             lastContactMs = clock(),
             failing = false,
-            lastNetwork = networkPrefix(host) ?: it.lastNetwork,
-            endpoints = it.endpoints.upsert(PeerEndpoint(host, port, EndpointSource.LAST_SUCCESS, clock())),
+            lastNetwork = prefix ?: it.lastNetwork,
+            endpoints = it.endpoints.upsert(endpoint),
+            knownNetworks = if (prefix == null) it.knownNetworks else it.knownNetworks.remember(prefix, endpoint),
         )
     }
 
@@ -109,10 +114,14 @@ class PeerDirectory(
      * Every address learned so far belongs to the old network, so drop them all and wait for
      * discovery on the new one. Trust is unaffected: links are bound to identity keys, not to a
      * network, so peers reappear as soon as they are found on the new network.
+     *
+     * [localNetworks] are the network prefixes this host is on now. If a peer was reached on one
+     * of them before (home, office, a hotspot), that address is tried first again straight away.
      */
-    fun onNetworkChanged() = state.update { all ->
+    fun onNetworkChanged(localNetworks: Set<String> = emptySet()) = state.update { all ->
         all.mapValues { (_, p) ->
-            val next = p.copy(discovered = false, failing = false, lastContactMs = null, endpoints = emptyList())
+            val restored = p.knownNetworks.filterKeys { it in localNetworks }.values.toList()
+            val next = p.copy(discovered = false, failing = false, lastContactMs = null, endpoints = restored)
             next.copy(online = computeOnline(next))
         }
     }
@@ -144,6 +153,16 @@ class PeerDirectory(
             val next = change(current)
             all + (peerId to next.copy(online = computeOnline(next)))
         }
+    }
+
+    private fun Map<String, PeerEndpoint>.remember(prefix: String, endpoint: PeerEndpoint): Map<String, PeerEndpoint> {
+        val updated = (this - prefix) + (prefix to endpoint)
+        return if (updated.size <= MAX_KNOWN_NETWORKS) updated else updated.entries.sortedByDescending { it.value.updatedAtMs }
+            .take(MAX_KNOWN_NETWORKS).associate { it.key to it.value }
+    }
+
+    private companion object {
+        const val MAX_KNOWN_NETWORKS = 8
     }
 
     private fun List<PeerEndpoint>.upsert(endpoint: PeerEndpoint): List<PeerEndpoint> =

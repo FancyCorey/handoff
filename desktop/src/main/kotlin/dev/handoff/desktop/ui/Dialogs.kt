@@ -1,5 +1,6 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.core.text.HandoffTexts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -128,7 +129,7 @@ fun ApprovalDialog(pending: PairingManager.PendingPairing, onAnswer: (Boolean) -
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "A linked device can ask this PC to release your headphones.",
+                    HandoffTexts.LINK_WARNING,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

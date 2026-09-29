@@ -1,5 +1,11 @@
 package dev.handoff.app.feature.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import dev.handoff.app.service.Notifications
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -78,6 +84,15 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
     var editingName by remember { mutableStateOf<String?>(null) }
     var showLicenses by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    // Notifications are optional: the background service runs without them, and "Ask" prompts need them.
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    fun askForNotifications() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     HandoffScaffold(title = "Settings", onBack = onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -93,10 +108,35 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             ListItem(
                 headlineContent = { Text("Stay reachable in the background") },
                 supportingContent = {
-                    Text("Lets your other devices take the headset while this one is locked. Shows a silent notification.")
+                    Text(
+                        "Off: this device hands the headset over only while Handoff is open. On: your other devices can take " +
+                            "it while this one is locked. Android requires a silent, permanent notification for this.",
+                    )
                 },
-                trailingContent = { Switch(checked = s.backgroundEnabled, onCheckedChange = { vm.setBackground(it) }) },
+                trailingContent = {
+                    Switch(
+                        checked = s.backgroundEnabled,
+                        onCheckedChange = {
+                            if (it) askForNotifications()
+                            vm.setBackground(it)
+                        },
+                    )
+                },
             )
+            if (s.backgroundEnabled) {
+                ListItem(
+                    headlineContent = { Text("Hide the notification") },
+                    supportingContent = { Text("Turn off the “Handoff service” notification category. Handoff keeps running.") },
+                    modifier = Modifier.clickable {
+                        context.startActivity(
+                            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                .putExtra(Settings.EXTRA_CHANNEL_ID, Notifications.CHANNEL_SERVICE)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    },
+                )
+            }
             ListItem(
                 headlineContent = { Text("Start after reboot") },
                 trailingContent = { Switch(checked = s.restoreOnBoot, enabled = s.backgroundEnabled, onCheckedChange = { vm.setRestoreOnBoot(it) }) },
@@ -138,8 +178,16 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             ).forEach { (mode, label) ->
                 ListItem(
                     headlineContent = { Text(label) },
-                    leadingContent = { RadioButton(selected = s.autoSwitchMode == mode, onClick = { vm.setAutoMode(mode) }) },
-                    modifier = Modifier.clickable { vm.setAutoMode(mode) },
+                    leadingContent = {
+                        RadioButton(selected = s.autoSwitchMode == mode, onClick = {
+                            if (mode == AutoSwitchMode.ASK) askForNotifications()
+                            vm.setAutoMode(mode)
+                        })
+                    },
+                    modifier = Modifier.clickable {
+                        if (mode == AutoSwitchMode.ASK) askForNotifications()
+                        vm.setAutoMode(mode)
+                    },
                 )
             }
             if (s.autoSwitchMode != AutoSwitchMode.OFF && !s.backgroundEnabled) {

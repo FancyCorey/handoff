@@ -1,5 +1,7 @@
 package dev.handoff.desktop
 
+import dev.handoff.core.bluetooth.DemoBluetoothAudioController
+import dev.handoff.core.mesh.transport.DiscoveryTags
 import dev.handoff.core.mesh.transport.networkPrefix
 import dev.handoff.core.diagnostics.EventType
 import dev.handoff.core.diagnostics.InMemoryEventLog
@@ -52,12 +54,15 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
 
     val events = InMemoryEventLog()
     val settings = SettingsStore(dataDir)
-    val identity = DesktopIdentityProvider(dataDir)
+    val identity = DesktopIdentityProvider(dataDir).apply {
+        // Demo/screenshot runs show a made-up PC name instead of the real computer name.
+        System.getProperty("handoff.demo.name")?.takeIf { it.isNotBlank() }?.let(::rename)
+    }
     val selfId: PeerId = identity.identity().peerId
     val trust = FileTrustedPeerRepository(dataDir)
     val devices = FileLogicalDeviceRepository(dataDir)
     val history = DesktopTransferHistory()
-    val bluetooth = WindowsBluetoothAudioController(scope, settings)
+    val bluetooth = WindowsBluetoothAudioController(scope, settings, demo = demoBluetooth())
     val directory = PeerDirectory()
     private val transport = LanPeerTransport(identity, trust, directory, events)
     val pairing = PairingManager(identity, trust, events)
@@ -92,7 +97,7 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
         policy = policy,
     )
     private val reconciler = MappingReconciler(selfId, { identity.identity().displayName }, devices)
-    private val discovery = JmdnsDiscovery(directory, events)
+    private val discovery = JmdnsDiscovery(directory, events, DiscoveryTags(trust)) { identity.identity().publicKey }
     val overview = OverviewRepository(scope, identity, devices, bluetooth, ownership, resolver, directory, trust, coordinator, thisDeviceLabel = "This PC",
         localNetworks = { JmdnsDiscovery.lanAddresses().mapNotNull { it.hostAddress?.let(::networkPrefix) }.toSet() },
     )
@@ -107,7 +112,8 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
 
     fun start() {
         bluetooth.start()
-        val port = server.start(scope)
+        // `-Dhandoff.port` for when 47474 is taken (e.g. an emulator port forward during testing).
+        val port = server.start(scope, System.getProperty("handoff.port")?.toIntOrNull() ?: PeerServer.DEFAULT_PORT)
         events.record(EventType.SERVICE_STATE, details = mapOf("state" to "started", "port" to port.toString()))
         scope.launch(Dispatchers.IO) { discovery.start(selfId, port) }
         jobs += sync.launchIn(scope)
@@ -134,7 +140,7 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
             if (next != current) {
                 current = next
                 events.record(EventType.SERVICE_STATE, details = mapOf("state" to "network changed", "lanAddresses" to next.size.toString()))
-                directory.onNetworkChanged()
+                directory.onNetworkChanged(next.mapNotNull(::networkPrefix).toSet())
                 discovery.start(selfId, port)
                 refreshNow()
             }
@@ -168,4 +174,14 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
         const val STATUS_TIMEOUT_MS = 2_500L
         const val NETWORK_POLL_MS = 3_000L
     }
+}
+
+/**
+ * `-Dhandoff.demo=true` swaps in made-up headsets for screenshots; `-Dhandoff.demo.connected`
+ * lists demo addresses that start out connected to this PC.
+ */
+private fun demoBluetooth(): DemoBluetoothAudioController? {
+    if (System.getProperty("handoff.demo") != "true") return null
+    val connected = System.getProperty("handoff.demo.connected").orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    return DemoBluetoothAudioController(connected)
 }

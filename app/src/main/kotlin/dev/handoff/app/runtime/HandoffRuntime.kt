@@ -1,5 +1,6 @@
 package dev.handoff.app.runtime
 
+import dev.handoff.core.mesh.transport.networkPrefix
 import dev.handoff.app.identity.KeystoreIdentityProvider
 import dev.handoff.app.mesh.NetworkMonitor
 import dev.handoff.app.mesh.NsdPeerDiscovery
@@ -136,7 +137,7 @@ class HandoffRuntime(
     private suspend fun followNetworkChanges(port: Int) {
         network.lanAddresses().drop(1).collect { addresses ->
             events.record(EventType.SERVICE_STATE, details = mapOf("state" to "network changed", "lanAddresses" to addresses.size.toString()))
-            directory.onNetworkChanged()
+            directory.onNetworkChanged(addresses.mapNotNull(::networkPrefix).toSet())
             discovery.start(selfId, port)
             refreshNow()
         }

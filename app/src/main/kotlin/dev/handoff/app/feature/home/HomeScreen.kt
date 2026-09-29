@@ -1,5 +1,10 @@
 package dev.handoff.app.feature.home
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import dev.handoff.core.text.HandoffTexts
 import dev.handoff.app.ui.BatteryChip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -204,11 +209,40 @@ fun HomeScreen(
                             }
                         }
                     }
+                    if (peers.isNotEmpty() && peers.none { it.online }) {
+                        item { DirectConnectCard() }
+                    }
                 }
             }
         }
     }
 }
+
+/** Shown when no linked device is reachable: offer a hotspot as a local network of their own. */
+@Composable
+private fun DirectConnectCard() {
+    val context = LocalContext.current
+    SectionCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(HandoffTexts.DIRECT_TITLE, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(HandoffTexts.DIRECT_HELP, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(
+                onClick = {
+                    val flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    try {
+                        context.startActivity(Intent(TETHER_SETTINGS).addFlags(flags))
+                    } catch (_: ActivityNotFoundException) {
+                        context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).addFlags(flags))
+                    }
+                },
+                contentPadding = PaddingValues(0.dp),
+            ) { Text("Open hotspot settings") }
+        }
+    }
+}
+
+/** The system "Hotspot & tethering" screen; not a public constant, so fall back to wireless settings. */
+private const val TETHER_SETTINGS = "android.settings.TETHER_SETTINGS"
 
 @Composable
 private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: () -> Unit) {

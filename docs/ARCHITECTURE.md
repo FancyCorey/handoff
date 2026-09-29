@@ -45,7 +45,7 @@ Dependency direction: `app → bluetooth → core`, `app → core`, `desktop →
 
 * **Identity:** a random UUID `PeerId`, a display name, and a P-256 signing key generated in the Android Keystore (non-exportable).
 * **Trust:** `TrustedPeer(peerId, name, publicKey)` rows in Room. Only these peers can open a session (see [SECURITY.md](SECURITY.md)).
-* **Discovery:** NSD advertises `_handoff._tcp` / `handoff-<peerId>`. `PeerDirectory` merges endpoints from four sources:
+* **Discovery:** NSD advertises `_handoff._tcp` / `handoff-<daily tag>` (`DiscoveryTags`; see SECURITY.md). `PeerDirectory` merges endpoints from four sources:
   1. the last successful contact
   2. mDNS
   3. the pairing QR code
@@ -160,7 +160,7 @@ Duplicate command ids get the cached reply (`CommandGuard`), which makes release
 
 ## Background execution
 
-`HandoffService` is a foreground service of type `connectedDevice`. It holds the runtime (peer server + NSD) while *Stay reachable in the background* is on. It runs no timers or polling; a process with a foreground service keeps network access while the device is idle.
+`HandoffService` is a foreground service of type `connectedDevice`. It holds the runtime (peer server + NSD) while *Stay reachable in the background* is on (off by default; otherwise the runtime runs only while the UI is open). It runs no timers or polling; a process with a foreground service keeps network access while the device is idle.
 
 While the UI is visible, the runtime refreshes peer status every 10 s. In the background, updates are event-driven:
 

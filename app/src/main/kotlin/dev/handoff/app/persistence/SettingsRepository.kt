@@ -18,8 +18,8 @@ import kotlinx.coroutines.flow.stateIn
 
 data class AppSettings(
     val onboardingComplete: Boolean = false,
-    /** Run the foreground service so peers can reach this device in the background. */
-    val backgroundEnabled: Boolean = true,
+    /** Run the foreground service so peers can reach this device in the background. Opt-in: it needs a persistent notification. */
+    val backgroundEnabled: Boolean = false,
     val restoreOnBoot: Boolean = true,
     val preferredDevice: LogicalDeviceId? = null,
     val autoSwitchMode: AutoSwitchMode = AutoSwitchMode.OFF,
@@ -43,7 +43,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
 
     private fun toSettings(p: Preferences) = AppSettings(
         onboardingComplete = p[ONBOARDING] ?: false,
-        backgroundEnabled = p[BACKGROUND] ?: true,
+        backgroundEnabled = p[BACKGROUND] ?: false,
         restoreOnBoot = p[BOOT] ?: true,
         preferredDevice = p[PREFERRED]?.let(::LogicalDeviceId),
         autoSwitchMode = p[AUTO_MODE]?.let { runCatching { AutoSwitchMode.valueOf(it) }.getOrNull() } ?: AutoSwitchMode.OFF,

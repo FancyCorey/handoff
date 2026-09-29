@@ -68,9 +68,16 @@ S → C  [AES-GCM] SERVER_FINISH {accepted}
 
 ## What is exposed on the network
 
-* An mDNS advertisement `handoff-<peerId>` and a TCP port (47474 by default).
-* An unauthenticated client learns only that Handoff is running. It receives `REJECT` without any device information. The one exception: while an "Add device" QR code is on screen, a `PAIRING` hello receives the public identity key, which is already in the QR code.
+* **mDNS:** a `_handoff._tcp` service named `handoff-<tag>`, where the tag is an HMAC of the device's public identity key and the current UTC day (`DiscoveryTags`). The TXT record carries only a format version. The name changes daily, so it can't be used to follow a device over time. Only linked devices, which know the key, can map it back to a peer; everything else is ignored, including advertisements from unlinked devices. Handoff 0.3 and earlier advertised `handoff-<peerId>`; that form is still understood, but only for already-linked peers.
+* **A TCP port** (47474 by default). `ConnectionPolicy` drops connections from anything but private, link-local, unique-local (IPv6) or loopback addresses, so a forwarded or exposed port is still unreachable from the internet. It also limits new connections per address (30 per 10 s) and blocks an address for 60 s after 8 failed handshakes within a minute.
+* An unauthenticated client learns only that Handoff is running. It receives `REJECT` without any device information. The one exception: while a link code is on screen, a `PAIRING` hello receives the public identity key, which is already in the code.
+* The client's peer id appears in plaintext in the first handshake message, so a device on the same network that watches the traffic can see that two Handoff peers talk. Display names, headset names and addresses, battery levels and all commands are encrypted.
 * There is **no** plaintext or unauthenticated command endpoint.
+
+## Linking safety
+
+* The approval dialog tells the user to link only devices they own and have in front of them, and names what a linked device can do: move the headphones, and see their names and battery level.
+* Link codes are single-use and expire after 5 minutes, and the 6-digit comparison defeats a network attacker who swaps in their own key.
 
 ## Logs and diagnostics
 
@@ -81,7 +88,10 @@ S → C  [AES-GCM] SERVER_FINISH {accepted}
 ## Networks
 
 * Links are bound to identity keys, not to a network or an IP address. After a network change, peers are rediscovered and every connection re-authenticates against the stored key. A different device that takes over a peer's old IP address is rejected by the handshake.
-* The Windows app listens on TCP 47474 on all interfaces. Unauthenticated connections get nothing but `REJECT`. The Windows Firewall prompt should be answered for private networks only.
+* The Windows app listens on TCP 47474 on all interfaces, but only local-network addresses are served (see above). Unauthenticated connections get nothing but `REJECT`. The Windows Firewall prompt should be answered for private networks only.
+* **Hotspots:** a device's own hotspot is a local network like any other. Handoff includes the hotspot interface in its link codes and discovery, and no traffic leaves the hotspot.
+* Per peer, the last working address on each network (at most 8) is remembered locally and never shared, so returning to a known network reconnects without waiting for discovery.
+* **Android background mode** (a foreground service) is off by default. Without it, a device is only reachable while Handoff is open.
 
 ## Reporting vulnerabilities
 
