@@ -38,7 +38,7 @@ Pair your headphones with each device the usual way, in its Bluetooth settings. 
 <table>
   <tr>
     <td align="center"><img src="screenshots/guide/setup-welcome.png" width="190" alt="Welcome screen"></td>
-    <td align="center"><img src="screenshots/guide/setup-permission-prompt.png" width="190" alt="Android asking to allow Nearby devices"></td>
+    <td align="center"><img src="screenshots/guide/setup-permissions.png" width="190" alt="The permissions step, with an Allow button for Nearby devices"></td>
     <td align="center"><img src="screenshots/guide/setup-name.png" width="190" alt="Naming the device My Phone"></td>
     <td align="center"><img src="screenshots/guide/setup-check.png" width="190" alt="Handoff checking whether the device can switch headphones"></td>
   </tr>
