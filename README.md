@@ -3,122 +3,146 @@
 <h1 align="center">Handoff</h1>
 
 <p align="center"><b>Your Bluetooth headphones, on whichever device you pick up.</b><br>
-One tap moves an already-paired headset between Android phones, tablets and Windows PCs.</p>
+One tap moves your headphones between your Android phone, tablet and Windows PC.</p>
+
+<p align="center">
+  <a href="https://github.com/FancyCorey/handoff/releases/latest"><b>Download the latest version</b></a>
+  &nbsp;·&nbsp;
+  <a href="docs/GETTING_STARTED.md">Getting started</a>
+  &nbsp;·&nbsp;
+  <a href="#questions">Questions</a>
+</p>
 
 <p align="center">
   <img alt="Android 12+" src="https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white">
-  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="No account, no cloud" src="https://img.shields.io/badge/account%20%26%20cloud-none-555">
+  <img alt="Free and open source, MIT License" src="https://img.shields.io/badge/free%20%26%20open%20source-MIT-blue">
+  <img alt="No account needed" src="https://img.shields.io/badge/account-not%20needed-555">
 </p>
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="Aurora Buds on Studio PC at 80% battery, with a Move here button"></td>
-    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="Moving Aurora Buds: Studio PC let go"></td>
-    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="Connected. Handed over cleanly: release 2.7 s, connect 1.2 s"></td>
+    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="The phone shows the headphones are on the PC, with a Move here button"></td>
+    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="The PC has let go of the headphones"></td>
+    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="The headphones are now connected to the phone"></td>
   </tr>
   <tr>
-    <td align="center"><sub>The headphones are on the PC</sub></td>
-    <td align="center"><sub><b>Move here</b>: the PC lets go</sub></td>
-    <td align="center"><sub>Connected and verified on the phone</sub></td>
+    <td align="center"><sub>Your headphones are on the PC</sub></td>
+    <td align="center"><sub>Tap <b>Move here</b> on your phone</sub></td>
+    <td align="center"><sub>A few seconds later, they're on your phone</sub></td>
   </tr>
 </table>
 
 ---
 
-**Move here** is the whole interaction. The device holding the headphones lets go of them, the device in your hand connects, and Handoff confirms that audio is really connected. There's no Bluetooth menu, no re-pairing, and no need to unlock the other device.
+You're listening on your laptop, then pick up your phone to watch a video, and the sound stays on the laptop. Normally you'd open Bluetooth settings on the laptop, disconnect, then do the same on your phone. **With Handoff you tap Move here on the phone, and that's it.** The laptop lets go of the headphones and your phone connects to them. You don't even need to touch the laptop.
 
-## Highlights
+## What you can do
 
-- **Coordinated handover.** The current device releases media *and* call audio before the new one connects, so single-point headsets switch cleanly. If the other device can't be reached, Handoff connects directly instead.
-- **Verified, not assumed.** Every move ends with a check that the headset really connected, with one automatic retry and a plain-language explanation if something stands in the way.
-- **Phones, tablets and PCs.** Android phones and tablets link with each other and with Windows PCs, and every device shows where the headset is and its battery level.
-- **Link once, use anywhere.** Links belong to your devices, not to a Wi-Fi network. They keep working at home, at work and on the road, and devices find each other again automatically.
-- **Works without Wi-Fi.** One device's hotspot is enough. Nothing goes over the internet and no mobile data is needed.
-- **Private by design.** No account, no cloud, no telemetry. Linked devices talk end-to-end encrypted on your local network only.
-- **Always at hand.** A Quick Settings tile and optional automatic switching when audio starts playing on Android; a tray menu on Windows.
+- **Move your headphones with one tap**, from a phone, a tablet or a PC, in any direction.
+- **See where your headphones are** from any of your devices, along with their battery level.
+- **Use it anywhere.** Link your devices once and they find each other on any Wi-Fi: at home, at work or on the road. No Wi-Fi? A hotspot from your phone or PC is enough.
+- **Know what's happening.** Handoff checks that sound really comes through, tries once more if something gets in the way, and tells you in plain words if it can't finish.
+- **Stay in control.** Cancel a move at any time, and choose whether Handoff should run in the background.
+- **Reach it quickly** from a Quick Settings tile on Android or the tray icon on Windows.
 
-## How it works
+## Get started
 
-<table align="center">
-  <tr>
-    <td align="center"><img src="docs/screenshots/android-link-code.png" width="230" alt="A one-time link code on Android"></td>
-    <td align="center"><img src="docs/screenshots/windows-link-approval.png" width="260" alt="Windows asking to link My Phone after matching the 6-digit code"></td>
-    <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="Aurora Buds connected here at 80% battery, with Studio PC online"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>A single-use link code</sub></td>
-    <td align="center"><sub>Approve when the numbers match</sub></td>
-    <td align="center"><sub>Every device knows where the headset is</sub></td>
-  </tr>
-</table>
+1. **Download** Handoff for each of your devices from the [latest release](https://github.com/FancyCorey/handoff/releases/latest):
 
-1. **Pair** the headphones with each device as usual, in its Bluetooth settings.
-2. **Link** your devices once. One device shows a single-use code, the other scans it, and both screens show the same 6-digit number to approve.
-3. **Add** the headset on each device. Handoff recognises it as the same headset everywhere.
-4. **Move here.** Your device finds which linked device holds the headset and asks it to let go. That device releases media and calls and confirms, then your device connects and verifies.
+   | Your device | File |
+   |---|---|
+   | Android phone or tablet | `Handoff-<version>.apk` |
+   | Windows PC | `Handoff-<version>-setup.exe` |
 
-Audio always flows directly between a device and the headphones. Handoff decides *which* device is connected, and never streams or relays sound.
+2. **Pair your headphones** with each device as you normally would, in its Bluetooth settings.
+3. **Link your devices.** One shows a code, the other scans it, and you confirm that both show the same number.
+4. **Add your headphones** in Handoff on each device.
 
-## Security and privacy
-
-| | |
-|---|---|
-| **Linking** | Single-use codes that expire in 5 minutes, plus an on-screen 6-digit comparison. Unlinked devices are refused before they can send anything. |
-| **Encryption** | Every connection is authenticated with the linked device's key and encrypted end to end (P-256, AES-256-GCM). Commands are fresh, single-use and bound to their session. |
-| **Network** | Only local-network addresses are served, so Handoff can't be reached from the internet. Addresses that keep failing are rate-limited and blocked. |
-| **Discovery** | Devices announce themselves under a name that changes daily and that only linked devices can recognise. Device names and headset details go to linked devices only. |
-| **Data** | No account, cloud, analytics or ads. Diagnostics stay on the device, and exports remove Bluetooth addresses and keys. |
-| **Updates** | Checked only on request or once a day if enabled. An update is installed only if it carries Handoff's release signature and matches its published checksum. |
-
-The full design is in [docs/SECURITY.md](docs/SECURITY.md).
-
-## Designed to stay out of the way
-
-On Android, Handoff runs while it's open and shows no permanent notification. **Stay reachable in the background** is an opt-in setting that lets a locked device hand over the headset too. On Windows, Handoff lives in the tray and starts with Windows.
-
-When no linked device is on the same network, Handoff suggests the simplest fix: a hotspot from one device, which works without Wi-Fi or mobile data.
+Then press **Move here** whenever you want to switch. The [getting started guide](docs/GETTING_STARTED.md) walks through every step.
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshots/android-settings.png" width="230" alt="Android settings with background mode off by default"></td>
-    <td align="center"><img src="docs/screenshots/windows-no-shared-wifi.png" width="260" alt="Windows suggesting a hotspot when no linked device is on the same network"></td>
+    <td align="center"><img src="docs/screenshots/android-link-code.png" width="230" alt="A link code shown on Android"></td>
+    <td align="center"><img src="docs/screenshots/windows-link-approval.png" width="260" alt="Windows asking to link My Phone after checking the 6-digit number"></td>
+    <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="The headphones connected to the phone at 80% battery, with the PC online"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Background mode is opt-in</sub></td>
-    <td align="center"><sub>No shared Wi-Fi? A hotspot is enough</sub></td>
+    <td align="center"><sub>Show a code on one device…</sub></td>
+    <td align="center"><sub>…and confirm on the other</sub></td>
+    <td align="center"><sub>Every device knows where your headphones are</sub></td>
   </tr>
 </table>
 
-## Documentation
+## Private and secure
 
-| | |
-|---|---|
-| [Getting started](docs/GETTING_STARTED.md) | Install, link and set up; networks and hotspots; permissions; messages |
-| [Security](docs/SECURITY.md) | Threat model, linking, handshake, network exposure |
-| [Architecture](docs/ARCHITECTURE.md) | Modules, ownership model, protocol and state machine |
-| [Bluetooth compatibility](docs/BLUETOOTH_COMPATIBILITY.md) | How Android and Windows are driven, compatibility levels |
-| [Hardware test plan](docs/HARDWARE_TEST_PLAN.md) | Scenarios for validating a phone, PC and headset combination |
-| [Contributing](CONTRIBUTING.md) | Building, tests, demo mode and hardware tests |
+- **No account, no cloud, no tracking.** Handoff doesn't collect anything. Your devices only talk to each other, on your own network.
+- **Only your devices.** A device can only join after you approve it on screen, with a code that works once and expires after five minutes.
+- **Encrypted.** Everything your devices say to each other is encrypted, and Handoff can't be reached from the internet.
+- **Safe updates.** Handoff only installs updates that are signed by this project, so a tampered download is rejected.
 
-## Download
+The technical details are in the [security overview](docs/SECURITY.md).
 
-Get the latest version from **[Releases](https://github.com/FancyCorey/handoff/releases/latest)**: the APK for Android, an installer or portable zip for Windows. After that, Handoff can update itself: every update is checked against Handoff's release signature before it is installed. See [Getting started](docs/GETTING_STARTED.md#install) for details.
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-settings.png" width="230" alt="Android settings, with running in the background switched off"></td>
+    <td align="center"><img src="docs/screenshots/windows-no-shared-wifi.png" width="260" alt="Windows suggesting a hotspot when no other device is on the same network"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Running in the background is your choice</sub></td>
+    <td align="center"><sub>No shared Wi-Fi? Handoff suggests a hotspot</sub></td>
+  </tr>
+</table>
 
-## Building
+## Questions
+
+**Which headphones work?**
+Any Bluetooth headphones, earbuds or headset that you can pair with your devices. Handoff works best with headphones that connect to one device at a time. For headphones that can already connect to two devices at once, Handoff moves the sound without disconnecting the other device.
+
+**Does my audio go through Handoff?**
+No. Sound always goes straight from your phone or PC to your headphones. Handoff only decides *which* device is connected.
+
+**Do I need an account or an internet connection?**
+No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The internet is only used if you ask Handoff to check for updates.
+
+**Will it work on my Android phone?**
+Android doesn't offer apps an official way to connect headphones, so Handoff uses features that some phone makers restrict. The first time you open Handoff, it tells you whether your phone supports it.
+
+**Does it need to stay open?**
+On Windows, Handoff runs in the tray. On Android, it works while the app is open. Turn on **Stay reachable in the background** if you also want other devices to take the headphones while your phone is locked.
+
+**Why does Windows warn me about the download?**
+Handoff is new and not yet code-signed, so Windows may say "Windows protected your PC". Choose **More info → Run anyway**. On PCs with *Smart App Control* switched on, Windows doesn't offer this option yet.
+
+**Is it free?**
+Yes. Handoff is free and open source under the [MIT License](LICENSE).
+
+**Something's not working.**
+The [troubleshooting section](docs/GETTING_STARTED.md#if-something-goes-wrong) covers the common cases. You can also [open an issue](https://github.com/FancyCorey/handoff/issues).
+
+## For developers
+
+Handoff is written in Kotlin: an Android app, a Windows app built with Compose Multiplatform, and a shared core that handles linking, encryption and moving the headphones.
 
 ```bash
-./gradlew test assembleDebug                          # Android APK and all tests
+./gradlew test assembleDebug                          # tests and the Android app
 ./gradlew :desktop:packageExe :desktop:packageMsi     # Windows installers
 ```
 
-JDK 17 or newer and an Android SDK with platform 36 are required. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+You'll need JDK 17 or newer and an Android SDK with platform 36.
 
-*Screenshots are taken in Handoff's demo mode; "My Phone", "Studio PC" and "Aurora Buds" are fictional devices.*
+| | |
+|---|---|
+| [Contributing](CONTRIBUTING.md) | Building, tests, demo mode and releases |
+| [Architecture](docs/ARCHITECTURE.md) | How the apps are put together |
+| [Security](docs/SECURITY.md) | Threat model, linking and encryption |
+| [Bluetooth compatibility](docs/BLUETOOTH_COMPATIBILITY.md) | How Handoff controls Bluetooth on Android and Windows |
+| [Hardware test plan](docs/HARDWARE_TEST_PLAN.md) | Checking a phone, PC and headset combination |
 
-## License and acknowledgements
+*The screenshots use Handoff's demo mode, so "My Phone", "Studio PC" and "Aurora Buds" are example devices.*
 
-Handoff is released under the [MIT License](LICENSE).
+## License and credits
 
-Handoff's approach to connecting and releasing Bluetooth audio on Android and Windows was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Its notice, the list of every bundled open-source component and their full license texts are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and under **Settings → Open-source licenses** in both apps.
+Handoff is free and open source under the [MIT License](LICENSE).
+
+Its approach to connecting and disconnecting Bluetooth headphones was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Credits and the licenses of every open-source component Handoff uses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and in the apps under **Settings → Open-source licenses**.
