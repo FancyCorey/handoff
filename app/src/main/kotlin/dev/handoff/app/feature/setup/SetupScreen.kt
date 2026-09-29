@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.setup
 
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.width
 import dev.handoff.core.bluetooth.CompatibilityLevel
 import dev.handoff.core.bluetooth.MethodAvailability
 import androidx.compose.material.icons.Icons
@@ -64,6 +66,8 @@ import org.koin.androidx.compose.koinViewModel
 data class SetupState(
     val step: Int = 0,
     val bluetoothGranted: Boolean = false,
+    /** Chosen on the last setup step; off unless the user switches it on. */
+    val stayReachable: Boolean = false,
     val name: String = "",
 )
 
@@ -96,11 +100,13 @@ class SetupViewModel(
     fun next() = _state.update { it.copy(step = it.step + 1) }
     fun back() = _state.update { it.copy(step = (it.step - 1).coerceAtLeast(0)) }
     fun setName(name: String) = _state.update { it.copy(name = name) }
+    fun setStayReachable(on: Boolean) = _state.update { it.copy(stayReachable = on) }
 
     fun finish(onDone: () -> Unit) {
         viewModelScope.launch {
             identity.rename(_state.value.name)
             settings.setOnboardingComplete(true)
+            if (_state.value.stayReachable) settings.setBackgroundEnabled(true)
             if (settings.current().backgroundEnabled) HandoffService.start(context)
             onDone()
         }
@@ -208,12 +214,21 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                             )
                         }
                     }
-                    Text(
-                        "Handoff works while it is open. If you also want your other devices to take the headset while this " +
-                            "one is locked, turn on “Stay reachable in the background” in Settings. It is off by default because " +
-                            "Android then shows a permanent notification.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Card {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Stay reachable in the background", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "Lets your other devices take the headset from this one while Handoff is closed or the " +
+                                        "screen is locked. Otherwise, open Handoff here before moving the headset away. " +
+                                        "Android shows a small notification, which you can hide in Settings.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Switch(checked = state.stayReachable, onCheckedChange = vm::setStayReachable)
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = { vm.finish(onDone) }, modifier = Modifier.fillMaxWidth()) { Text("Finish") }
                 }

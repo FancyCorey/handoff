@@ -74,8 +74,9 @@ object HandoffTexts {
 
     fun failureHelp(reason: FailureReason, detail: String?): String = when (reason) {
         FailureReason.OWNER_UNREACHABLE ->
-            "${detail ?: "It"} may be on a different Wi-Fi, asleep, or not running Handoff, and the headset is probably still " +
-                "connected to it. Put both devices on the same network, or disconnect the headset there."
+            "The headset is probably still connected to ${detail ?: "the other device"}. Open Handoff there (or turn on " +
+                "Stay reachable in the background on it), and make sure both devices are on the same Wi-Fi. Or disconnect " +
+                "the headset there yourself."
         FailureReason.OWNER_REFUSED ->
             (detail?.let { "$it. " } ?: "") + "Disconnect the headset in that device's Bluetooth settings, then try again."
         FailureReason.PEER_NOT_LINKED ->

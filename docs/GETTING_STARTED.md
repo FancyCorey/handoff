@@ -57,6 +57,7 @@ Pair your headphones with each device the usual way, in its Bluetooth settings. 
    - **Supported:** Handoff has already moved headphones on this device.
    - **Experimental:** everything Handoff needs is available. It changes to Supported after your first successful move.
    - **Not supported on this device:** your phone maker doesn't let apps connect headphones. Your other devices can still take the headphones from it.
+5. Choose whether Handoff should **stay reachable in the background**. Switched on, your other devices can take the headphones from this one even when Handoff is closed or the screen is locked. Switched off, open Handoff on this device before moving the headphones away from it. You can change this later in Settings; see [Running in the background](#running-in-the-background-android).
 
 **On Windows**, there's nothing to set up. Your PC appears under its own name, which you can change in **Settings**.
 
@@ -197,7 +198,7 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 
 | Handoff says | What to do |
 |---|---|
-| **Couldn't reach …** or **On another network** | Make sure the other device is on, on the same Wi-Fi as this one, and running Handoff. No shared Wi-Fi? Use a hotspot. |
+| **Couldn't reach …** or **On another network** | Open Handoff on the other device, or turn on **Stay reachable in the background** there. Make sure both devices are on the same Wi-Fi. No shared Wi-Fi? Use a hotspot. |
 | **The other device couldn't let go** | Disconnect the headphones on that device yourself, then tap **Move here** again. |
 | **… doesn't recognise this device** | The link only exists on one of the two devices. In **My devices**, unlink the other device and link them again. If an older copy of Handoff is installed on either device, uninstall it first. |
 | **The headset didn't connect** | Check that your headphones are on, charged and close by, and not connected to a device without Handoff. |
