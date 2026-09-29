@@ -1,5 +1,7 @@
 package dev.handoff.app.runtime
 
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineStart
 import dev.handoff.core.handoff.HandoffCoordinator
 import dev.handoff.core.handoff.HandoffResult
 import dev.handoff.core.handoff.TransferTrigger
@@ -26,8 +28,15 @@ class HandoffActions(
     private val devices: LogicalDeviceRepository,
     private val runtime: HandoffRuntime,
 ) {
+    /** Moves that are still waiting for discovery, before the coordinator has started them. */
+    private val pending = ConcurrentHashMap<LogicalDeviceId, Job>()
+
+    /** Stops the move for [logicalId], whether it is still starting or already running. */
+    fun cancel(logicalId: LogicalDeviceId): Boolean =
+        coordinator.cancel(logicalId) || (pending.remove(logicalId)?.let { it.cancel(); true } ?: false)
+
     fun moveHere(logicalId: LogicalDeviceId, trigger: TransferTrigger, onResult: (HandoffResult) -> Unit = {}): Job =
-        appScope.launch {
+        appScope.launch(start = CoroutineStart.LAZY) {
             val holder = "transfer:${logicalId.value}:${System.nanoTime()}"
             val wasRunning = runtime.running.value
             try {
@@ -37,11 +46,16 @@ class HandoffActions(
                     runtime.refreshNow()
                 }
                 val device = devices.find(logicalId)
+                pending.remove(logicalId)
                 val result = if (device == null) HandoffResult.MissingLocalMapping else coordinator.moveToThisDevice(device, trigger)
                 onResult(result)
             } finally {
+                pending.remove(logicalId)
                 withContext(NonCancellable) { runtime.release(holder) }
             }
+        }.also { job ->
+            pending[logicalId] = job
+            job.start()
         }
 
     private companion object {

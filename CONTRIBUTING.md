@@ -48,7 +48,7 @@ It performs three release→connect cycles, records timings and battery in `hw.t
 Demo mode swaps in made-up headsets ("Aurora Buds", "Studio Headphones") and never touches the real Bluetooth stack. The README screenshots are taken with it, so no personal device names or addresses appear.
 
 * Windows: `./gradlew :desktop:run -Phandoff.dataDir=build/demo -Phandoff.demo=true "-Phandoff.demo.name=Studio PC" -Phandoff.demo.connected=0A:DE:40:00:00:01` (`-Phandoff.port=<port>` if 47474 is taken).
-* Android (debug builds only): `adb shell run-as dev.handoff.app.debug touch files/demo`, then restart the app. Each line of that file can list a demo headset address that starts out connected.
+* Android (debug builds only): `adb shell run-as dev.handoff.app.debug touch files/demo`, then restart the app. Each line of that file can list a demo headset address that starts out connected, and a line `connect-ms=8000` makes demo connects slow enough to try leaving, reopening and cancelling a move.
 
 ## Pull requests
 

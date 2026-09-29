@@ -461,4 +461,25 @@ class HandoffCoordinatorTest {
         assertEquals(FailureReason.HEADSET_NOT_RESPONDING, result.reason)
         assertEquals(2, phone.bluetooth.connectCalls)
     }
+
+    @Test
+    fun `a running move can be cancelled and the headset is free for the next one`() = runTest {
+        val (hosts, _) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, _) = hosts
+        phone.bluetooth.connectPlan += ConnectStep(latencyMs = 60_000) // a connect that hangs
+
+        val move = async { phone.moveHere() }
+        testScheduler.advanceTimeBy(3_000); runCurrent()
+        assertTrue(phone.coordinator.cancel(HEADSET_ID))
+
+        assertEquals(HandoffResult.Cancelled, move.await())
+        val state = phone.coordinator.transfers.value.getValue(HEADSET_ID)
+        assertEquals(HandoffResult.Cancelled, state.result)
+        assertEquals(StepKind.CANCELLED, state.steps.last().kind)
+        assertEquals("CANCELLED", phone.history.records.last().outcome)
+        assertFalse("nothing left to cancel", phone.coordinator.cancel(HEADSET_ID))
+
+        // The per-headset lock was released: a new move runs normally.
+        assertTrue(phone.moveHere() is HandoffResult.Success)
+    }
 }

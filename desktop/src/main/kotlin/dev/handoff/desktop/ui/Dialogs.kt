@@ -300,15 +300,22 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Handoff $version · identity key $keyFingerprint · MIT License · no account, no cloud, no telemetry",
+                    "Handoff $version · identity key $keyFingerprint · MIT License",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Open-source licenses") }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    TextButton(onClick = { openInBrowser(HandoffTexts.REPO_URL) }, contentPadding = PaddingValues(0.dp)) { Text("Source code on GitHub") }
+                    TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Open-source licenses") }
+                }
             }
         },
         confirmButton = { TextButton(onClick = { onRename(editing); onClose() }) { Text("Done") } },
     )
+}
+
+private fun openInBrowser(url: String) {
+    runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(url)) }
 }
 
 /** Every bundled component, the PodSwitch credit and the full license texts. */

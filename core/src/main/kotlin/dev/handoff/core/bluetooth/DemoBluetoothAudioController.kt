@@ -20,7 +20,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Every demo host uses the same fixed addresses, so linked demo hosts recognise the headsets as
  * the same ones. Nothing here touches the real Bluetooth stack.
  */
-class DemoBluetoothAudioController(initiallyConnected: Set<String> = emptySet()) : BluetoothAudioController {
+class DemoBluetoothAudioController(
+    initiallyConnected: Set<String> = emptySet(),
+    /** How long a demo connect takes; raise it to try progress, leaving and cancelling a move. */
+    private val connectMs: Long = CONNECT_MS,
+) : BluetoothAudioController {
 
     private val connected = MutableStateFlow(initiallyConnected.map { it.uppercase() }.toSet())
 
@@ -37,9 +41,9 @@ class DemoBluetoothAudioController(initiallyConnected: Set<String> = emptySet())
 
     override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult {
         if (isConnected(deviceId)) return BluetoothOperationResult.AlreadyInState
-        delay(CONNECT_MS)
+        delay(connectMs)
         connected.value = connected.value + key(deviceId)
-        return BluetoothOperationResult.Requested(STRATEGY, CONNECT_MS)
+        return BluetoothOperationResult.Requested(STRATEGY, connectMs)
     }
 
     override suspend fun disconnect(deviceId: BluetoothDeviceId, reason: DisconnectReason): BluetoothOperationResult {

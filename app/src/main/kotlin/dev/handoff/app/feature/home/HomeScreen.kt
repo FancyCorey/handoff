@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.home
 
+import androidx.compose.material.icons.filled.Close
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.Settings
@@ -99,6 +100,10 @@ class HomeViewModel(
     val peers: StateFlow<List<PeerOverview>> = overview.peers
     val selfName: StateFlow<String> = identity.displayName
 
+    fun cancel(id: LogicalDeviceId) {
+        actions.cancel(id)
+    }
+
     fun moveHere(id: LogicalDeviceId) {
         actions.moveHere(id, TransferTrigger.MANUAL)
     }
@@ -111,6 +116,7 @@ class HomeViewModel(
 fun HomeScreen(
     onOpenDevice: (String) -> Unit,
     onMoveStarted: (String) -> Unit,
+    onOpenTransfer: (String) -> Unit,
     onMapDevice: () -> Unit,
     onPeers: () -> Unit,
     onSettings: () -> Unit,
@@ -169,6 +175,8 @@ fun HomeScreen(
                                 onMoveStarted(overview.device.logicalId.value)
                             },
                             onOpen = { onOpenDevice(overview.device.logicalId.value) },
+                            onOpenTransfer = { onOpenTransfer(overview.device.logicalId.value) },
+                            onCancel = { vm.cancel(overview.device.logicalId) },
                         )
                     }
 
@@ -245,8 +253,15 @@ private fun DirectConnectCard() {
 private const val TETHER_SETTINGS = "android.settings.TETHER_SETTINGS"
 
 @Composable
-private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: () -> Unit) {
-    SectionCard(Modifier.animateContentSize().clickable(onClick = onOpen)) {
+private fun HeadsetCard(
+    overview: DeviceOverview,
+    onMove: () -> Unit,
+    onOpen: () -> Unit,
+    onOpenTransfer: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    // While a move is running, the card leads back to its progress screen.
+    SectionCard(Modifier.animateContentSize().clickable(onClick = if (overview.transferRunning) onOpenTransfer else onOpen)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconBadge(kindIcon(overview.device.deviceType), size = 48.dp)
@@ -271,11 +286,16 @@ private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: ()
             when {
                 overview.transferRunning && transfer != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     LinearProgressIndicator(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)))
-                    Text(
-                        transfer.steps.lastOrNull()?.let(Texts::step) ?: "Starting…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            transfer.steps.lastOrNull()?.let(Texts::step) ?: "Starting…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = onOpenTransfer) { Text("View progress") }
+                        TextButton(onClick = onCancel) { Text("Cancel") }
+                    }
                 }
                 overview.device.localDeviceId == null ->
                     OutlinedButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Set up on this device") }
@@ -286,15 +306,24 @@ private fun HeadsetCard(overview: DeviceOverview, onMove: () -> Unit, onOpen: ()
                     Text(if (overview.ownership is Ownership.Multipoint) "Move media here" else "Move here", style = MaterialTheme.typography.titleSmall)
                 }
             }
-            val failed = transfer?.result as? HandoffResult.Failed
-            AnimatedVisibility(visible = !overview.transferRunning && failed != null) {
-                failed?.let {
+            val unfinished = transfer?.result?.takeIf { it is HandoffResult.Failed || it == HandoffResult.Cancelled }
+            AnimatedVisibility(visible = !overview.transferRunning && unfinished != null) {
+                unfinished?.let {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        val cancelled = it == HandoffResult.Cancelled
+                        Icon(
+                            if (cancelled) Icons.Filled.Close else Icons.Filled.Error,
+                            contentDescription = null,
+                            tint = if (cancelled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(Texts.result(it), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text(Texts.help(it) ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Texts.help(it)?.let { help ->
+                                Text(help, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
+                        TextButton(onClick = onOpenTransfer) { Text("Details") }
                     }
                 }
             }

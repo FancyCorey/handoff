@@ -92,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(
                     onOpenDevice = { nav.navigate(Routes.device(it)) },
                     onMoveStarted = { nav.navigate(Routes.transfer(it)) },
+                    onOpenTransfer = { nav.navigate(Routes.transferProgress(it)) },
                     onMapDevice = { nav.navigate(Routes.MAP) },
                     onPeers = { nav.navigate(Routes.PEERS) },
                     onSettings = { nav.navigate(Routes.SETTINGS) },
@@ -121,10 +122,14 @@ class MainActivity : ComponentActivity() {
             composable(Routes.SCAN_PEER) { ScanPeerScreen(onBack = { nav.popBackStack() }) }
             composable(
                 Routes.TRANSFER,
-                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument("id") { type = NavType.StringType },
+                    navArgument("view") { type = NavType.BoolType; defaultValue = false },
+                ),
             ) { entry ->
                 TransferScreen(
                     logicalId = entry.arguments?.getString("id").orEmpty(),
+                    viewOnly = entry.arguments?.getBoolean("view") ?: false,
                     onDone = { nav.popBackStack() },
                     onDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) },
                 )
@@ -169,11 +174,14 @@ object Routes {
     const val PEERS = "peers"
     const val ADD_PEER = "peers/add"
     const val SCAN_PEER = "peers/scan"
-    const val TRANSFER = "transfer/{id}"
+    const val TRANSFER = "transfer/{id}?view={view}"
     const val SETTINGS = "settings"
     const val DIAGNOSTICS = "diagnostics"
     const val BT_TEST = "diagnostics/bluetooth"
 
     fun device(id: String) = "device/$id"
     fun transfer(id: String) = "transfer/$id"
+
+    /** The latest move for a headset, running or finished, without starting one. */
+    fun transferProgress(id: String) = "transfer/$id?view=true"
 }

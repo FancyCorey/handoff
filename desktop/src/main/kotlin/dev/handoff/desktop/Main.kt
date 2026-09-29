@@ -1,5 +1,8 @@
 package dev.handoff.desktop
 
+import dev.handoff.desktop.store.defaultDataDir
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,11 +53,27 @@ import java.util.Locale
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
+    val startMinimized = "--minimized" in args
+    val instance = SingleInstance(defaultDataDir())
+    if (!instance.acquire()) {
+        // Already running (often hidden in the tray): show that window instead of a second copy.
+        if (!startMinimized) instance.requestShow()
+        exitProcess(0)
+    }
+    val showRequests = MutableStateFlow(0)
+    instance.watch { showRequests.update { it + 1 } }
     val app = DesktopApp()
     app.start()
-    val startMinimized = "--minimized" in args
     application {
         var windowVisible by remember { mutableStateOf(!startMinimized) }
+        val windowState = rememberWindowState(size = DpSize(460.dp, 780.dp), position = WindowPosition(Alignment.Center))
+        val shows by showRequests.collectAsState()
+        LaunchedEffect(shows) {
+            if (shows > 0) {
+                windowVisible = true
+                windowState.isMinimized = false
+            }
+        }
         val tray = rememberTrayState()
         val settings by app.settings.settings.collectAsState()
         val devices by app.overview.devices.collectAsState()
@@ -91,8 +110,9 @@ fun main(args: Array<String>) {
             visible = windowVisible,
             title = "Handoff",
             icon = Resources.logoPainter,
-            state = rememberWindowState(size = DpSize(460.dp, 780.dp), position = WindowPosition(Alignment.Center)),
+            state = windowState,
         ) {
+            LaunchedEffect(shows) { if (shows > 0) window.toFront() }
             HandoffTheme { App(app) }
         }
     }
@@ -115,7 +135,10 @@ private fun App(app: DesktopApp) {
     val adapter by app.bluetooth.adapterState.collectAsState()
     val name by app.identity.displayName.collectAsState()
     val settings by app.settings.settings.collectAsState()
-    val released by app.settings.released.collectAsState()
+    val releasedByHandoff by app.settings.released.collectAsState()
+    val mediaOff by app.bluetooth.mediaOff.collectAsState()
+    // Handed away by Handoff, or media turned off in Windows for any other reason: offer a restore.
+    val released = releasedByHandoff + mediaOff
     val pending by app.pairing.pendingApproval.collectAsState()
     val bonded by remember { app.bluetooth.bondedAudioDevices() }.collectAsState(emptyList())
     var sheet by remember { mutableStateOf<Sheet?>(null) }
@@ -128,6 +151,7 @@ private fun App(app: DesktopApp) {
         released = released,
         actions = HomeActions(
             moveHere = { app.moveHere(it.device.logicalId) },
+            cancelMove = { app.cancelMove(it.device.logicalId) },
             openHeadset = { sheet = if (it.device.localDeviceId == null) Sheet.AddHeadset else Sheet.Headset(it.device.logicalId) },
             addHeadset = { sheet = Sheet.AddHeadset },
             linkPhone = { sheet = Sheet.Link },

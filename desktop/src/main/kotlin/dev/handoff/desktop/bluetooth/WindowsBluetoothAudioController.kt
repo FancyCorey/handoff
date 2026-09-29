@@ -71,6 +71,15 @@ class WindowsBluetoothAudioController(
     /** Only for headsets connected to this PC: Windows keeps a stale value after disconnecting. */
     override val batteryLevels: StateFlow<Map<String, Int>> = demo?.batteryLevels ?: _batteryLevels.asStateFlow()
 
+    private val _mediaOff = MutableStateFlow<Set<String>>(emptySet())
+
+    /**
+     * Paired headsets whose media service is turned off in Windows right now (upper-case
+     * addresses). Read from Windows itself, so it stays right after a reinstall or when the
+     * services were changed outside Handoff.
+     */
+    val mediaOff: StateFlow<Set<String>> = _mediaOff.asStateFlow()
+
     private val _lastOperation = MutableStateFlow<Operation?>(null)
     val lastOperation: StateFlow<Operation?> = _lastOperation.asStateFlow()
 
@@ -80,7 +89,10 @@ class WindowsBluetoothAudioController(
             var tick = 0
             while (isActive) {
                 refresh()
-                if (tick++ % BATTERY_EVERY_N_POLLS == 0) refreshBattery()
+                if (tick++ % BATTERY_EVERY_N_POLLS == 0) {
+                    refreshBattery()
+                    refreshServices()
+                }
                 delay(POLL_MS)
             }
         }
@@ -94,6 +106,14 @@ class WindowsBluetoothAudioController(
             else -> AdapterState.OFF
         }
         snapshot.value = if (_adapterState.value == AdapterState.ON) Win32Bluetooth.rememberedDevices() else emptyList()
+    }
+
+    private fun refreshServices() {
+        if (demo != null) return
+        _mediaOff.value = snapshot.value.filter { it.isAudio }
+            .filter { d -> Win32Bluetooth.enabledServices(d.address)?.let { A2DP_ID !in it } ?: false }
+            .map { it.address.uppercase() }
+            .toSet()
     }
 
     private fun refreshBattery() {
@@ -145,18 +165,21 @@ class WindowsBluetoothAudioController(
         withContext(Dispatchers.IO) {
             val started = clock()
             precheck(deviceId)?.let { return@withContext it }
-            if (Win32Bluetooth.device(deviceId.address)?.connected == true) return@withContext BluetoothOperationResult.AlreadyInState
+            // Linked but with media turned off (e.g. released earlier) is not "connected" for audio.
+            val mediaOn = Win32Bluetooth.enabledServices(deviceId.address)?.contains(A2DP_ID) ?: true
+            if (Win32Bluetooth.device(deviceId.address)?.connected == true && mediaOn) return@withContext BluetoothOperationResult.AlreadyInState
             if (!throttle.tryAcquire()) return@withContext rateLimited()
 
-            // Off first (quietly: a service may not be installed), then on in order: calls, then media.
+            // Off first (quietly: a service may not be installed), then on in order: calls, media, remote control.
             SERVICES.forEach { Win32Bluetooth.setServiceState(deviceId.address, it, enable = false) }
             delay(TOGGLE_GAP_MS)
             var mediaResult = -1
-            for (service in listOf(BthProps.HANDS_FREE, BthProps.HEADSET, BthProps.A2DP_SINK)) {
+            for (service in CONNECT_ORDER) {
                 val result = enableWithRetry(deviceId.address, service)
                 if (service == BthProps.A2DP_SINK) mediaResult = result
             }
             releasedStore.setReleased(deviceId.address, false)
+            refreshServices()
             record("connect: A2DP enable=${describe(mediaResult)}")
             when (mediaResult) {
                 0 -> BluetoothOperationResult.Requested(STRATEGY, clock() - started)
@@ -170,14 +193,32 @@ class WindowsBluetoothAudioController(
             val started = clock()
             precheck(deviceId)?.let { return@withContext it }
             if (!throttle.tryAcquire()) return@withContext rateLimited()
-            val results = SERVICES.associateWith { Win32Bluetooth.setServiceState(deviceId.address, it, enable = false) }
-            val media = results.getValue(BthProps.A2DP_SINK)
-            releasedStore.setReleased(deviceId.address, true)
+            // Media, calls *and* remote control: a single-point headset stays attached to the PC
+            // (and ignores other devices) while any of them is still on. Services that are already
+            // off, e.g. from an earlier handoff, count as released.
+            val enabled = Win32Bluetooth.enabledServices(deviceId.address)
+            val results = SERVICES.associateWith { service ->
+                if (enabled != null && idOf(service) !in enabled) {
+                    ALREADY_OFF
+                } else {
+                    Win32Bluetooth.setServiceState(deviceId.address, service, enable = false)
+                        .let { if (it == Win32Bluetooth.ERROR_NOT_FOUND || it == ERROR_SERVICE_DOES_NOT_EXIST) ALREADY_OFF else it }
+                }
+            }
             record("disconnect: " + results.entries.joinToString { "${name(it.key)}=${describe(it.value)}" })
-            when (media) {
-                0, ERROR_SERVICE_DOES_NOT_EXIST -> BluetoothOperationResult.Requested(STRATEGY, clock() - started)
-                ERROR_ACCESS_DENIED -> BluetoothOperationResult.Failed(BluetoothError.PERMISSION_DENIED, STRATEGY, "Windows denied changing Bluetooth services")
-                else -> BluetoothOperationResult.Failed(BluetoothError.REJECTED, STRATEGY, "disabling the audio service failed (${describe(media)})")
+            val failures = results.filterValues { it != 0 && it != ALREADY_OFF }
+            val audioFailure = failures.filterKeys { it in AUDIO_SERVICES }
+            refreshServices()
+            when {
+                audioFailure.isEmpty() -> {
+                    releasedStore.setReleased(deviceId.address, true)
+                    BluetoothOperationResult.Requested(STRATEGY, clock() - started)
+                }
+                ERROR_ACCESS_DENIED in audioFailure.values ->
+                    BluetoothOperationResult.Failed(BluetoothError.PERMISSION_DENIED, STRATEGY, "Windows denied changing Bluetooth services")
+                else -> audioFailure.entries.first().let { (service, code) ->
+                    BluetoothOperationResult.Failed(BluetoothError.REJECTED, STRATEGY, "turning off ${name(service)} failed (${describe(code)})")
+                }
             }
         }
 
@@ -241,16 +282,25 @@ class WindowsBluetoothAudioController(
         private const val ENABLE_RETRY_DELAY_MS = 1_000L
         private const val ERROR_ACCESS_DENIED = 5
         private const val ERROR_SERVICE_DOES_NOT_EXIST = 1060
-        private val SERVICES = listOf(BthProps.A2DP_SINK, BthProps.HANDS_FREE, BthProps.HEADSET)
+        private const val ALREADY_OFF = -2
+        private val AUDIO_SERVICES = listOf(BthProps.A2DP_SINK, BthProps.HANDS_FREE, BthProps.HEADSET)
+        private val SERVICES = AUDIO_SERVICES + listOf(BthProps.AVRCP, BthProps.AVRCP_TARGET)
+        private val CONNECT_ORDER = listOf(BthProps.HANDS_FREE, BthProps.HEADSET, BthProps.A2DP_SINK, BthProps.AVRCP, BthProps.AVRCP_TARGET)
+        private val A2DP_ID = idOf(BthProps.A2DP_SINK)
+
+        /** Same format as [Win32Bluetooth.enabledServices]. */
+        private fun idOf(guid: Guid.GUID) = guid.toGuidString().uppercase()
 
         private fun name(guid: Guid.GUID) = when (guid) {
             BthProps.A2DP_SINK -> "A2DP"
             BthProps.HANDS_FREE -> "HFP"
-            else -> "HSP"
+            BthProps.HEADSET -> "HSP"
+            else -> "AVRCP"
         }
 
         private fun describe(code: Int) = when (code) {
             0 -> "ok"
+            ALREADY_OFF -> "already off"
             ERROR_ACCESS_DENIED -> "access denied"
             ERROR_SERVICE_DOES_NOT_EXIST -> "not installed"
             else -> "error $code"

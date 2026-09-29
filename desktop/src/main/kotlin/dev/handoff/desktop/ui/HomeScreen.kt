@@ -1,5 +1,10 @@
 package dev.handoff.desktop.ui
 
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryFull
@@ -76,6 +81,7 @@ import dev.handoff.core.text.HandoffTexts
 /** Callbacks from the home screen to the app shell. */
 class HomeActions(
     val moveHere: (DeviceOverview) -> Unit,
+    val cancelMove: (DeviceOverview) -> Unit,
     val openHeadset: (DeviceOverview) -> Unit,
     val addHeadset: () -> Unit,
     val linkPhone: () -> Unit,
@@ -116,7 +122,13 @@ fun HomeScreen(
                 }
             }
             items(devices, key = { it.device.logicalId.value }) { d ->
-                HeadsetCard(d, released = d.device.localDeviceId?.address?.uppercase() in released, onMove = { actions.moveHere(d) }, onMore = { actions.openHeadset(d) })
+                HeadsetCard(
+                    d,
+                    released = d.device.localDeviceId?.address?.uppercase() in released,
+                    onMove = { actions.moveHere(d) },
+                    onCancel = { actions.cancelMove(d) },
+                    onMore = { actions.openHeadset(d) },
+                )
             }
             item { Spacer(Modifier.height(4.dp)) }
             item { SectionTitle("Your devices", action = "Link a phone", onAction = actions.linkPhone) }
@@ -207,7 +219,7 @@ private fun SectionTitle(title: String, action: String, onAction: () -> Unit) {
 }
 
 @Composable
-private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit, onMore: () -> Unit) {
+private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit, onCancel: () -> Unit, onMore: () -> Unit) {
     Card(
         Modifier.fillMaxWidth().animateContentSize(),
         shape = RoundedCornerShape(20.dp),
@@ -230,7 +242,7 @@ private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit
             }
             val t = d.transfer
             when {
-                d.transferRunning && t != null -> TransferProgress(t.steps.lastOrNull()?.let(HandoffTexts::step) ?: "Starting…")
+                d.transferRunning && t != null -> TransferProgress(t.steps.map(HandoffTexts::step), onCancel)
                 d.device.localDeviceId == null -> OutlinedButton(onClick = onMore, modifier = Modifier.fillMaxWidth()) { Text("Choose this headset on this PC") }
                 d.connectedHere -> Unit
                 else -> Button(onClick = onMove, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(12.dp)) {
@@ -240,34 +252,67 @@ private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit
                 }
             }
             AnimatedVisibility(visible = !d.transferRunning && t?.result != null && t.result !is HandoffResult.Success) {
-                t?.result?.let { ResultLine(it) }
+                t?.let { ResultLine(it.result ?: return@let, it.steps.map(HandoffTexts::step)) }
             }
         }
     }
 }
 
+/** Every step so far, newest last, with a way to stop the move. */
 @Composable
-private fun TransferProgress(step: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun TransferProgress(steps: List<String>, onCancel: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         LinearProgressIndicator(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)))
-        Text(step, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StepList(steps.ifEmpty { listOf("Starting…") }, activeLast = true)
+        TextButton(onClick = onCancel, contentPadding = PaddingValues(0.dp)) { Text("Cancel") }
     }
 }
 
 @Composable
-private fun ResultLine(result: HandoffResult) {
+private fun StepList(steps: List<String>, activeLast: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        steps.forEachIndexed { i, step ->
+            val current = activeLast && i == steps.lastIndex
+            Text(
+                (if (current) "›  " else "✓  ") + step,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (current) FontWeight.Medium else FontWeight.Normal,
+                color = if (current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResultLine(result: HandoffResult, steps: List<String>) {
+    var showSteps by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val ok = result is HandoffResult.AlreadyConnected
+        val cancelled = result == HandoffResult.Cancelled
         Icon(
-            if (ok) Icons.Filled.CheckCircle else Icons.Filled.Error,
+            when {
+                ok -> Icons.Filled.CheckCircle
+                cancelled -> Icons.Filled.Close
+                else -> Icons.Filled.Error
+            },
             contentDescription = null,
-            tint = if (ok) Brand.Success else MaterialTheme.colorScheme.error,
+            tint = when {
+                ok -> Brand.Success
+                cancelled -> MaterialTheme.colorScheme.outline
+                else -> MaterialTheme.colorScheme.error
+            },
             modifier = Modifier.size(18.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(HandoffTexts.result(result), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             HandoffTexts.help(result)?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (steps.isNotEmpty()) {
+                TextButton(onClick = { showSteps = !showSteps }, contentPadding = PaddingValues(0.dp)) {
+                    Text(if (showSteps) "Hide steps" else "Show steps")
+                }
+                if (showSteps) StepList(steps, activeLast = false)
             }
         }
     }

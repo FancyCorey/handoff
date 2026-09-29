@@ -29,6 +29,7 @@ object HandoffTexts {
             StepKind.CONNECTED -> "Connected."
             StepKind.ALREADY_CONNECTED -> "Already connected here."
             StepKind.AUTO_RETRY -> "That didn't work. Trying once more…"
+            StepKind.CANCELLED -> "Cancelled."
             StepKind.FAILED -> "Couldn't connect."
         }
     }
@@ -44,6 +45,7 @@ object HandoffTexts {
         HandoffResult.AlreadyConnected -> "Already connected here."
         HandoffResult.InProgress -> "A move is already in progress."
         HandoffResult.MissingLocalMapping -> failureTitle(FailureReason.MISSING_LOCAL_MAPPING, null)
+        HandoffResult.Cancelled -> "Move cancelled."
         is HandoffResult.Failed -> failureTitle(result.reason, result.detail)
     }
 
@@ -51,6 +53,7 @@ object HandoffTexts {
     fun help(result: HandoffResult): String? = when (result) {
         is HandoffResult.Failed -> failureHelp(result.reason, result.detail)
         HandoffResult.MissingLocalMapping -> failureHelp(FailureReason.MISSING_LOCAL_MAPPING, null)
+        HandoffResult.Cancelled -> "If the other device had already let go, the headset is free: press Move here on the device you want."
         else -> null
     }
 
@@ -98,6 +101,9 @@ object HandoffTexts {
 
     /** "Offline" wording for a linked device, with a hint when it was last seen on another network. */
     fun offline(probablyOtherNetwork: Boolean): String = if (probablyOtherNetwork) "On another network" else "Offline"
+
+    /** The project's home: source code, releases and issues. */
+    const val REPO_URL = "https://github.com/FancyCorey/handoff"
 
     /** Shown when approving a new link. */
     const val LINK_WARNING = "Only link devices you own and have in front of you. A linked device can move your " +

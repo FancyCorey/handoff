@@ -1,5 +1,11 @@
 package dev.handoff.core.handoff
 
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.bluetooth.BluetoothAudioController
 import dev.handoff.core.bluetooth.BluetoothError
@@ -42,6 +48,12 @@ interface HandoffCoordinator {
         audioDevice: LogicalAudioDevice,
         trigger: TransferTrigger = TransferTrigger.MANUAL,
     ): HandoffResult
+
+    /**
+     * Stops the running transfer for [logicalId], if any; it then ends with
+     * [HandoffResult.Cancelled]. Returns false when nothing was running.
+     */
+    fun cancel(logicalId: LogicalDeviceId): Boolean
 }
 
 /**
@@ -82,6 +94,16 @@ class DefaultHandoffCoordinator(
     private val _transfers = MutableStateFlow<Map<LogicalDeviceId, HandoffState>>(emptyMap())
     override val transfers: StateFlow<Map<LogicalDeviceId, HandoffState>> = _transfers.asStateFlow()
 
+    private val running = ConcurrentHashMap<LogicalDeviceId, Job>()
+    private val cancelRequested: MutableSet<LogicalDeviceId> = ConcurrentHashMap.newKeySet()
+
+    override fun cancel(logicalId: LogicalDeviceId): Boolean {
+        val job = running[logicalId] ?: return false
+        cancelRequested += logicalId
+        job.cancel()
+        return true
+    }
+
     override suspend fun moveToThisDevice(audioDevice: LogicalAudioDevice, trigger: TransferTrigger): HandoffResult {
         val mutex = locks.forDevice(audioDevice.logicalId)
         if (!mutex.tryLock()) {
@@ -90,10 +112,21 @@ class DefaultHandoffCoordinator(
         }
         try {
             val run = Run(audioDevice, trigger)
+            val id = audioDevice.logicalId
             return try {
-                run.execute()
+                // A child job, so the user can cancel just this transfer (see [cancel]).
+                coroutineScope {
+                    val work = async { run.execute() }
+                    running[id] = work
+                    try {
+                        work.await()
+                    } finally {
+                        running.remove(id)
+                    }
+                }
             } catch (e: CancellationException) {
-                run.fail(FailureReason.INTERNAL, "cancelled")
+                if (cancelRequested.remove(id)) return withContext(NonCancellable) { run.cancelled() }
+                withContext(NonCancellable) { run.fail(FailureReason.INTERNAL, "cancelled") }
                 throw e
             } catch (e: IllegalTransitionException) {
                 run.fail(FailureReason.INTERNAL, e.message)
@@ -417,6 +450,19 @@ class DefaultHandoffCoordinator(
             announce(generation)
             record("SUCCESS", result.path, null, null, timings)
             return result
+        }
+
+        /** The user stopped the transfer. Whatever already happened (e.g. a release) stays done. */
+        suspend fun cancelled(): HandoffResult {
+            if (!machine.phase.isTerminal) {
+                step(StepKind.CANCELLED)
+                if (machine.phase == TransferPhase.IDLE) machine.moveTo(TransferPhase.RESOLVING_OWNER)
+                move(TransferPhase.FAILED)
+            }
+            publish(HandoffResult.Cancelled)
+            events.record(EventType.TRANSFER_FAILED, id, ownerPeer, mapOf("reason" to "cancelled by user"))
+            record("CANCELLED", path, null, "cancelled by user", TransferTimings(releaseMs, connectStartedAt?.let { clock() - it }, clock() - startedAt))
+            return HandoffResult.Cancelled
         }
 
         suspend fun fail(reason: FailureReason, detail: String?): HandoffResult {

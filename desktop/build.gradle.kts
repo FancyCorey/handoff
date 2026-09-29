@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
-val appVersion = "0.4.0"
+val appVersion = "0.4.3"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -37,10 +37,10 @@ dependencies {
 
 tasks.test {
     // Opt-in real-hardware test (WindowsHeadsetHardwareTest); never cached.
-    listOf("handoff.hw.headset", "handoff.hw.out").forEach { key ->
+    listOf("handoff.hw.headset", "handoff.hw.release", "handoff.hw.out").forEach { key ->
         System.getProperty(key)?.let { systemProperty(key, it) }
     }
-    outputs.upToDateWhen { System.getProperty("handoff.hw.headset") == null }
+    outputs.upToDateWhen { System.getProperty("handoff.hw.headset") == null && System.getProperty("handoff.hw.release") == null }
 }
 
 compose.desktop {

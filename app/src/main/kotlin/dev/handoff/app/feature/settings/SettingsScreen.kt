@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.settings
 
+import dev.handoff.core.text.HandoffTexts
 import dev.handoff.core.text.OpenSourceNotices
 import androidx.compose.material3.MaterialTheme
 import android.Manifest
@@ -197,7 +198,14 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             }
 
             SectionHeader("About")
-            ListItem(headlineContent = { Text("Handoff ${BuildConfig.VERSION_NAME}") }, supportingContent = { Text("MIT License · no account, no cloud, no telemetry") })
+            ListItem(headlineContent = { Text("Handoff ${BuildConfig.VERSION_NAME}") }, supportingContent = { Text("MIT License") })
+            ListItem(
+                headlineContent = { Text("Source code and releases") },
+                supportingContent = { Text(HandoffTexts.REPO_URL.removePrefix("https://")) },
+                modifier = Modifier.clickable {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(HandoffTexts.REPO_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                },
+            )
             ListItem(headlineContent = { Text("Open-source licenses") }, modifier = Modifier.clickable { showLicenses = true })
             ListItem(
                 headlineContent = { Text("Android Bluetooth settings") },

@@ -73,6 +73,33 @@ class WindowsHeadsetHardwareTest {
         assertTrue("$passed/$CYCLES cycles passed", passed == CYCLES)
     }
 
+    /**
+     * Release only, e.g. to hand a headset to a phone: `-Dhandoff.hw.release="<headset name>"`.
+     * Leaves the headset's audio services off on this PC, exactly like a handoff does.
+     */
+    @Test
+    fun `release a real headset`() = runBlocking {
+        val name = System.getProperty("handoff.hw.release")
+        assumeTrue("set -Dhandoff.hw.release to run", !name.isNullOrBlank())
+        val out = File(System.getProperty("handoff.hw.out") ?: "handoff-hw.txt").apply { writeText("") }
+        fun log(line: String) = out.appendText(line + "\n").also { println(line) }
+        val device = Win32Bluetooth.rememberedDevices().firstOrNull { it.isAudio && it.name.contains(name!!, ignoreCase = true) }
+            ?: error("no paired audio device matching \"$name\"")
+        val id = BluetoothDeviceId(device.address)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val bt = WindowsBluetoothAudioController(scope, MemoryReleasedStore())
+        bt.refresh()
+        log("headset: ${device.name}, linked at start: ${device.connected}, services on: ${Win32Bluetooth.enabledServices(device.address)?.map { it.substring(5, 9) }}")
+        val started = System.currentTimeMillis()
+        val result = bt.disconnect(id, DisconnectReason.DEBUG)
+        val released = bt.verifyDisconnected(id, RELEASE_TIMEOUT_MS)
+        log("release: ${result.describe()}, link dropped=$released in ${System.currentTimeMillis() - started} ms")
+        log("operation: ${bt.lastOperation.value?.description}")
+        log("services on after: ${Win32Bluetooth.enabledServices(device.address)?.map { it.substring(5, 9) }}")
+        scope.cancel()
+        assertTrue("release verified", released)
+    }
+
     private fun BluetoothOperationResult.describe() = when (this) {
         is BluetoothOperationResult.Requested -> "ok"
         BluetoothOperationResult.AlreadyInState -> "already"

@@ -216,7 +216,7 @@ val appModule = module {
     viewModel { PeersViewModel(get(), get(), get(), get(), get()) }
     viewModel { AddPeerViewModel(androidContext(), get(), get(), get(), get(), get(APP_SCOPE)) }
     viewModel { ScanPeerViewModel(get()) }
-    viewModel { params -> TransferViewModel(params.get(), get(), get(), get()) }
+    viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
     viewModel { DiagnosticsViewModel(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { BluetoothTestViewModel(get()) }
@@ -227,12 +227,15 @@ private fun selfId(identity: KeystoreIdentityProvider): PeerId = identity.identi
 /**
  * Debug builds only: made-up headsets for screenshots, enabled by creating `files/demo` in the
  * app's private storage (`adb shell run-as dev.handoff.app.debug touch files/demo`). Each line
- * of the file may name a demo headset address that starts out connected here.
+ * of the file may name a demo headset address that starts out connected here; a line
+ * `connect-ms=<millis>` slows demo connects down (for trying progress and cancel).
  */
 private fun demoBluetooth(context: android.content.Context): DemoBluetoothAudioController? {
     if (!BuildConfig.DEBUG) return null
     val flag = java.io.File(context.filesDir, "demo")
     if (!flag.exists()) return null
-    val connected = runCatching { flag.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-    return DemoBluetoothAudioController(connected)
+    val lines = runCatching { flag.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }
+    val connectMs = lines.firstNotNullOfOrNull { it.removePrefix("connect-ms=").takeIf { v -> v != it }?.toLongOrNull() }
+    val connected = lines.filterNot { it.startsWith("connect-ms=") }.toSet()
+    return if (connectMs != null) DemoBluetoothAudioController(connected, connectMs) else DemoBluetoothAudioController(connected)
 }

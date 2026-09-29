@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PriorityHigh
@@ -72,18 +73,25 @@ import org.koin.core.parameter.parametersOf
 
 class TransferViewModel(
     logicalId: String,
+    /** Opened to look at the latest move (running or finished), not to start a new one. */
+    private val viewOnly: Boolean,
     coordinator: HandoffCoordinator,
     private val actions: HandoffActions,
     overview: OverviewRepository,
 ) : ViewModel() {
     private val id = LogicalDeviceId(logicalId)
 
-    /** Ignore a finished transfer from before this screen opened. */
-    private val since = MutableStateFlow(System.currentTimeMillis() - STALE_SLACK_MS)
+    /** When starting a move, ignore the previous move's finished result. */
+    private val since = MutableStateFlow(if (viewOnly) 0L else System.currentTimeMillis() - STALE_SLACK_MS)
 
     val transfer: StateFlow<HandoffState?> = combine(coordinator.transfers, since) { all, openedAt ->
-        all[id]?.takeIf { it.startedAtMs >= openedAt }
+        // A move that is still running is always shown, so the screen can be left and reopened.
+        all[id]?.takeIf { it.result == null || it.startedAtMs >= openedAt }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun cancel() {
+        actions.cancel(id)
+    }
 
     val deviceName: StateFlow<String> = overview.devices
         .map { list -> list.firstOrNull { it.device.logicalId == id }?.device?.displayName ?: "headset" }
@@ -104,7 +112,8 @@ fun TransferScreen(
     logicalId: String,
     onDone: () -> Unit,
     onDiagnostics: () -> Unit,
-    vm: TransferViewModel = koinViewModel(key = "transfer-$logicalId") { parametersOf(logicalId) },
+    viewOnly: Boolean = false,
+    vm: TransferViewModel = koinViewModel(key = "transfer-$logicalId-$viewOnly") { parametersOf(logicalId, viewOnly) },
 ) {
     val transfer by vm.transfer.collectAsStateWithLifecycle()
     val name by vm.deviceName.collectAsStateWithLifecycle()
@@ -129,6 +138,8 @@ fun TransferScreen(
                         Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     result.isGood() -> HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
+                    result == HandoffResult.Cancelled ->
+                        HeroIcon(Icons.Filled.Close, size = 96.dp, brush = SolidColor(MaterialTheme.colorScheme.outline))
                     else -> HeroIcon(Icons.Filled.PriorityHigh, size = 96.dp, brush = SolidColor(MaterialTheme.colorScheme.error))
                 }
             }
@@ -182,9 +193,26 @@ fun TransferScreen(
             }
 
             when (result) {
-                null -> Unit
+                null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = vm::cancel, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Cancel") }
+                    Text(
+                        "You can leave this screen; the move keeps going. Tap the headset on the home screen to come back.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 is HandoffResult.Success, HandoffResult.AlreadyConnected, HandoffResult.InProgress ->
                     Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Done") }
+                HandoffResult.Cancelled -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = vm::retry, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Icon(Icons.Filled.SwapHoriz, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Move here")
+                    }
+                    OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Done") }
+                }
                 else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = vm::retry, modifier = Modifier.fillMaxWidth().height(48.dp)) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
@@ -214,6 +242,7 @@ private fun HandoffResult.isGood() = this is HandoffResult.Success || this == Ha
 
 private val WARNING_STEPS = setOf(
     StepKind.PEER_UNREACHABLE, StepKind.RELEASE_TIMEOUT, StepKind.RELEASE_REFUSED, StepKind.PEER_BUSY, StepKind.RETRYING,
+    StepKind.CANCELLED,
 )
 
 private enum class StepState { DONE, ACTIVE, WARNING, FAILED }

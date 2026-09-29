@@ -167,6 +167,9 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
         }
     }
 
+    /** Stops a running move for [id]; returns false if none was running. */
+    fun cancelMove(id: LogicalDeviceId): Boolean = coordinator.cancel(id)
+
     fun shutdown() {
         jobs.forEach { it.cancel() }
         runCatching { discovery.stop() }

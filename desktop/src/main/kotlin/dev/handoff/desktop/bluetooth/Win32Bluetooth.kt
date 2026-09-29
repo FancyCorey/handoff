@@ -78,6 +78,7 @@ internal interface BthProps : StdCallLibrary {
     fun BluetoothFindDeviceClose(find: WinNT.HANDLE): Boolean
     fun BluetoothGetDeviceInfo(radio: WinNT.HANDLE?, info: DeviceInfo): Int
     fun BluetoothSetServiceState(radio: WinNT.HANDLE?, info: DeviceInfo, service: Guid.GUID, flags: Int): Int
+    fun BluetoothEnumerateInstalledServices(radio: WinNT.HANDLE?, info: DeviceInfo, count: com.sun.jna.ptr.IntByReference, services: Array<Guid.GUID>?): Int
 
     companion object {
         const val BLUETOOTH_MAX_NAME_SIZE = 248
@@ -103,6 +104,8 @@ internal interface BthProps : StdCallLibrary {
         val A2DP_SINK: Guid.GUID = Guid.GUID.fromString("{0000110B-0000-1000-8000-00805F9B34FB}")
         val HANDS_FREE: Guid.GUID = Guid.GUID.fromString("{0000111E-0000-1000-8000-00805F9B34FB}")
         val HEADSET: Guid.GUID = Guid.GUID.fromString("{00001108-0000-1000-8000-00805F9B34FB}")
+        val AVRCP_TARGET: Guid.GUID = Guid.GUID.fromString("{0000110C-0000-1000-8000-00805F9B34FB}")
+        val AVRCP: Guid.GUID = Guid.GUID.fromString("{0000110E-0000-1000-8000-00805F9B34FB}")
     }
 }
 
@@ -172,6 +175,24 @@ internal object Win32Bluetooth {
         }
     }
 
+    /**
+     * The Bluetooth services Windows currently has enabled for a remembered device. A service
+     * Handoff turned off earlier is missing from this list. Null if the device isn't found.
+     */
+    fun enabledServices(address: String): Set<String>? {
+        val api = api ?: return null
+        return try {
+            val info = infoFor(address) ?: return null
+            val count = com.sun.jna.ptr.IntByReference(MAX_SERVICES)
+            @Suppress("UNCHECKED_CAST")
+            val guids = Guid.GUID().toArray(MAX_SERVICES) as Array<Guid.GUID>
+            if (api.BluetoothEnumerateInstalledServices(null, info, count, guids) != 0) return null
+            guids.take(count.value).map { it.toGuidString().uppercase() }.toSet()
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     private fun infoFor(address: String): BthProps.DeviceInfo? {
         val api = api ?: return null
         val info = BthProps.DeviceInfo()
@@ -197,4 +218,5 @@ internal object Win32Bluetooth {
         (5 downTo 0).joinToString(":") { i -> "%02X".format((address ushr (8 * i)) and 0xFF) }
 
     const val ERROR_NOT_FOUND = 1168
+    private const val MAX_SERVICES = 32
 }

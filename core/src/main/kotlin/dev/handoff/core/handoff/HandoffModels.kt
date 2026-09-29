@@ -67,6 +67,9 @@ sealed interface HandoffResult {
 
     data object MissingLocalMapping : HandoffResult
 
+    /** The user stopped the transfer. */
+    data object Cancelled : HandoffResult
+
     data class Failed(val reason: FailureReason, val detail: String?) : HandoffResult
 }
 
@@ -88,6 +91,7 @@ enum class StepKind {
 
     /** The whole transfer is being tried once more after a short pause. */
     AUTO_RETRY,
+    CANCELLED,
     FAILED,
 }
 
