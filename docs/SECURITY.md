@@ -19,6 +19,26 @@ Handoff lets one device make another device disconnect its headphones. The desig
 
 ## Linking (pairing)
 
+```mermaid
+sequenceDiagram
+    actor User
+    participant A as Device A (shows the code)
+    participant B as Device B (scans it)
+
+    User->>A: Show a link code
+    A-->>B: QR / text code: peer id, key fingerprint, one-time token, addresses
+    B->>A: CLIENT_HELLO (mode PAIRING)
+    A->>B: SERVER_HELLO with A's key
+    B->>B: A's key must match the fingerprint in the code
+    B->>A: CLIENT_FINISH: B's key, signature, proof of the one-time token
+    A->>A: consume the token
+    A-->>User: "Link B?" with a 6-digit number
+    B-->>User: the same 6-digit number
+    User->>A: Link (within 90 s)
+    A->>B: SERVER_FINISH (accepted)
+    Note over A,B: both store the other's public key
+```
+
 1. Device A shows a QR code: `HANDOFF:` followed by Base32 of a ~56-byte binary payload. It contains:
    * A's peer id (UUID)
    * a **128-bit SHA-256 fingerprint of A's identity key**
@@ -36,6 +56,25 @@ The QR code is sensitive only while it is displayed. Someone who photographs it 
 ## Session handshake (every connection)
 
 It follows a SIGMA-style authenticated key exchange:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    C->>S: CLIENT_HELLO {mode, idC, ephC, nonceC}
+    Note over S: reject unless idC is a linked device
+    S->>C: SERVER_HELLO {idS, ephS, nonceS, keyS, Sign_S("server" ‖ th)}
+    Note over C: reject unless idS and keyS match the trust store
+    Note over C,S: th = transcript hash; keys = HKDF(th, ECDH(ephC, ephS))
+    C->>S: [AES-GCM] CLIENT_FINISH {keyC, name, Sign_C("client" ‖ th ‖ keyC)}
+    Note over S: reject unless keyC equals the stored key
+    S->>C: [AES-GCM] SERVER_FINISH {accepted}
+    C->>S: [AES-GCM] one request
+    S->>C: [AES-GCM] one reply
+```
+
+In detail:
 
 ```
 C → S  CLIENT_HELLO  {mode, idC, ephC, nonceC}

@@ -44,7 +44,7 @@ You're listening on your laptop, then pick up your phone to watch a video, and t
 - **Move your headphones with one tap**, from a phone, a tablet or a PC, in any direction.
 - **See where your headphones are** from any of your devices, along with their battery level.
 - **Use it anywhere.** Link your devices once and they find each other on any Wi-Fi: at home, at work or on the road. No Wi-Fi? A hotspot from your phone or PC is enough.
-- **Know what's happening.** Handoff checks that sound really comes through, tries once more if something gets in the way, and tells you in plain words if it can't finish.
+- **Know what's happening.** Handoff checks that sound really comes through, tries once more if something gets in the way, and shows what went wrong and what to do if it can't finish.
 - **Stay in control.** Cancel a move at any time, and choose whether Handoff should run in the background.
 - **Reach it quickly** from a Quick Settings tile on Android or the tray icon on Windows.
 
@@ -134,7 +134,18 @@ The [troubleshooting section](docs/GETTING_STARTED.md#if-something-goes-wrong) c
 
 ## For developers
 
-Handoff is written in Kotlin: an Android app, a Windows app built with Compose Multiplatform, and a shared core that handles linking, encryption and moving the headphones.
+Handoff is written in Kotlin: an Android app, a Windows app built with Compose Multiplatform, and a shared core that handles linking, encryption and moving the headphones. There is no server: each device runs Handoff, and the copies talk to each other directly on the local network.
+
+```mermaid
+flowchart LR
+    phone["Android app"] <-->|"encrypted, local network"| pc["Windows app"]
+    phone <-->|"encrypted, local network"| tablet["Android app"]
+    phone -. Bluetooth .- headset(("Headphones"))
+    pc -. Bluetooth .- headset
+    tablet -. Bluetooth .- headset
+```
+
+The [architecture notes](docs/ARCHITECTURE.md) show how a move works step by step, the transfer states, device discovery and updates, with diagrams.
 
 ```bash
 ./gradlew test assembleDebug                          # tests and the Android app

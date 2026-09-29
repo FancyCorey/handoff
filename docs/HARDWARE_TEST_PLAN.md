@@ -1,6 +1,6 @@
 # Hardware test plan
 
-This plan checks a combination of devices and headphones end to end. It's written for anyone who wants to help test Handoff: run the tests that fit your devices and share the results in an [issue](https://github.com/FancyCorey/handoff/issues). Each report helps fill in the [compatibility list](BLUETOOTH_COMPATIBILITY.md#compatibility).
+This plan checks a combination of devices and headphones end to end. Anyone can help: run the tests that fit your devices and share the results in an [issue](https://github.com/FancyCorey/handoff/issues). Each report helps fill in the [compatibility list](BLUETOOTH_COMPATIBILITY.md#compatibility).
 
 On Windows, the release and connect steps can also be run automatically with `WindowsHeadsetHardwareTest` (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 

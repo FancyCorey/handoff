@@ -65,6 +65,16 @@ To create them on a new machine (only for a brand-new project; otherwise restore
 
 **Cutting a release:**
 
+```mermaid
+flowchart LR
+    v["Set the version<br/>(app + desktop)"] --> n["Write the release notes<br/>docs/releases/vX.Y.Z.md"]
+    n --> b["tools/release.ps1<br/>tests, APK, MSI, EXE, zip"]
+    b --> s["ReleaseTool signs update.json<br/>(key stays on this machine)"]
+    s --> c{"Files look right?"}
+    c -- yes --> p["release.ps1 -Publish<br/>tag + GitHub release"]
+    p --> u["Apps find the update<br/>via Check for updates"]
+```
+
 1. Set the version in `app/build.gradle.kts` (`versionName`, and increase `versionCode`) and `desktop/build.gradle.kts` (`appVersion`).
 2. Write the notes in `docs/releases/v<version>.md`.
 3. `powershell -ExecutionPolicy Bypass -File tools\release.ps1` builds and signs everything into `build/release/v<version>/`: the APK, the MSI and setup EXE, a portable zip, `update.json`, `update.json.sig` and `SHA256SUMS.txt`.

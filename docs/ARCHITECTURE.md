@@ -1,6 +1,50 @@
 # Architecture
 
+## System overview
+
+Each device runs its own copy of Handoff. The copies talk to each other directly over the local network; there is no server. Audio never passes through Handoff: each device talks to the headphones over Bluetooth as usual, and Handoff only decides which device is connected.
+
+```mermaid
+flowchart LR
+    subgraph lan["Local network: Wi-Fi, Ethernet or a hotspot"]
+        phone["Android phone<br/>Handoff app"]
+        tablet["Android tablet<br/>Handoff app"]
+        pc["Windows PC<br/>Handoff app"]
+    end
+    headset(("Bluetooth<br/>headphones"))
+    github[("GitHub Releases")]
+
+    phone <-->|"encrypted TCP<br/>found via mDNS"| pc
+    phone <-->|encrypted TCP| tablet
+    tablet <-->|encrypted TCP| pc
+    phone -. Bluetooth .- headset
+    tablet -. Bluetooth .- headset
+    pc -. Bluetooth .- headset
+    phone -. "update check<br/>(only when asked)" .-> github
+    pc -. "update check<br/>(only when asked)" .-> github
+```
+
+At any moment, one device holds the headphones (or several, for headphones that connect to two devices at once). **Move here** asks the holder to let go, then connects the device in your hand.
+
 ## Modules and layers
+
+```mermaid
+flowchart TB
+    subgraph android["Android app"]
+        app[":app<br/>screens, service, tile,<br/>runtime, updates, storage"]
+        bt[":bluetooth<br/>Android Bluetooth control<br/>(incl. hidden APIs)"]
+    end
+    subgraph windows["Windows app"]
+        desktop[":desktop<br/>window, tray, Win32 Bluetooth,<br/>updates, storage"]
+    end
+    core[":core (plain Kotlin/JVM)<br/>transfer coordinator, ownership,<br/>protocol, crypto, LAN transport,<br/>linking, updates, shared read model"]
+    app --> bt
+    app --> core
+    bt --> core
+    desktop --> core
+```
+
+Components of each module:
 
 ```
 ┌──────────────────────────────── :app (Android) ─────────────────────────────────┐
@@ -93,6 +137,63 @@ Each host is authoritative for its own A2DP state and reports it in `STATUS_RESP
 
 ## Transfer algorithm
 
+A move, end to end, when the headphones are on the PC and you tap **Move here** on the phone:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor You
+    participant Phone as Phone: HandoffCoordinator
+    participant PC as PC: PeerServer + AudioReleaseHandler
+    participant BT as Headphones
+
+    You->>Phone: Move here
+    Phone->>PC: STATUS_REQUEST (who holds the headphones?)
+    PC-->>Phone: STATUS_RESPONSE (connected: yes)
+    Phone->>PC: PING
+    PC-->>Phone: PONG
+    Phone->>PC: RELEASE_AUDIO_DEVICE
+    PC->>BT: disconnect media, calls and remote control
+    PC->>PC: verify every profile is down
+    PC-->>Phone: RELEASED
+    Phone->>Phone: short settle delay
+    Phone->>BT: connect
+    Phone->>Phone: verify the connection (retry once if needed)
+    Phone->>PC: OWNERSHIP_CHANGED (new owner, generation + 1)
+    Phone-->>You: Connected. Handed over cleanly.
+```
+
+If the PC can't be reached, refuses, or doesn't answer in time, the phone connects directly instead (*direct takeover*). Most headphones that connect to one device at a time then drop the old device by themselves.
+
+### Transfer states
+
+Every transfer runs through an explicit state machine (`TransferStateMachine`). Any active state can also end in `FAILED`, including when the user cancels.
+
+```mermaid
+stateDiagram-v2
+    [*] --> RESOLVING_OWNER
+    RESOLVING_OWNER --> REQUESTING_RELEASE: another device holds it
+    RESOLVING_OWNER --> CONNECTING: nobody holds it / multipoint
+    RESOLVING_OWNER --> DIRECT_TAKEOVER: holder unknown
+    RESOLVING_OWNER --> COMPLETE: already connected here
+    REQUESTING_RELEASE --> WAITING_RELEASE: holder reachable
+    REQUESTING_RELEASE --> DIRECT_TAKEOVER: holder unreachable
+    WAITING_RELEASE --> CONNECTING: released
+    WAITING_RELEASE --> REQUESTING_RELEASE: next holder
+    WAITING_RELEASE --> DIRECT_TAKEOVER: timeout or refused
+    DIRECT_TAKEOVER --> CONNECTING
+    CONNECTING --> VERIFYING
+    CONNECTING --> RETRYING: connect request failed
+    VERIFYING --> COMPLETE: connection confirmed
+    VERIFYING --> RETRYING: not confirmed
+    RETRYING --> CONNECTING: second attempt
+    RETRYING --> RESOLVING_OWNER: automatic retry of the whole move
+    COMPLETE --> [*]
+    FAILED --> [*]
+```
+
+The same algorithm as pseudocode, with its timeouts:
+
 `DefaultHandoffCoordinator.moveToThisDevice` is the only switching path:
 
 ```kotlin
@@ -130,7 +231,7 @@ COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
   | `OWNER_REFUSED` | The holder answered but couldn't let go. The detail is its reason, e.g. a call profile Android refused to drop. |
   | `HEADSET_NOT_RESPONDING` | Nobody else held the headset, or it was released, but it still didn't connect. |
 
-* `HandoffDiagnosis` turns transport rejections into plain language: clock skew over 5 minutes, a different app version, a no-longer-linked device, a reinstalled device.
+* `HandoffDiagnosis` turns transport rejections into user-facing messages: clock skew over 5 minutes, a different app version, a no-longer-linked device, a reinstalled device.
 * A host holding the headset through *any* profile (A2DP, HFP or LE Audio) reports it as connected, so a call-only link is never mistaken for "free". The legal transitions are declared in `TransferStateMachine.TRANSITIONS`. An illegal one throws, and the coordinator turns that into `Failed(INTERNAL)`.
 
 **Cancelling.** `HandoffCoordinator.cancel(logicalId)` cancels the running attempt, which runs as a child job of `moveToThisDevice`. The transfer ends with `HandoffResult.Cancelled`, a `CANCELLED` step and a history record, and the per-headset lock is released. Anything already done (for example the other host's release) stays done. On Android, `HandoffActions.cancel` also stops a move that is still waiting for discovery before the coordinator has started it.
@@ -140,6 +241,23 @@ COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
 ### Remote side (`AudioReleaseHandler`)
 
 The handler runs headless, so it works with the screen off:
+
+```mermaid
+flowchart TD
+    req["RELEASE_AUDIO_DEVICE received<br/>(authenticated, fresh, not a duplicate)"] --> mapped{Headphones added<br/>on this device?}
+    mapped -- no --> unknown[reply DEVICE_UNKNOWN]
+    mapped -- yes --> lock{Another move running<br/>for these headphones?}
+    lock -- yes --> busy1[reply BUSY]
+    lock -- no --> recent{Just handed to a<br/>different device?}
+    recent -- "yes, within 8 s" --> busy2[reply BUSY]
+    recent -- no --> connected{Connected here?}
+    connected -- no --> nc[reply NOT_CONNECTED]
+    connected -- yes --> release[Disconnect media, calls<br/>and other audio profiles]
+    release --> verify{All profiles down<br/>within 5 s?}
+    verify -- yes --> ok[reply RELEASED]
+    verify -- "a call profile is stuck" --> failed[reply FAILED, naming it]
+    verify -- no --> timeout[reply TIMEOUT]
+```
 
 1. Look up the local mapping. If there is none, reply `DEVICE_UNKNOWN`.
 2. Take the same per-device mutex without waiting. If it's held, reply `BUSY`.
@@ -192,6 +310,27 @@ It ignores playback when the headset is already here, on multipoint or conflict,
 
 ## Networks
 
+How a device finds the address of a linked device:
+
+```mermaid
+flowchart LR
+    subgraph sources["Address sources (tried in this order)"]
+        last["1 · last successful contact"]
+        mdns["2 · mDNS discovery<br/>(daily-rotating name)"]
+        code["3 · link code"]
+        inbound["4 · address of an incoming<br/>authenticated connection"]
+        remembered["5 · remembered from an earlier<br/>run (EndpointMemory)"]
+    end
+    last --> dir[PeerDirectory]
+    mdns --> dir
+    code --> dir
+    inbound --> dir
+    remembered --> dir
+    dir --> transport["LanPeerTransport<br/>tries each address in order"]
+    transport --> peer["Linked device<br/>(handshake must match its stored key)"]
+    change(["network changed"]) -. "drop old addresses,<br/>restore ones known for the new network,<br/>restart discovery" .-> dir
+```
+
 A link is bound to two identity keys, never to a network, SSID or IP address, so a pair of devices is linked once and works on every network they share.
 
 * **Discovery:** mDNS on each network (Android `NsdManager`, Windows JmDNS).
@@ -219,6 +358,23 @@ A link is bound to two identity keys, never to a network, SSID or IP address, so
 ## Updates
 
 Both apps check GitHub Releases only when asked, or once a day if the user turns that on.
+
+```mermaid
+sequenceDiagram
+    participant App as Handoff app
+    participant GH as GitHub Releases
+    participant OS as Android installer / Windows Installer
+
+    App->>GH: GET latest/download/update.json
+    App->>GH: GET latest/download/update.json.sig
+    App->>App: verify signature with the built-in release key
+    Note over App: stop if the signature or any URL is wrong
+    App->>App: newer than this version?
+    App->>GH: download the APK or MSI (HTTPS, GitHub hosts only)
+    App->>App: check size and SHA-256 against the signed manifest
+    App->>OS: hand over the verified file
+    OS-->>App: user confirms, update installed
+```
 
 * `UpdateChecker` downloads `update.json` and `update.json.sig` from the latest release. The signature must verify against the release public key in `UpdateKeys`; the manifest may only point at this repository's release downloads.
 * A download is kept only if its size and SHA-256 match the signed manifest. Every request, including redirects, must be HTTPS to GitHub's release hosts.
