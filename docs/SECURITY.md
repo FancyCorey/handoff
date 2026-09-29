@@ -21,8 +21,8 @@ Handoff lets one device make another device disconnect its headphones. The desig
 
 ```mermaid
 sequenceDiagram
-    participant U as You
     participant A as Device A
+    participant U as You
     participant B as Device B
     U->>A: Show a link code
     A-->>B: Code with peer id, key fingerprint, one-time token and addresses
