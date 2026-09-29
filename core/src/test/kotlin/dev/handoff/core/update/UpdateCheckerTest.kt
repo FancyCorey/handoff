@@ -79,4 +79,14 @@ class UpdateCheckerTest {
     fun `the built-in release key is a valid P-256 key`() {
         Crypto.decodeP256PublicKey(UpdateKeys.releasePublicKey)
     }
+
+    @Test
+    fun `release notes become plain text for the apps`() {
+        val md = "**Clearer wording**, plus a [guide](https://example.com).\n\n## What's new\n\n" +
+            "- **A check.** Asks *\"Can it?\"*\n\n## Which file?\n\n| a | b |\n|---|---|\n\n## Good to know\n\nRun `Handoff.exe`."
+        assertEquals(
+            "Clearer wording, plus a guide.\n\nWhat's new\n\n• A check. Asks \"Can it?\"\n\nGood to know\n\nRun Handoff.exe.",
+            ReleaseTool.plainText(md),
+        )
+    }
 }

@@ -43,7 +43,7 @@ object ReleaseTool {
         val manifest = UpdateManifest(
             version = version,
             publishedAtMs = System.currentTimeMillis(),
-            notes = notes.readText().trim(),
+            notes = plainText(notes.readText()),
             releaseUrl = "${UpdateChecker.RELEASE_PAGE_PREFIX}tag/$tag",
             assets = files.map {
                 UpdateAsset(platformOf(it.name)!!, it.name, "${UpdateChecker.DOWNLOAD_PREFIX}$tag/${it.name}", UpdateChecker.sha256(it), it.length())
@@ -57,6 +57,31 @@ object ReleaseTool {
         File(releaseDir, "SHA256SUMS.txt").writeText(manifest.assets.joinToString("") { "${it.sha256}  ${it.name}\n" })
         require(UpdateChecker(version).verify(body, signature) != null) { "signature does not verify with the built-in public key" }
         println("signed ${manifest.assets.size} files for $tag")
+    }
+
+    /**
+     * The apps show release notes as plain text, so the Markdown written for the GitHub release
+     * page is simplified: formatting marks and tables are dropped and links keep only their text.
+     */
+    internal fun plainText(markdown: String): String {
+        val lines = markdown.replace("\r\n", "\n").lines().filterNot { it.trimStart().startsWith("|") }
+        val heading = Regex("""^#{1,6}\s*""")
+        val kept = lines.filterIndexed { i, line ->
+            // A heading whose section was only a table would be left empty: drop it.
+            !heading.containsMatchIn(line) ||
+                lines.drop(i + 1).firstOrNull { it.isNotBlank() }?.let { !heading.containsMatchIn(it) } ?: false
+        }
+        return kept.joinToString("\n") { line ->
+            line.replace(heading, "")
+                .replace(Regex("""^\s*[-*]\s+"""), "• ")
+                .replace(Regex("""\[([^\]]+)]\([^)]*\)"""), "$1")
+                .replace("**", "")
+                .replace(Regex("""(?<![\w*])\*([^*\n]+)\*(?![\w*])"""), "$1")
+                .replace("`", "")
+                .trimEnd()
+        }
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
     }
 
     private fun platformOf(name: String): String? = when {
