@@ -1,5 +1,6 @@
 package dev.handoff.app.di
 
+import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.mesh.transport.DiscoveryTags
 import dev.handoff.app.mesh.NetworkAddresses
@@ -82,7 +83,14 @@ val appModule = module {
     single<EventLog> { InMemoryEventLog(sink = { Log.i("Handoff", it.format()) }) }
     single { HandoffPolicy() }
     single { DeviceLocks() }
-    single { PeerDirectory() }
+    single {
+        // Last working peer addresses survive restarts, for networks where mDNS is blocked.
+        val context = androidContext()
+        PeerDirectory().also { directory ->
+            EndpointMemory(java.io.File(context.noBackupFilesDir, "peer-endpoints.json"))
+                .attach(directory, get(APP_SCOPE)) { NetworkAddresses.lanIpv4(context).mapNotNull(::networkPrefix).toSet() }
+        }
+    }
 
     // Identity & persistence
     single { KeystoreIdentityProvider(androidContext()) } binds arrayOf(IdentityProvider::class)

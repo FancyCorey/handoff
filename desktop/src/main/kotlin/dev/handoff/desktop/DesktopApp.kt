@@ -1,5 +1,6 @@
 package dev.handoff.desktop
 
+import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.mesh.transport.DiscoveryTags
 import dev.handoff.core.mesh.transport.networkPrefix
@@ -63,7 +64,11 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
     val devices = FileLogicalDeviceRepository(dataDir)
     val history = DesktopTransferHistory()
     val bluetooth = WindowsBluetoothAudioController(scope, settings, demo = demoBluetooth())
-    val directory = PeerDirectory()
+    val directory = PeerDirectory().also {
+        // Last working peer addresses survive restarts, for networks where mDNS is blocked.
+        EndpointMemory(File(dataDir, "peer-endpoints.json"))
+            .attach(it, scope) { JmdnsDiscovery.lanAddresses().mapNotNull { a -> a.hostAddress?.let(::networkPrefix) }.toSet() }
+    }
     private val transport = LanPeerTransport(identity, trust, directory, events)
     val pairing = PairingManager(identity, trust, events)
     val pairingClient = PairingClient(identity, trust, directory, events)

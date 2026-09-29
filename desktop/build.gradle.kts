@@ -35,6 +35,14 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
+tasks.test {
+    // Opt-in real-hardware test (WindowsHeadsetHardwareTest); never cached.
+    listOf("handoff.hw.headset", "handoff.hw.out").forEach { key ->
+        System.getProperty(key)?.let { systemProperty(key, it) }
+    }
+    outputs.upToDateWhen { System.getProperty("handoff.hw.headset") == null }
+}
+
 compose.desktop {
     application {
         mainClass = "dev.handoff.desktop.MainKt"

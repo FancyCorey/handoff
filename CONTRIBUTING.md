@@ -33,12 +33,29 @@ Put domain logic in `:core` with tests that use the fakes in `core/src/test/.../
 
 While the port forward is active, the device's refreshes to the JVM peer loop back to itself and are logged as `PEER_AUTH_FAILED` (expected). Unlink "JVM test peer" afterwards.
 
+## Real headset on Windows
+
+`WindowsHeadsetHardwareTest` (skipped by default) runs Handoff's own release and connect path on the PC running the tests. The headset must be on, in range and not playing on another device:
+
+```bash
+./gradlew :desktop:test --tests '*WindowsHeadsetHardwareTest*' -Dhandoff.hw.headset="<headset name>" -Dhandoff.hw.out=hw.txt
+```
+
+It performs three release→connect cycles, records timings and battery in `hw.txt`, and leaves the headset connected to the PC.
+
+## Demo mode
+
+Demo mode swaps in made-up headsets ("Aurora Buds", "Studio Headphones") and never touches the real Bluetooth stack. The README screenshots are taken with it, so no personal device names or addresses appear.
+
+* Windows: `./gradlew :desktop:run -Phandoff.dataDir=build/demo -Phandoff.demo=true "-Phandoff.demo.name=Studio PC" -Phandoff.demo.connected=0A:DE:40:00:00:01` (`-Phandoff.port=<port>` if 47474 is taken).
+* Android (debug builds only): `adb shell run-as dev.handoff.app.debug touch files/demo`, then restart the app. Each line of that file can list a demo headset address that starts out connected.
+
 ## Pull requests
 
 * Keep changes focused and include tests.
 * Bluetooth-behaviour changes need a hardware report: fill in the matrix row from `docs/HARDWARE_TEST_PLAN.md`.
 * Protocol changes must stay backward compatible within `protocolVersion` 1 (only add optional fields), or bump the version and handle both.
-* If you adapt third-party code, update `THIRD_PARTY_NOTICES.md` in the same PR.
+* If you adapt third-party code or add a dependency, update `THIRD_PARTY_NOTICES.md` and `core/src/main/resources/dev/handoff/core/NOTICES.txt` in the same PR, and credit the source in the file header.
 
 ## Known follow-ups
 

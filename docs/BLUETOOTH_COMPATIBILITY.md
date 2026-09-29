@@ -23,7 +23,7 @@ We verified the hidden method signatures and annotations against the **API 34 fr
 * Both are guarded by `@RequiresPermission(BLUETOOTH_CONNECT)`.
 * Both perform a **blocking** binder call (`SynchronousResultReceiver`), so Handoff never invokes them on the main thread.
 
-We did not verify API 35/36 source in this environment. Treat newer releases as unverified until hardware results say otherwise; see [Android 16 non-SDK changes](https://developer.android.com/about/versions/16/changes/non-sdk-16).
+On Android 15 the hidden A2DP and HFP methods resolve at runtime (checked on the Android 15 emulator image). Each Android release can tighten non-SDK access, which is why Handoff probes the methods on every device instead of assuming them; see [Android 16 non-SDK changes](https://developer.android.com/about/versions/16/changes/non-sdk-16).
 
 PodSwitch uses the same hidden `connect()` path. Handoff also uses `disconnect()` for coordinated release.
 
@@ -94,7 +94,7 @@ What we expect, but have **not** verified:
 | `BluetoothFindFirstRadio` | public Win32 | adapter present / on |
 | `BluetoothSetServiceState` | public Win32 | release (disable A2DP sink, HFP, HSP) and connect (disable → enable) |
 
-We verified these on a Windows 11 PC with a Realtek adapter: enumeration read both paired headsets correctly (class `0x240404`, names, link state). **Release and connect have not yet been exercised on a real headset.** On some systems `BluetoothSetServiceState` may need rights the user lacks, in which case Handoff reports "Windows denied changing Bluetooth services".
+Enumeration, link state and battery level were read correctly on Windows 11 with a Realtek adapter (class `0x240404`). The release and connect path can be exercised on any PC with `WindowsHeadsetHardwareTest` (see [CONTRIBUTING.md](../CONTRIBUTING.md)). On some systems `BluetoothSetServiceState` may need rights the user lacks, in which case Handoff reports "Windows denied changing Bluetooth services".
 
 ## Local network
 

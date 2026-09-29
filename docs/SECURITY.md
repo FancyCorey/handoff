@@ -90,7 +90,7 @@ S → C  [AES-GCM] SERVER_FINISH {accepted}
 * Links are bound to identity keys, not to a network or an IP address. After a network change, peers are rediscovered and every connection re-authenticates against the stored key. A different device that takes over a peer's old IP address is rejected by the handshake.
 * The Windows app listens on TCP 47474 on all interfaces, but only local-network addresses are served (see above). Unauthenticated connections get nothing but `REJECT`. The Windows Firewall prompt should be answered for private networks only.
 * **Hotspots:** a device's own hotspot is a local network like any other. Handoff includes the hotspot interface in its link codes and discovery, and no traffic leaves the hotspot.
-* Per peer, the last working address on each network (at most 8) is remembered locally and never shared, so returning to a known network reconnects without waiting for discovery.
+* Per peer, the last working address on each network (at most 8) is kept in the app's private storage (`peer-endpoints.json`; on Android in the no-backup directory) and never shared. It lets a restarted app, or a device returning to a known network, reach linked devices without waiting for discovery. Every connection to such an address still has to pass the handshake against the pinned key.
 * **Android background mode** (a foreground service) is off by default. Without it, a device is only reachable while Handoff is open.
 
 ## Reporting vulnerabilities

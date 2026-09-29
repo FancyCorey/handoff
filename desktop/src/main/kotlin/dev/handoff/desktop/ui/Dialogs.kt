@@ -1,5 +1,7 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.core.text.OpenSourceNotices
+import androidx.compose.foundation.layout.PaddingValues
 import dev.handoff.core.text.HandoffTexts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -273,6 +275,11 @@ fun SettingsDialog(
     onClose: () -> Unit,
 ) {
     var editing by remember { mutableStateOf(name) }
+    var showLicenses by remember { mutableStateOf(false) }
+    if (showLicenses) {
+        LicensesDialog(onClose = { showLicenses = false })
+        return
+    }
     AlertDialog(
         onDismissRequest = { onRename(editing); onClose() },
         title = { Text("Settings") },
@@ -297,9 +304,27 @@ fun SettingsDialog(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Open-source licenses") }
             }
         },
         confirmButton = { TextButton(onClick = { onRename(editing); onClose() }) { Text("Done") } },
+    )
+}
+
+/** Every bundled component, the PodSwitch credit and the full license texts. */
+@Composable
+fun LicensesDialog(onClose: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Open-source licenses") },
+        text = {
+            Text(
+                OpenSourceNotices.readable,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = { TextButton(onClick = onClose) { Text("Close") } },
     )
 }
 

@@ -104,4 +104,28 @@ class NetworkPrivacyTest {
         directory.onNetworkChanged(setOf("172.20.10"))
         assertTrue(directory.endpointsFor(id).isEmpty())
     }
+
+    @Test
+    fun `remembered addresses survive a restart and local networks come first`() {
+        val file = java.io.File.createTempFile("endpoints", ".json").apply { deleteOnExit() }
+        val id = peer.peerId
+        val before = PeerDirectory()
+        before.onContactSucceeded(id, "192.168.1.20", 47474)
+        before.onNetworkChanged(setOf("10.0.0"))
+        before.onContactSucceeded(id, "10.0.0.7", 47474)
+        dev.handoff.core.mesh.transport.EndpointMemory(file).save(before.knownNetworks())
+
+        val after = PeerDirectory()
+        after.restore(dev.handoff.core.mesh.transport.EndpointMemory(file).load(), localNetworks = setOf("192.168.1"))
+        val endpoints = after.endpointsFor(id)
+        assertEquals(listOf("192.168.1.20", "10.0.0.7"), endpoints.map { it.host })
+        assertEquals(listOf(EndpointSource.LAST_SUCCESS, EndpointSource.REMEMBERED), endpoints.map { it.source })
+        assertFalse(after.isOnline(id))
+    }
+
+    @Test
+    fun `a damaged endpoint file is ignored`() {
+        val file = java.io.File.createTempFile("endpoints", ".json").apply { writeText("{not json"); deleteOnExit() }
+        assertTrue(dev.handoff.core.mesh.transport.EndpointMemory(file).load().isEmpty())
+    }
 }

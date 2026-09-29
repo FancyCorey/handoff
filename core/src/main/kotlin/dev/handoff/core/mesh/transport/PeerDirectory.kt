@@ -14,6 +14,9 @@ enum class EndpointSource {
 
     /** Source address of an authenticated inbound session, with the peer's default listen port. */
     INBOUND,
+
+    /** Last working address from an earlier run, on a network this host isn't obviously on now. */
+    REMEMBERED,
 }
 
 data class PeerEndpoint(
@@ -123,6 +126,30 @@ class PeerDirectory(
             val restored = p.knownNetworks.filterKeys { it in localNetworks }.values.toList()
             val next = p.copy(discovered = false, failing = false, lastContactMs = null, endpoints = restored)
             next.copy(online = computeOnline(next))
+        }
+    }
+
+    /** Last working address per peer and network, for [EndpointMemory] to persist. */
+    fun knownNetworks(): Map<PeerId, Map<String, PeerEndpoint>> =
+        state.value.mapValues { it.value.knownNetworks }.filterValues { it.isNotEmpty() }
+
+    /**
+     * Restores addresses remembered from an earlier run, so linked devices are reachable at
+     * once even where mDNS doesn't work. Addresses on one of [localNetworks] are tried first; the
+     * most recent other address is kept as a last resort (NAT, VPN, an unusual subnet).
+     */
+    fun restore(known: Map<PeerId, Map<String, PeerEndpoint>>, localNetworks: Set<String>) = state.update { all ->
+        known.entries.fold(all) { acc, (peerId, networks) ->
+            val current = acc[peerId] ?: PeerPresence(peerId, false, false, null, null, emptyList())
+            val local = networks.filterKeys { it in localNetworks }.values.map { it.copy(source = EndpointSource.LAST_SUCCESS) }
+            val fallback = networks.filterKeys { it !in localNetworks }.values.maxByOrNull { it.updatedAtMs }
+                ?.copy(source = EndpointSource.REMEMBERED)
+            val restored = current.copy(
+                knownNetworks = networks + current.knownNetworks,
+                endpoints = (current.endpoints + local + listOfNotNull(fallback)).distinctBy { it.source to "${it.host}:${it.port}" },
+                lastNetwork = current.lastNetwork ?: networks.values.maxByOrNull { it.updatedAtMs }?.host?.let(::networkPrefix),
+            )
+            acc + (peerId to restored.copy(online = computeOnline(restored)))
         }
     }
 

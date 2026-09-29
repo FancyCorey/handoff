@@ -1,3 +1,8 @@
+/*
+ * Starting at login through the per-user Run registry key is adapted from
+ * PodSwitch by Felip6499 (https://github.com/Felip6499/PodSwitch), MIT License,
+ * Copyright (c) 2026 Felip6499. See THIRD_PARTY_NOTICES.md for the full license text.
+ */
 package dev.handoff.desktop
 
 import com.sun.jna.platform.win32.Advapi32Util

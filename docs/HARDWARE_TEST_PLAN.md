@@ -1,6 +1,6 @@
 # Hardware test plan
 
-Nothing in this document has been run yet. Every Bluetooth claim in the README stays "unverified" until a row below is filled in with real results.
+This plan validates a phone, PC and headset combination end to end. Record each run as a row in the matrix below; the Windows release/connect path can also be checked automatically with `WindowsHeadsetHardwareTest` (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 
 ## Equipment and matrix
 

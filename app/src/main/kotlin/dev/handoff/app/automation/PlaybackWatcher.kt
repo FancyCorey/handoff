@@ -1,3 +1,8 @@
+/*
+ * Detecting playback start with AudioManager.registerAudioPlaybackCallback is adapted from
+ * PodSwitch by Felip6499 (https://github.com/Felip6499/PodSwitch), MIT License,
+ * Copyright (c) 2026 Felip6499. See THIRD_PARTY_NOTICES.md for the full license text.
+ */
 package dev.handoff.app.automation
 
 import android.content.Context
@@ -25,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Optional PodSwitch-style trigger (Milestone 7): when media playback starts on this device,
+ * Optional trigger: when media playback starts on this device,
  * ask (notification) or automatically run the normal Handoff transfer. It never switches by
  * itself — [AutoSwitchPolicy.Decision.Switch] goes through [HandoffActions] and therefore the
  * one coordinator and state machine.

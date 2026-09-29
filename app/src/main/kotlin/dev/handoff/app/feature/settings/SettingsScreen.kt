@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.settings
 
+import dev.handoff.core.text.OpenSourceNotices
+import androidx.compose.material3.MaterialTheme
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -227,15 +229,11 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             onDismissRequest = { showLicenses = false },
             title = { Text("Open-source licenses") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(4.dp)) {
-                    Text(
-                        "Portions of the Android Bluetooth audio connection approach were adapted from PodSwitch by Felip6499 " +
-                            "(MIT License, Copyright (c) 2026 Felip6499).\n\n" +
-                            "ZXing and zxing-android-embedded (Apache License 2.0), AndroidX and Jetpack Compose (Apache License 2.0), " +
-                            "Kotlin and kotlinx libraries (Apache License 2.0), Koin (Apache License 2.0).\n\n" +
-                            "Full texts are in THIRD_PARTY_NOTICES.md in the source repository.",
-                    )
-                }
+                Text(
+                    OpenSourceNotices.readable,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
             },
             confirmButton = { TextButton(onClick = { showLicenses = false }) { Text("Close") } },
         )

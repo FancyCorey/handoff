@@ -1,142 +1,119 @@
-<p align="center"><img src="docs/brand/handoff-logo-512.png" width="112" alt="Handoff logo"></p>
+<p align="center"><img src="docs/brand/handoff-logo-512.png" width="120" alt="Handoff logo"></p>
 
-# Handoff
+<h1 align="center">Handoff</h1>
 
-**Move your Bluetooth headphones between your Android phones, tablets and Windows PCs with one tap.**
-
-Press **Move here** on the device you want to listen on. Handoff asks your other device to let go of the headphones, then connects them here and checks that audio really arrived. You don't need to unlock the other device, open Bluetooth settings or pair anything again.
+<p align="center"><b>Your Bluetooth headphones, on whichever device you pick up.</b><br>
+One tap moves an already-paired headset between Android phones, tablets and Windows PCs.</p>
 
 <p align="center">
-  <img src="docs/screenshots/android-home.png" width="260" alt="Handoff on Android: Aurora Buds connected here at 80% battery, with Studio PC online">
-  &nbsp;
-  <img src="docs/screenshots/android-move.png" width="260" alt="A finished move: Connecting, Checking the connection, Connected, in 2.1 seconds">
+  <img alt="Android 12+" src="https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white">
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue">
+  <img alt="No account, no cloud" src="https://img.shields.io/badge/account%20%26%20cloud-none-555">
 </p>
 
-> The screenshots use Handoff's built-in demo mode: "My Phone", "Studio PC", "Aurora Buds" and "Studio Headphones" are made-up test devices. No personal data appears in them.
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="Aurora Buds on Studio PC at 80% battery, with a Move here button"></td>
+    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="Moving Aurora Buds: Studio PC let go"></td>
+    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="Connected. Handed over cleanly: release 2.7 s, connect 1.2 s"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The headphones are on the PC</sub></td>
+    <td align="center"><sub><b>Move here</b>: the PC lets go</sub></td>
+    <td align="center"><sub>Connected and verified on the phone</sub></td>
+  </tr>
+</table>
 
-> **Status: 0.4.0, early release.** Both apps build and pass their automated tests, and they have been linked with each other on an Android 15 emulator and a Windows 11 PC. Moving a *real* headset is still being validated across phones and headsets, so expect rough edges. See [What is and isn't verified](#what-is-and-isnt-verified).
+---
+
+**Move here** is the whole interaction. The device holding the headphones lets go of them, the device in your hand connects, and Handoff confirms that audio is really connected. There's no Bluetooth menu, no re-pairing, and no need to unlock the other device.
+
+## Highlights
+
+- **Coordinated handover.** The current device releases media *and* call audio before the new one connects, so single-point headsets switch cleanly. If the other device can't be reached, Handoff connects directly instead.
+- **Verified, not assumed.** Every move ends with a check that the headset really connected, with one automatic retry and a plain-language explanation if something stands in the way.
+- **Phones, tablets and PCs.** Android phones and tablets link with each other and with Windows PCs, and every device shows where the headset is and its battery level.
+- **Link once, use anywhere.** Links belong to your devices, not to a Wi-Fi network. They keep working at home, at work and on the road, and devices find each other again automatically.
+- **Works without Wi-Fi.** One device's hotspot is enough. Nothing goes over the internet and no mobile data is needed.
+- **Private by design.** No account, no cloud, no telemetry. Linked devices talk end-to-end encrypted on your local network only.
+- **Always at hand.** A Quick Settings tile and optional automatic switching when audio starts playing on Android; a tray menu on Windows.
 
 ## How it works
 
-1. **Pair your headphones** with each device as usual, in its Bluetooth settings. Handoff never pairs, unpairs or scans for Bluetooth devices.
-2. **Link your devices once.** One device shows a code and the other scans it. Both screens then show the same 6-digit number, and you approve the link. A link is bound to the two devices, not to a Wi-Fi network, so it keeps working at home, at work or on a hotspot.
-3. **Add the headset** on each device. Handoff recognises the same headset across your devices.
-4. **Press Move here.** Your device finds which linked device holds the headset and asks it to release it. That device disconnects media and calls and confirms. Then this device connects and verifies the audio link. If the other device can't be reached, Handoff connects directly; most headsets then drop the old connection on their own.
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-link-code.png" width="230" alt="A one-time link code on Android"></td>
+    <td align="center"><img src="docs/screenshots/windows-link-approval.png" width="260" alt="Windows asking to link My Phone after matching the 6-digit code"></td>
+    <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="Aurora Buds connected here at 80% battery, with Studio PC online"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>A single-use link code</sub></td>
+    <td align="center"><sub>Approve when the numbers match</sub></td>
+    <td align="center"><sub>Every device knows where the headset is</sub></td>
+  </tr>
+</table>
 
-If a move fails, Handoff retries once automatically, then tells you in plain words what happened and what to try next, for example *Couldn't reach Studio PC*, *The headset didn't connect* or *On another network*.
+1. **Pair** the headphones with each device as usual, in its Bluetooth settings.
+2. **Link** your devices once. One device shows a single-use code, the other scans it, and both screens show the same 6-digit number to approve.
+3. **Add** the headset on each device. Handoff recognises it as the same headset everywhere.
+4. **Move here.** Your device finds which linked device holds the headset and asks it to let go. That device releases media and calls and confirms, then your device connects and verifies.
 
-Audio always goes straight from your device to your headphones. Handoff only coordinates *which* device is connected. It never streams or forwards audio, and it does not turn a headset into a real multipoint headset.
-
-<p align="center">
-  <img src="docs/screenshots/android-link-code.png" width="220" alt="Android showing a one-time link code that expires in five minutes">
-  &nbsp;
-  <img src="docs/screenshots/windows-link-approval.png" width="260" alt="Windows asking to link My Phone after checking the 6-digit code 745 320">
-</p>
-
-## No shared Wi-Fi? Use a hotspot
-
-The two devices need to share a local network when you move the headset. If there is no Wi-Fi, or the Wi-Fi blocks devices from talking to each other (common on guest, hotel and campus networks), turn on the **hotspot** on one device and join it from the other. Handoff finds your devices on that network by itself. Mobile data isn't needed, and nothing goes over the internet.
-
-When none of your linked devices can be reached, Handoff shows this option, with a shortcut to the hotspot settings.
-
-<p align="center"><img src="docs/screenshots/windows-no-shared-wifi.png" width="300" alt="Windows app with My Phone offline and a 'No shared Wi-Fi?' hint with a button to open Mobile hotspot settings"></p>
+Audio always flows directly between a device and the headphones. Handoff decides *which* device is connected, and never streams or relays sound.
 
 ## Security and privacy
 
-* **No account, no cloud, no telemetry, no ads.** Handoff talks only to your own linked devices on your local network.
-* **Only devices you approve.** Linking needs a one-time code that expires after 5 minutes, *and* a matching 6-digit number approved on screen. Unlinked devices are refused before they can send anything.
-* **Encrypted and authenticated.** Every connection is end-to-end encrypted (P-256 key agreement, AES-256-GCM) and pinned to the linked device's key. Commands are bound to that session, checked for freshness and can't be replayed.
-* **Not reachable from the internet.** Handoff only accepts connections from local-network addresses, and it rate-limits and temporarily blocks addresses that keep failing.
-* **Nothing identifying in network announcements.** Devices announce themselves under a name that changes every day, which only your linked devices can recognise. Device names and headset details only ever go to linked devices, encrypted.
-* **Diagnostics stay on the device** unless you export them, and exports hide Bluetooth addresses and keys.
-
-Details: [docs/SECURITY.md](docs/SECURITY.md).
-
-## Background mode is opt-in
-
-By default Handoff runs only while it is open, with no permanent notification. While Handoff is open on a device, your other devices can take the headset from it.
-
-If you also want that to work while the device is locked, turn on **Settings → Stay reachable in the background**. Android requires a silent, permanent notification for this; you can hide it with **Hide the notification**.
-
-<p align="center"><img src="docs/screenshots/android-settings.png" width="260" alt="Settings: Stay reachable in the background, off by default"></p>
-
-## Download and install
-
-* **Android 12 or newer:** install `Handoff-<version>-debug.apk` (allow installs from that source), or run `adb install -r <apk>`.
-* **Windows 10 or 11 (x64):** run `Handoff-<version>.exe`. It installs for your user only, with no admin rights, and starts minimized to the tray with Windows (you can turn that off in Settings). Windows Firewall may ask once to allow Handoff on **private** networks: allow it.
-
-### Quick start
-
-1. Pair the headset with each device in Bluetooth settings.
-2. Open Handoff on each device, and on Android grant *Nearby devices*.
-3. Link: on Windows choose **Link a phone**; on Android choose **My devices → Scan a Handoff code** (or **Show my code**). Check that both screens show the same 6-digit number, then tap **Link**.
-4. Tap **Add headset** on each device and pick the headset.
-5. Press **Move here** on the device you want to listen on. Android also has a Quick Settings tile, and the Windows tray menu has **Move … here**.
-
-## Platform notes
-
-**Android.** Android has no public API that lets a normal app connect or disconnect a Bluetooth headset. Like [PodSwitch](https://github.com/Felip6499/PodSwitch), Handoff uses hidden framework methods (`BluetoothA2dp.connect/disconnect`, `BluetoothHeadset.disconnect`). A manufacturer or Android update can restrict them. Handoff checks for them, never crashes when they're missing, and shows **Supported**, **Experimental** or **Unsupported on this Android build**. Some manufacturers stop background apps aggressively; if a locked device doesn't respond, set Handoff's battery usage to *Unrestricted*.
-
-**Windows.** Handoff uses the documented Win32 call `BluetoothSetServiceState`. Releasing turns the headset's audio services off for the PC, which also stops Windows from grabbing it back. **Move here** turns them on again. Reconnecting can take a few seconds while Windows reinstalls the audio device.
-
-See [docs/BLUETOOTH_COMPATIBILITY.md](docs/BLUETOOTH_COMPATIBILITY.md).
-
-## Android permissions
-
-| Permission | Why |
+| | |
 |---|---|
-| `BLUETOOTH_CONNECT` (Nearby devices) | List paired headsets, read their state, connect and disconnect them. **Required.** |
-| `INTERNET`, `ACCESS_NETWORK_STATE` | Talk to your linked devices on the local network and notice network changes. |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Used only if you turn on background mode. |
-| `POST_NOTIFICATIONS` | Asked only when you turn on background mode or "Ask" prompts. |
-| `RECEIVE_BOOT_COMPLETED` | Restart background mode after a reboot, if it is on. |
-| `CAMERA` | Scan a link code. Asked only when you tap **Scan**; you can paste the code instead. |
+| **Linking** | Single-use codes that expire in 5 minutes, plus an on-screen 6-digit comparison. Unlinked devices are refused before they can send anything. |
+| **Encryption** | Every connection is authenticated with the linked device's key and encrypted end to end (P-256, AES-256-GCM). Commands are fresh, single-use and bound to their session. |
+| **Network** | Only local-network addresses are served, so Handoff can't be reached from the internet. Addresses that keep failing are rate-limited and blocked. |
+| **Discovery** | Devices announce themselves under a name that changes daily and that only linked devices can recognise. Device names and headset details go to linked devices only. |
+| **Data** | No account, cloud, analytics or ads. Diagnostics stay on the device, and exports remove Bluetooth addresses and keys. |
 
-**Not requested:** location, and `BLUETOOTH_SCAN` (Handoff never searches for new devices).
+The full design is in [docs/SECURITY.md](docs/SECURITY.md).
 
-## What is and isn't verified
+## Designed to stay out of the way
 
-| Verified | Still being validated |
+On Android, Handoff runs while it's open and shows no permanent notification. **Stay reachable in the background** is an opt-in setting that lets a locked device hand over the headset too. On Windows, Handoff lives in the tray and starts with Windows.
+
+When no linked device is on the same network, Handoff suggests the simplest fix: a hotspot from one device, which works without Wi-Fi or mobile data.
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-settings.png" width="230" alt="Android settings with background mode off by default"></td>
+    <td align="center"><img src="docs/screenshots/windows-no-shared-wifi.png" width="260" alt="Windows suggesting a hotspot when no linked device is on the same network"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Background mode is opt-in</sub></td>
+    <td align="center"><sub>No shared Wi-Fi? A hotspot is enough</sub></td>
+  </tr>
+</table>
+
+## Documentation
+
+| | |
 |---|---|
-| Builds; Android lint clean; 142 unit and integration tests pass | Moving a real headset between physical devices |
-| Android 15 emulator: setup, linking, moving (demo headsets), diagnostics, tile | Hidden Android Bluetooth methods on manufacturer builds (Samsung, Pixel, …) |
-| Windows 11: the app runs, reads paired headsets and their battery, and links with Android | `BluetoothSetServiceState` release and connect across headsets |
-| Linking, encryption, replay protection, refusal of unlinked devices, local-address filtering | Background reachability of locked phones; hotspot mode on real devices |
+| [Getting started](docs/GETTING_STARTED.md) | Install, link and set up; networks and hotspots; permissions; messages |
+| [Security](docs/SECURITY.md) | Threat model, linking, handshake, network exposure |
+| [Architecture](docs/ARCHITECTURE.md) | Modules, ownership model, protocol and state machine |
+| [Bluetooth compatibility](docs/BLUETOOTH_COMPATIBILITY.md) | How Android and Windows are driven, compatibility levels |
+| [Hardware test plan](docs/HARDWARE_TEST_PLAN.md) | Scenarios for validating a phone, PC and headset combination |
+| [Contributing](CONTRIBUTING.md) | Building, tests, demo mode and hardware tests |
 
-## Build from source
-
-Requires JDK 17+ and, for Android, an Android SDK with platform 36 (`local.properties` → `sdk.dir=...`).
-
-```bash
-./gradlew test assembleDebug
-```
-
-The APK is written to `app/build/outputs/apk/debug/Handoff-<version>-debug.apk`.
+## Building
 
 ```bash
-./gradlew :desktop:packageExe :desktop:packageMsi
+./gradlew test assembleDebug                          # Android APK and all tests
+./gradlew :desktop:packageExe :desktop:packageMsi     # Windows installers
 ```
 
-The Windows installers are written to `desktop/build/compose/binaries/main/`. To run the Windows app from source, use `./gradlew :desktop:run`.
+JDK 17 or newer and an Android SDK with platform 36 are required. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-**Demo mode** uses made-up headsets and names, for screenshots or for trying the UI without hardware:
+*Screenshots are taken in Handoff's demo mode; "My Phone", "Studio PC" and "Aurora Buds" are fictional devices.*
 
-```bash
-./gradlew :desktop:run -Phandoff.dataDir=build/demo -Phandoff.demo=true "-Phandoff.demo.name=Studio PC"
-```
+## License and acknowledgements
 
-On Android (debug builds only), run `adb shell run-as dev.handoff.app.debug touch files/demo`, then restart the app.
+Handoff is released under the [MIT License](LICENSE).
 
-```
-core/        Pure Kotlin: domain, ownership, protocol, crypto, LAN transport, shared read model.
-bluetooth/   Android library: the only code that touches android.bluetooth.
-app/         Android app (Compose).
-desktop/     Windows app (Compose Desktop): Win32 Bluetooth via JNA, DPAPI identity, tray.
-docs/        Architecture, security, Bluetooth compatibility, hardware test plan, screenshots, brand.
-```
-
-More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/HARDWARE_TEST_PLAN.md](docs/HARDWARE_TEST_PLAN.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## License
-
-MIT, see [LICENSE](LICENSE). Parts of the Bluetooth approach (Android and Windows) are adapted from PodSwitch (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Handoff's approach to connecting and releasing Bluetooth audio on Android and Windows was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Its notice, the list of every bundled open-source component and their full license texts are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and under **Settings → Open-source licenses** in both apps.

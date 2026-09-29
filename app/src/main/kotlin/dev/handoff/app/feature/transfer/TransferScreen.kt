@@ -154,7 +154,7 @@ fun TransferScreen(
             }
             if (result is HandoffResult.Success) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    result.timings.releaseMs?.let { TimingChip("Release", "$it ms") }
+                    result.timings.releaseMs?.let { TimingChip("Release", "%.1f s".format(it / 1000.0)) }
                     result.timings.connectMs?.let { TimingChip("Connect", "%.1f s".format(it / 1000.0)) }
                     TimingChip("Total", "%.1f s".format(result.timings.totalMs / 1000.0))
                 }
