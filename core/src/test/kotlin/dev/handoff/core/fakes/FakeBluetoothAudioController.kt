@@ -108,8 +108,8 @@ class FakeBluetoothAudioController(val hostName: String = "host") : BluetoothAud
  * A physical headset bonded to several simulated hosts.
  *
  * @param acceptsTakeover single-point only: true = a new host's connect knocks the old one off;
- *   false = the headset ignores new hosts while another host holds any profile (e.g. OnePlus
- *   Bullets Wireless Z2 observed on hardware).
+ *   false = the headset ignores new hosts while another host holds any profile (as observed on
+ *   hardware with a single-point neckband headset).
  * @param withCallProfile hosts also get an HFP link when they connect.
  */
 class SimulatedHeadset(

@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Every permission is justified in README.md#permissions. -->
+    <!-- Every permission is justified in README.md#permissions. Edition-specific entries live in
+         src/github/AndroidManifest.xml and src/play/AndroidManifest.xml. -->
 
     <!-- Bonded device list, A2DP state, connect/disconnect (runtime permission, Android 12+). -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -19,8 +20,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Scanning the pairing QR code (requested only when the user taps "Scan"). -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Installing a downloaded, signature-checked update (Android still asks the user to confirm). -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Only to notice an older test build of Handoff installed next to this one. -->
     <queries>
@@ -96,16 +95,5 @@
         <receiver
             android:name=".service.NotificationActionReceiver"
             android:exported="false" />
-
-        <!-- Hands a downloaded update to the system installer. -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.updates"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/update_paths" />
-        </provider>
     </application>
 </manifest>

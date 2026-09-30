@@ -158,7 +158,7 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                             Text("• Install Handoff on each device and link them once. Links keep working on every Wi-Fi; devices just need to share a network when you move the headset.")
                             Text("• Handoff does not create real multipoint and never streams audio itself.")
                             Text("• Switching relies on non-public Android Bluetooth functions and may not work on every phone.")
-                            Text("• No account, no cloud, no tracking. Everything stays on your network.")
+                            Text("• ${dev.handoff.app.edition.Edition.PRIVACY_SUMMARY}")
                         }
                     }
                     Button(onClick = vm::next, modifier = Modifier.fillMaxWidth()) { Text("Continue") }

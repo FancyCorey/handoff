@@ -71,25 +71,42 @@ internal class HiddenMethodInvoker(
         return withTimeoutOrNull(callTimeoutMs) { call.await() } ?: Invocation.TimedOut
     }
 
-    /** Reflectively call a no-argument method returning `int`; null for any failure. */
+    /** Methods found to be absent, blocked or unusable; never looked up or called again. */
+    private val unusableIntMethods = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Reflectively call a no-argument method returning `int`; null for any failure. A method
+     * that is missing, blocked or refuses with SecurityException is remembered and skipped from
+     * then on, so a blocked optional read (such as battery level) costs nothing afterwards.
+     */
     suspend fun invokeIntOrNull(target: Any, name: String): Int? {
+        val key = "${target.javaClass.name}#$name()"
+        if (key in unusableIntMethods) return null
         val method = try {
-            target.javaClass.getMethod(name).takeIf { it.returnType == Integer.TYPE } ?: return null
+            target.javaClass.getMethod(name).takeIf { it.returnType == Integer.TYPE }
         } catch (_: NoSuchMethodException) {
-            return null
+            null
         } catch (_: SecurityException) {
-            return null
+            null
         } catch (_: LinkageError) {
+            null
+        } ?: run {
+            unusableIntMethods += key
             return null
         }
         val call = callScope.async {
             try {
                 method.invoke(target) as? Int
-            } catch (_: InvocationTargetException) {
+            } catch (e: InvocationTargetException) {
+                if (e.targetException is SecurityException || e.targetException is LinkageError) unusableIntMethods += key
                 null
             } catch (_: IllegalAccessException) {
+                unusableIntMethods += key
                 null
             } catch (_: RuntimeException) {
+                null
+            } catch (_: LinkageError) {
+                unusableIntMethods += key
                 null
             }
         }

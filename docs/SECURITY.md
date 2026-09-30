@@ -115,11 +115,22 @@ S → C  [AES-GCM] SERVER_FINISH {accepted}
 
 ## Updates
 
-* Handoff contacts the internet only to check for updates, and only when the user presses **Check for updates** or turns on the daily check (off by default). The request goes to GitHub and carries no identifiers beyond what any HTTPS request reveals (the IP address).
+* Handoff's own code contacts the internet only to check for updates (GitHub edition and Windows), and only when the user presses **Check for updates** or turns on the daily check (off by default). The request goes to GitHub and carries no identifiers beyond what any HTTPS request reveals (the IP address).
 * Each release publishes `update.json` and `update.json.sig`. The signature (ECDSA P-256 over a fixed prefix plus the exact file) must verify against the release public key built into the app (`UpdateKeys`). The private key never leaves the maintainer's machine, so a compromised GitHub account or a modified download cannot produce an update the app will accept.
 * The manifest may only point at this repository's release downloads, and every request, including redirects, must be HTTPS to GitHub's release hosts.
 * A downloaded file is used only if its size and SHA-256 match the signed manifest; otherwise it is deleted.
-* Android installs the update through the system installer, which asks the user to confirm and accepts it only if it is signed with the same release key as the installed app. Windows hands the verified MSI to Windows Installer.
+* The Google Play edition has none of this: no update check, no download, no `REQUEST_INSTALL_PACKAGES`. Google Play installs its updates.
+* Android (GitHub edition) installs the update through the system installer, which asks the user to confirm and accepts it only if it is signed with the same release key as the installed app. Windows hands the verified MSI to Windows Installer.
+
+## Advertising (Google Play edition)
+
+The Play edition includes Google's Mobile Ads and consent SDKs (`app/src/play` only). They run in the app's process, so the boundary is enforced by what the code gives them:
+
+* The ad request contains only the ad unit and size: no keywords, content URL, extras or targeting. Nothing from Handoff (headset names, Bluetooth addresses, peer ids or names, logical device ids, ownership, transfers, diagnostics, LAN addresses) is passed to the SDK or to `AdService`.
+* The SDK has no access to the identity key (non-exportable, in the Android Keystore), and peer traffic is encrypted per session; the ad code has no reference to the transport, the coordinator or the stores.
+* The SDK can make its own network requests to Google (see [PRIVACY.md](../PRIVACY.md#advertising-in-the-google-play-edition)). `ConnectionPolicy` is unaffected: Handoff's port still only serves authenticated, linked devices on local addresses.
+* Handoff's features never wait for the SDK, and an SDK failure only means no banner.
+* The GitHub edition and the Windows app contain no advertising code; a build check fails if an ad library reaches the GitHub edition.
 
 ## Logs and diagnostics
 

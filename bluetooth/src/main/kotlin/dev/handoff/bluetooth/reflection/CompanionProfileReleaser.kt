@@ -10,7 +10,7 @@ import dev.handoff.core.bluetooth.MethodAvailability
  *
  * A single-point headset stays attached to a host as long as any profile is connected; typically
  * HFP (calls) survives an A2DP-only disconnect, and the headset then refuses the new host.
- * Found on hardware: a Galaxy Tab could not take OnePlus Bullets Wireless Z2 from a Galaxy S22
+ * Found on hardware: a tablet could not take a single-point neckband headset from a phone
  * because only A2DP had been released.
  *
  * `BluetoothHeadset.disconnect(BluetoothDevice)` is `@hide @SystemApi` (API 34 source, guarded

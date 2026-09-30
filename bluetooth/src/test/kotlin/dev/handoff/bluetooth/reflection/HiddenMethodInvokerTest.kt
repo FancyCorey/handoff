@@ -38,6 +38,23 @@ class HiddenMethodInvokerTest {
         fun connect(device: Device): Int = 1
     }
 
+    @Suppress("unused")
+    class BatteryProxy {
+        var calls = 0
+        fun getBatteryLevel(): Int {
+            calls++
+            return 80
+        }
+        fun getBlockedLevel(): Int {
+            calls++
+            throw SecurityException("system API")
+        }
+        fun getBrokenLevel(): Int {
+            calls++
+            throw NoClassDefFoundError("missing framework class")
+        }
+    }
+
     private val invoker = HiddenMethodInvoker(callTimeoutMs = 300)
 
     private fun call(target: Any, name: String) = runBlocking {
@@ -85,5 +102,22 @@ class HiddenMethodInvokerTest {
         val a = invoker.resolve(WorkingProxy::class.java, "connect", Device::class.java)
         val b = invoker.resolve(WorkingProxy::class.java, "connect", Device::class.java)
         assertTrue(a === b)
+    }
+
+    @Test
+    fun `optional int reads return the value`() = runBlocking {
+        assertEquals(80, invoker.invokeIntOrNull(BatteryProxy(), "getBatteryLevel"))
+    }
+
+    @Test
+    fun `optional int reads never throw and stop calling a blocked method`() = runBlocking {
+        val proxy = BatteryProxy()
+        assertEquals(null, invoker.invokeIntOrNull(proxy, "getBlockedLevel"))
+        assertEquals(null, invoker.invokeIntOrNull(proxy, "getBlockedLevel"))
+        assertEquals(1, proxy.calls)
+        assertEquals(null, invoker.invokeIntOrNull(proxy, "getBrokenLevel"))
+        assertEquals(null, invoker.invokeIntOrNull(proxy, "getBrokenLevel"))
+        assertEquals(2, proxy.calls)
+        assertEquals(null, invoker.invokeIntOrNull(proxy, "noSuchMethod"))
     }
 }

@@ -14,6 +14,28 @@ On Windows, the release and connect steps can also be run automatically with `Wi
 | 4 | any pair above | | connects to two devices at once (multipoint) | Handoff never cuts off the other device |
 | 5 | any pair above | | Bluetooth speaker | non-headphone audio devices |
 
+### Coverage before a 1.0 release
+
+Every Android version from 12 to 16 needs at least one full run (Tests 0–4), and every maker below at least one device. Android 16 matters most, because each Android release can restrict the hidden Bluetooth methods Handoff relies on.
+
+| Android version | Samsung | Google Pixel | OnePlus | Lenovo | Xiaomi (if available) |
+|---|---|---|---|---|---|
+| 12 | | | | | |
+| 13 | | | | | |
+| 14 | | | | | |
+| 15 | | | | | |
+| 16 | | | | | |
+
+Fill each cell with the result (for example "20/20, Supported") and a link to the report. Headphone types to cover, across the matrix:
+
+| Headphone type | Why |
+|---|---|
+| Earbuds that connect to one device at a time | The main case: the old device must let go completely |
+| Over-ear headphones that connect to one device at a time | Same, often with a different Bluetooth chip |
+| Multipoint headphones (two devices at once) | Handoff must never cut off the other device |
+| Headsets with both music (A2DP) and calls (HFP) | Both profiles must be released, or the headset refuses the new device |
+| LE Audio headphones (where available) | Only supported through classic Bluetooth today; record what happens |
+
 ## What to report
 
 | Field | Value |
@@ -28,6 +50,13 @@ On Windows, the release and connect steps can also be run automatically with `Wi
 | Headphones going back to the previous device by themselves | |
 | Crashes | |
 | Bluetooth problems (had to restart Bluetooth or the headphones) | |
+
+For Test 4, also fill in one row per move (a spreadsheet works well):
+
+| Move | From → to | Result | Time (s) | Connect attempts | How (COORDINATED / DIRECT_TAKEOVER / UNCONTESTED) | Hidden connect / disconnect (Available / Missing / Blocked) | Other profiles released (HFP, LE Audio: released / refused / unavailable) | Went back by itself? | Notes (maker-specific behaviour) |
+|---|---|---|---|---|---|---|---|---|---|
+
+The hidden-method states are shown in **Diagnostics**, the profile results in the event log line that starts with `disconnect`, and the rest in **Recent transfers**.
 
 Attach the diagnostics report from both devices (Android: the share button in **Diagnostics**; Windows: **Copy & close**). Reports hide most of each Bluetooth address and never include keys.
 
@@ -144,5 +173,29 @@ Don't restart either app during this test.
 
 ## Test 12: Updates
 
+GitHub edition (Android) and Windows:
+
 1. **Settings → Check for updates** (Android) or **Check now** (Windows). Expected: "You're up to date", or a new version with its release notes.
 2. When a newer version is available, tap **Download and install**. Expected: after the download, Android's installer (or Windows Installer) asks you to confirm, and the new version keeps your links and headphones.
+
+Google Play edition:
+
+1. **Settings → Updates** says "Updates are managed by Google Play", and tapping it opens Handoff in the Play Store. Nothing offers to download or install an APK, and Android never asks to allow installing unknown apps for Handoff.
+2. Install an older build from an internal test track, then update it from Play. Expected: links and headphones are kept.
+
+## Test 13: The Google Play edition's ad
+
+1. On the home screen, the banner is below the list, under a divider and a "Sponsored" label. It never covers a card or a **Move here** button.
+2. Start the app with the network off. Expected: no ad, and moves work normally. Turn the network on and restart: the banner appears without shifting the headset cards.
+3. Check that no ad appears in setup, linking, the move progress screen, errors, diagnostics, settings, notifications or the tile.
+4. Tap **Move here** repeatedly while the ad is loading. Expected: every tap goes to the button, none to the ad.
+5. In a region where consent is required (or with the debug geography described in [PLAY_STORE.md](PLAY_STORE.md#admob)), Google's consent form appears once, over the home screen, and **Settings → Privacy → Ad privacy choices** opens it again. Moves keep working while the form is open on the other device.
+
+## Test 14: Android 16
+
+Run Tests 0–4 on an Android 16 device, then:
+
+1. **Hidden methods.** Note what **Diagnostics** shows for hidden connect and disconnect and for the HFP and LE Audio release. On Android 16, Google's non-SDK list keeps `BluetoothA2dp.connect` and `disconnect` usable by apps; `BluetoothLeAudio.disconnect` is blocked, so LE Audio release is expected to show as unavailable.
+2. **Local network protection.** Android 16 lets developers opt in early to a coming rule that puts local-network access behind a permission. Run `adb shell am compat enable RESTRICT_LOCAL_NETWORK dev.handoff.app` (on a test device only), restart Handoff and record whether linking and moves still work. Handoff doesn't request that permission yet; this test shows what will break when the rule is enforced. Undo with `adb shell am compat reset RESTRICT_LOCAL_NETWORK dev.handoff.app`.
+3. **Back gesture and layout.** Predictive back on every screen, and on a tablet: rotate and resize the window. Nothing is cut off and nothing restarts a move.
+4. **Background.** With background mode on and the device locked for 30 minutes, **Move here** on the other device still works.

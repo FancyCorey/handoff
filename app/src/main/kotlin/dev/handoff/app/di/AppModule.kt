@@ -1,6 +1,5 @@
 package dev.handoff.app.di
 
-import dev.handoff.app.update.AppUpdates
 import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.mesh.transport.DiscoveryTags
@@ -80,7 +79,6 @@ val appModule = module {
     single(APP_SCOPE) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { HandoffDatabase.build(androidContext()) }
     single { SettingsRepository(androidContext(), get(APP_SCOPE)) }
-    single { AppUpdates(androidContext(), get(APP_SCOPE), get()) }
     single { Notifications(androidContext()) }
     single<EventLog> { InMemoryEventLog(sink = { Log.i("Handoff", it.format()) }) }
     single { HandoffPolicy() }
@@ -225,7 +223,7 @@ val appModule = module {
     viewModel { AddPeerViewModel(androidContext(), get(), get(), get(), get(), get(APP_SCOPE)) }
     viewModel { ScanPeerViewModel(get()) }
     viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get()) }
-    viewModel { SettingsViewModel(androidContext(), get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
     viewModel { DiagnosticsViewModel(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { BluetoothTestViewModel(get()) }
 }

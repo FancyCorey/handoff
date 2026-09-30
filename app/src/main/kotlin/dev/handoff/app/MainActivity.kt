@@ -1,6 +1,6 @@
 package dev.handoff.app
 
-import dev.handoff.app.update.AppUpdates
+import dev.handoff.app.update.UpdateService
 import dev.handoff.core.text.HandoffTexts
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,13 +49,13 @@ class MainActivity : ComponentActivity() {
     private val settings: SettingsRepository by inject()
     private val bluetooth: AndroidBluetoothAudioController by inject()
     private val pairing: PairingManager by inject()
-    private val updates: AppUpdates by inject()
+    private val updates: UpdateService by inject()
     private val appScope: CoroutineScope by inject(named(HandoffService.APP_SCOPE))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) updates.maybeAutoCheck()
+        if (savedInstanceState == null) updates.onAppStart()
         lifecycleScope.launch {
             val initial = settings.current()
             setContent { HandoffTheme { App(startAtSetup = !initial.onboardingComplete) } }

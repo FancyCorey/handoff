@@ -90,6 +90,22 @@ Components of each module:
 
 Dependency direction: `app → bluetooth → core`, `app → core`, `desktop → core`. The Windows app runs the *same* coordinator, protocol, crypto, pairing and sync code as Android; only Bluetooth, storage and discovery are platform-specific. `:core` has no Android dependency, so the whole transfer algorithm, protocol and crypto are tested on the plain JVM, including over real TCP sockets.
 
+### Android editions
+
+The Android app is built in two flavors (`distribution` dimension) from the same `src/main`:
+
+```mermaid
+flowchart LR
+    main["src/main<br/>all features"] --> gh["src/github<br/>AppUpdates (signed updater)<br/>NoOpAdService"]
+    main --> play["src/play<br/>PlayStoreUpdates<br/>AdMobAdService + HomeAdSlot"]
+    ui["Home / Settings"] -->|UpdateService| upd(("updates"))
+    ui -->|"HomeAdSlot()"| ad(("banner"))
+```
+
+* Shared code sees only two small seams: `UpdateService` (a newer version to show, and a hook at start-up) and `AdService` (whether a banner may show), plus the composables `UpdateSettings`, `HomeAdSlot` and `AdPrivacySettings`, which each flavor provides. Each flavor's `editionModule` binds them in Koin.
+* Nothing flows *into* the ad code: it receives no headsets, peers, addresses or events, and neither the coordinator, the Bluetooth layer, the mesh, ownership nor any service depends on it. The GitHub edition's `HomeAdSlot` draws nothing.
+* `:app:verifyEditions` checks the merged manifests and dependency graph: no install permission or update provider in Play, no ad library or advertising ID in GitHub. Details in [PLAY_STORE.md](PLAY_STORE.md).
+
 **Isolation of hidden APIs.** Only `ReflectionA2dpStrategy` + `HiddenMethodInvoker` perform reflection, and both are `internal` to `:bluetooth`. The domain sees `BluetoothAudioController`, which returns structured results (`Requested`, `AlreadyInState`, `Failed(BluetoothError, strategy, detail)`), and never exceptions.
 
 ## Identity, trust and peers
@@ -357,7 +373,7 @@ A link is bound to two identity keys, never to a network, SSID or IP address, so
 
 ## Updates
 
-Both apps check GitHub Releases only when asked, or once a day if the user turns that on.
+The GitHub edition of the Android app and the Windows app check GitHub Releases only when asked, or once a day if the user turns that on. The Google Play edition leaves updates to Google Play and contains no download or install code (`PlayStoreUpdates`).
 
 ```mermaid
 sequenceDiagram
@@ -378,9 +394,9 @@ sequenceDiagram
 
 * `UpdateChecker` downloads `update.json` and `update.json.sig` from the latest release. The signature must verify against the release public key in `UpdateKeys`; the manifest may only point at this repository's release downloads.
 * A download is kept only if its size and SHA-256 match the signed manifest. Every request, including redirects, must be HTTPS to GitHub's release hosts.
-* Android (`AppUpdates`) hands the APK to the system installer through a `FileProvider`; Android asks the user to confirm, and accepts it only if it is signed with the same release key. Debug builds only link to the release page.
+* Android, GitHub edition (`AppUpdates`, in `src/github`) hands the APK to the system installer through a `FileProvider`; Android asks the user to confirm, and accepts it only if it is signed with the same release key. Debug builds only link to the release page.
 * Windows (`DesktopUpdates`) hands the MSI to Windows Installer and quits so the files can be replaced. Portable copies and development runs open the release page instead.
-* Releases are built and signed on the maintainer's machine with `tools/release.ps1` and `ReleaseTool` (see CONTRIBUTING.md).
+* Releases are built and signed on the maintainer's machine with `tools/release.ps1` and `ReleaseTool` (see [RELEASE_PROCESS.md](RELEASE_PROCESS.md)).
 
 ## Demo mode
 

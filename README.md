@@ -76,6 +76,21 @@ Then press **Move here** whenever you want to switch. The [getting started guide
   </tr>
 </table>
 
+## Editions
+
+Handoff for Android comes in two editions with exactly the same features. Pick whichever suits you.
+
+| | GitHub edition | Google Play edition |
+|---|---|---|
+| Price | Free | Free |
+| Features | Everything | Everything |
+| Where to get it | [GitHub Releases](https://github.com/FancyCorey/handoff/releases/latest) | Google Play (coming soon) |
+| Updates | Built-in, signed update check | Google Play |
+| Ads | None, and no advertising code | One small banner at the bottom of the home screen |
+| Privacy | No analytics, no tracking | Handoff itself collects nothing; Google's ad SDK does (see the [privacy policy](PRIVACY.md#advertising-in-the-google-play-edition)) |
+
+Both are built from this repository and are open source under the MIT License. The Windows app is on GitHub only and has no ads.
+
 ## Compatibility
 
 | | Works with |
@@ -88,12 +103,12 @@ Not available yet: Android 11 or older, Windows on ARM, macOS, Linux, iPhone and
 
 ## Private and secure
 
-- **No account, no cloud, no tracking.** Handoff doesn't collect anything. Your devices only talk to each other, on your own network.
+- **No account, no cloud.** Handoff has no servers and never sends your data to anyone. Your devices only talk to each other, on your own network. The GitHub edition and the Windows app contain no advertising or analytics code at all; the Google Play edition's one ad comes from Google, as the [privacy policy](PRIVACY.md) explains.
 - **Only your devices.** A device can only join after you approve it on screen, with a code that works once and expires after five minutes.
 - **Encrypted.** Everything your devices say to each other is encrypted, and Handoff can't be reached from the internet.
-- **Safe updates.** Handoff only installs updates that are signed by this project, so a tampered download is rejected.
+- **Safe updates.** The GitHub edition and the Windows app only install updates signed by this project, so a tampered download is rejected. The Google Play edition is updated by Google Play.
 
-The technical details are in the [security overview](docs/SECURITY.md).
+The technical details are in the [security overview](docs/SECURITY.md), and what is stored and sent where is in the [privacy policy](PRIVACY.md).
 
 <table align="center">
   <tr>
@@ -115,7 +130,7 @@ Any Bluetooth headphones, earbuds or headset that you can pair with your devices
 No. Sound always goes straight from your phone or PC to your headphones. Handoff only decides *which* device is connected.
 
 **Do I need an account or an internet connection?**
-No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The internet is only used if you ask Handoff to check for updates.
+No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The GitHub edition only uses the internet if you ask it to check for updates. The Google Play edition also uses it to load its ad.
 
 **Will it work on my Android phone?**
 If it runs Android 12 or newer, most likely. Android doesn't offer apps an official way to connect headphones, so Handoff uses features that some phone makers can restrict. The first time you open Handoff, it tells you whether your phone supports it. See [Compatibility](#compatibility).
@@ -126,8 +141,8 @@ On Windows, Handoff runs in the tray. On Android, it works while the app is open
 **Why does Windows warn me about the download?**
 Handoff is new and not yet code-signed, so Windows may say "Windows protected your PC". Choose **More info → Run anyway**. On PCs with *Smart App Control* switched on, Windows doesn't offer this option yet.
 
-**Is it free?**
-Yes. Handoff is free and open source under the [MIT License](LICENSE).
+**Is it free? Are there ads?**
+Yes, it's free and open source under the [MIT License](LICENSE). The GitHub edition and the Windows app have no ads. The Google Play edition shows one small banner at the bottom of the home screen, never while you're moving your headphones, and it has all the same features. See [Editions](#editions).
 
 **Something's not working.**
 The [troubleshooting section](docs/GETTING_STARTED.md#if-something-goes-wrong) covers the common cases. You can also [open an issue](https://github.com/FancyCorey/handoff/issues).
@@ -148,7 +163,8 @@ flowchart LR
 The [architecture notes](docs/ARCHITECTURE.md) show how a move works step by step, the transfer states, device discovery and updates, with diagrams.
 
 ```bash
-./gradlew test assembleDebug                          # tests and the Android app
+./gradlew test :app:assembleGithubDebug               # tests and the Android app (GitHub edition)
+./gradlew :app:assemblePlayDebug                      # the Google Play edition (Google's test ads)
 ./gradlew :desktop:packageExe :desktop:packageMsi     # Windows installers
 ```
 
@@ -161,11 +177,17 @@ You'll need JDK 17 or newer and an Android SDK with platform 36.
 | [Security](docs/SECURITY.md) | Threat model, linking and encryption |
 | [Bluetooth compatibility](docs/BLUETOOTH_COMPATIBILITY.md) | How Handoff controls Bluetooth on Android and Windows |
 | [Hardware test plan](docs/HARDWARE_TEST_PLAN.md) | Checking a phone, PC and headset combination |
+| [Privacy policy](PRIVACY.md) | What is stored, what is sent, and the Play edition's ad |
+| [Release process](docs/RELEASE_PROCESS.md) | Versions, signing, GitHub and Google Play releases |
+| [Google Play edition](docs/PLAY_STORE.md) | Editions, ads and consent, Data safety, store listing |
+| [Branding](docs/BRANDING.md) | The logo, where it's used, and the name |
 
 *The screenshots use Handoff's demo mode, so "My Phone", "Studio PC" and "Aurora Buds" are example devices.*
 
 ## License and credits
 
 Handoff is free and open source under the [MIT License](LICENSE).
+
+Handoff is not affiliated with Apple, and doesn't work with Apple's Handoff feature.
 
 Its approach to connecting and disconnecting Bluetooth headphones was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Credits and the licenses of every open-source component Handoff uses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and in the apps under **Settings → Open-source licenses**.

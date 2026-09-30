@@ -19,7 +19,7 @@ See the full [compatibility list](BLUETOOTH_COMPATIBILITY.md#compatibility) for 
 
 Go to the [latest release](https://github.com/FancyCorey/handoff/releases/latest) and download the file for each device.
 
-**Android phone or tablet:** download `Handoff-<version>.apk` and open it. The first time, Android asks you to allow installing apps from your browser or file manager. Allow it, then tap **Install**.
+**Android phone or tablet:** download `Handoff-<version>.apk` and open it. The first time, Android asks you to allow installing apps from your browser or file manager. Allow it, then tap **Install**. This is the GitHub edition: no ads, and it updates itself. (A Google Play edition with the same features is coming; it updates through Google Play and shows one small ad. See [Editions](../README.md#editions).)
 
 **Windows PC:** download `Handoff-<version>-setup.exe` and run it. Handoff installs for your account only and needs no administrator rights. From then on it starts with Windows and waits in the tray (you can turn that off in its settings).
 
@@ -176,7 +176,9 @@ In **Settings**, **Check for updates** (Android) or **Check now** (Windows) look
 
 If you use the portable Windows version, Handoff opens the release page instead, so you can download the new zip.
 
-Checking for updates is the only time Handoff uses the internet, and it sends nothing about you or your devices.
+Checking for updates is the only time the GitHub edition uses the internet, and it sends nothing about you or your devices.
+
+**Google Play edition:** Google Play keeps Handoff up to date, and **Settings → Updates** says so. There is no download button in the app.
 
 ## Managing your devices and headphones
 
@@ -222,13 +224,13 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 |---|---|
 | Nearby devices | See your paired headphones, and connect or disconnect them. |
 | Network access | Talk to your other devices on your network, and check for updates when you ask. |
-| Install apps | Install an update you've downloaded. Android asks you to confirm each time. |
+| Install apps | GitHub edition only: install an update you've downloaded. Android asks you to confirm each time. The Google Play edition doesn't have this permission. |
 | Run in the background | Only if you turn on **Stay reachable in the background**. |
 | Notifications | Only if you turn on background mode or **Ask with a notification**. |
 | Start at boot | Only to restart background mode after a reboot, if it's on. |
 | Camera | Only when you scan a link code. You can paste the code instead. |
 
-Handoff never asks for your location and never searches for new Bluetooth devices.
+Handoff never asks for your location and never searches for new Bluetooth devices. The Google Play edition also includes permissions that Google's ad library adds (the advertising ID and basic phone state, which don't ask you anything). The [privacy policy](../PRIVACY.md) covers what each edition does.
 
 ## Uninstalling
 

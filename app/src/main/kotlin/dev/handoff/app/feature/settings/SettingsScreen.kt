@@ -1,6 +1,7 @@
 package dev.handoff.app.feature.settings
 
-import dev.handoff.app.update.AppUpdates
+import dev.handoff.app.ads.AdPrivacySettings
+import dev.handoff.app.edition.Edition
 import dev.handoff.core.text.HandoffTexts
 import dev.handoff.core.text.OpenSourceNotices
 import androidx.compose.material3.MaterialTheme
@@ -62,7 +63,6 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val identity: KeystoreIdentityProvider,
     overview: OverviewRepository,
-    val updates: AppUpdates,
 ) : ViewModel() {
     val state: StateFlow<AppSettings> = settings.settings
     val name: StateFlow<String> = identity.displayName
@@ -79,10 +79,6 @@ class SettingsViewModel(
     fun setRestoreOnBoot(value: Boolean) = viewModelScope.launch { settings.setRestoreOnBoot(value) }
     fun setAutoMode(mode: AutoSwitchMode) = viewModelScope.launch { settings.setAutoSwitchMode(mode) }
     fun setPreferred(id: LogicalDeviceId?) = viewModelScope.launch { settings.setPreferredDevice(id) }
-    fun setAutoUpdate(value: Boolean) = viewModelScope.launch {
-        settings.setAutoUpdateCheck(value)
-        if (value) updates.check()
-    }
 }
 
 @Composable
@@ -90,7 +86,6 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
     val s by vm.state.collectAsStateWithLifecycle()
     val name by vm.name.collectAsStateWithLifecycle()
     val devices by vm.devices.collectAsStateWithLifecycle()
-    val update by vm.updates.state.collectAsStateWithLifecycle()
     var editingName by remember { mutableStateOf<String?>(null) }
     var showLicenses by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -205,16 +200,22 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             }
 
             SectionHeader("Updates")
-            UpdateSection(
-                state = update,
-                canInstallInApp = vm.updates.canInstallInApp,
-                autoCheck = s.autoUpdateCheck,
-                onAutoCheck = vm::setAutoUpdate,
-                updates = vm.updates,
+            UpdateSettings()
+
+            SectionHeader("Privacy")
+            ListItem(
+                headlineContent = { Text("Privacy policy") },
+                supportingContent = { Text("What Handoff stores, what it sends to your other devices, and what it never collects.") },
+                modifier = Modifier.clickable {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                },
             )
+            AdPrivacySettings()
 
             SectionHeader("About")
-            ListItem(headlineContent = { Text("Handoff ${BuildConfig.VERSION_NAME}") }, supportingContent = { Text("MIT License") })
+            ListItem(headlineContent = { Text("Handoff ${BuildConfig.VERSION_NAME}") }, supportingContent = { Text("${Edition.NAME} · MIT License") })
             ListItem(
                 headlineContent = { Text("Source code and releases") },
                 supportingContent = { Text(HandoffTexts.REPO_URL.removePrefix("https://")) },
@@ -254,7 +255,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = koinViewModel()) 
             title = { Text("Open-source licenses") },
             text = {
                 Text(
-                    OpenSourceNotices.readable,
+                    OpenSourceNotices.readable + Edition.EXTRA_NOTICES,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                 )

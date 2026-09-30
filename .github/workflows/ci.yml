@@ -19,13 +19,24 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - name: Test, lint and build
-        run: ./gradlew test lintDebug assembleDebug :desktop:packageMsi --console=plain
+      # No signing keys exist here: release builds come out unsigned, which is enough to prove they build.
+      - name: Tests
+        run: ./gradlew test --console=plain
+      - name: Lint (shared module and both Android editions)
+        run: ./gradlew :bluetooth:lintDebug :app:lintGithubDebug :app:lintPlayDebug :app:lintPlayRelease --console=plain
+      - name: Edition checks (Play cannot self-install, GitHub has no ad SDK)
+        run: ./gradlew :app:verifyEditions --console=plain
+      - name: Android builds (GitHub APK, Play APK, Play release bundle)
+        run: ./gradlew :app:assembleGithubDebug :app:assemblePlayDebug :app:bundlePlayRelease --console=plain
+      - name: Windows tests and installer
+        run: ./gradlew :desktop:test :desktop:packageMsi --console=plain
       - name: Upload builds
         uses: actions/upload-artifact@v4
         with:
           name: handoff-${{ github.sha }}
           path: |
-            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/github/debug/*.apk
+            app/build/outputs/apk/play/debug/*.apk
+            app/build/outputs/bundle/playRelease/*.aab
             desktop/build/compose/binaries/main/msi/*.msi
           retention-days: 14

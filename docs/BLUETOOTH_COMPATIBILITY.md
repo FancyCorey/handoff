@@ -23,7 +23,27 @@ We verified the hidden method signatures and annotations against the **API 34 fr
 * Both are guarded by `@RequiresPermission(BLUETOOTH_CONNECT)`.
 * Both perform a **blocking** binder call (`SynchronousResultReceiver`), so Handoff never invokes them on the main thread.
 
-On Android 15 the hidden A2DP and HFP methods resolve at runtime (checked on the Android 15 emulator image). Each Android release can tighten non-SDK access, which is why Handoff probes the methods on every device instead of assuming them; see [Android 16 non-SDK changes](https://developer.android.com/about/versions/16/changes/non-sdk-16).
+On Android 15 the hidden A2DP and HFP methods resolve at runtime (checked on the Android 15 emulator image). Each Android release can tighten non-SDK access, which is why Handoff probes the methods on every device instead of assuming them.
+
+### Android 16 (API 36)
+
+Google publishes the non-SDK interface list for each release ([Android 16 non-SDK changes](https://developer.android.com/about/versions/16/changes/non-sdk-16), `hiddenapi-flags.csv`). For the methods Handoff calls, the Android 16 list says:
+
+| Method | Android 16 list | For an app targeting API 36 |
+|---|---|---|
+| `BluetoothA2dp.connect(BluetoothDevice)` | `unsupported` | Reachable by reflection (not blocked) |
+| `BluetoothA2dp.disconnect(BluetoothDevice)` | `unsupported` | Reachable by reflection (not blocked) |
+| `BluetoothHeadset.disconnect(BluetoothDevice)` | `sdk, system-api` | A system API: it may resolve, but the Bluetooth service can reject the call from a normal app. Handoff reports that as refused or denied |
+| `BluetoothLeAudio.disconnect(BluetoothDevice)` | `blocked` | Not reachable: shows as unavailable, and LE Audio release is skipped |
+| `BluetoothDevice.getBatteryLevel()` | `sdk, system-api` | Optional; if unavailable, the battery broadcast still provides the level, or no battery is shown |
+
+So the main move path (hidden A2DP `connect` and `disconnect`) is still open on Android 16. It still has to be confirmed on each maker's Android 16 build (see [HARDWARE_TEST_PLAN.md](HARDWARE_TEST_PLAN.md), Test 14), because manufacturers can restrict more.
+
+Other Android 16 changes that affect Handoff:
+
+* **Bluetooth bond loss:** if a bonded headset can't be authenticated when it reconnects, Android now disconnects it and shows its own dialog. Handoff treats this like any failed connect.
+* **Edge-to-edge and predictive back** are enforced for apps targeting API 36. Handoff draws edge-to-edge and uses Compose navigation, which supports predictive back.
+* **Large screens:** orientation and resizability restrictions are ignored on displays 600 dp and wider. Handoff's screens are resizable and don't lock orientation (the QR scanner uses `fullSensor`).
 
 PodSwitch uses the same hidden `connect()` path. Handoff also uses `disconnect()` for coordinated release.
 
@@ -123,4 +143,4 @@ Paired devices, link state, enabled services and battery level are read correctl
 
 * NSD needs no location permission.
 * Some routers or guest networks isolate clients or drop multicast. Linking can then fail, or devices show as offline. Handoff remembers each device's last working address per network (also across restarts) and each device's inbound address, which covers most such networks. Where devices can't talk to each other at all, a hotspot from one of them works.
-* Handoff targets SDK 36. A future target SDK may require Android's upcoming local-network permission; re-check this when raising `targetSdk`.
+* **Android's local network protection.** Android 16 introduced an opt-in test of a rule that puts all local-network traffic (sockets, mDNS, NSD) behind a runtime permission (`NEARBY_WIFI_DEVICES`); Google plans to enforce it in a later release. Handoff targets SDK 36 and doesn't request that permission yet. Test the effect with `adb shell am compat enable RESTRICT_LOCAL_NETWORK <package>` (see [HARDWARE_TEST_PLAN.md](HARDWARE_TEST_PLAN.md), Test 14), and add the permission request, with an explanation screen, before targeting the release that enforces it.

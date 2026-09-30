@@ -133,7 +133,7 @@ class DiagnosticsViewModel(
     fun export() {
         val report = DiagnosticsReport.build(
             ReportInput(
-                appVersion = BuildConfig.VERSION_NAME,
+                appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.EDITION})",
                 androidRelease = Build.VERSION.RELEASE,
                 sdkInt = Build.VERSION.SDK_INT,
                 manufacturer = Build.MANUFACTURER,

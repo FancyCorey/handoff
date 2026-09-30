@@ -14,13 +14,16 @@ import dev.handoff.core.update.UpdateManifest
 import dev.handoff.core.update.UpdatePlatform
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * Finds, downloads and installs Handoff updates from GitHub Releases (see [UpdateChecker] for
+ * GitHub edition only. Finds, downloads and installs Handoff updates from GitHub Releases (see [UpdateChecker] for
  * the signature and checksum checks). Android always shows its own confirmation before
  * installing, and only an APK signed with the same release key can replace this app.
  */
@@ -31,7 +34,7 @@ class AppUpdates(
     private val scope: CoroutineScope,
     private val settings: SettingsRepository,
     private val checker: UpdateChecker = UpdateChecker(BuildConfig.VERSION_NAME),
-) {
+) : UpdateService {
     sealed interface State {
         data object Idle : State
         data object Checking : State
@@ -44,6 +47,11 @@ class AppUpdates(
 
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state.asStateFlow()
+
+    override val newerVersion: StateFlow<String?> =
+        state.map { (it as? State.Available)?.manifest?.version }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    override fun onAppStart() = maybeAutoCheck()
 
     /** Debug builds have their own app id, so a release APK would install next to them. */
     val canInstallInApp: Boolean get() = !BuildConfig.DEBUG

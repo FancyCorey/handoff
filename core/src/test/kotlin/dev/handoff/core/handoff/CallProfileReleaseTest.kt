@@ -11,8 +11,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Regression for the first hardware report (Galaxy Tab S10 FE ← Galaxy S22 Ultra, OnePlus Bullets
- * Wireless Z2): the source released A2DP only, the headset stayed attached through HFP (calls),
+ * Regression for the first hardware report (tablet taking a single-point neckband headset from
+ * a phone): the source released A2DP only, the headset stayed attached through HFP (calls),
  * refused the tablet, and both connect attempts timed out.
  */
 class CallProfileReleaseTest {

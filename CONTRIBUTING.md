@@ -9,16 +9,22 @@ Thanks for helping! Handoff controls Bluetooth on people's devices from other de
 3. **One switching path.** Manual, tile, notification and automatic triggers all call `HandoffCoordinator.moveToThisDevice`.
 4. **Every wait is bounded, and every retry is bounded.** Add new timeouts to `HandoffPolicy`.
 5. **Never accept unauthenticated network input.** New message types go through `PeerServer.respond` (sender check, freshness, dedupe) and must be added to `ProtocolCodecTest`.
-6. **No telemetry, accounts or cloud calls** in local mode.
-7. **Don't mark something done until it's verified.** If it needs hardware, say so in the PR and add it to `docs/HARDWARE_TEST_PLAN.md`.
+6. **No telemetry, analytics, accounts or cloud calls** in Handoff's own code. The only third-party network code is the ad SDK in the Google Play edition, confined to `app/src/play`. Nothing from Handoff (headsets, devices, peers, addresses, transfers, diagnostics) is ever passed to it, and no feature may depend on it.
+7. **Both editions keep the same features.** Only update delivery and the Play banner differ, and they live in `app/src/github` and `app/src/play`. Everything else goes in `app/src/main`.
+8. **Don't mark something done until it's verified.** If it needs hardware, say so in the PR and add it to `docs/HARDWARE_TEST_PLAN.md`.
 
 ## Development
 
 ```bash
 ./gradlew :core:test            # fast JVM tests: domain, protocol, crypto, sockets
-./gradlew test lintDebug        # all unit tests + Android lint
-./gradlew assembleDebug         # APK
+./gradlew test                  # all unit tests
+./gradlew :app:lintGithubDebug :app:lintPlayDebug :bluetooth:lintDebug   # Android lint
+./gradlew :app:assembleGithubDebug     # GitHub edition APK (no ads, GitHub updater)
+./gradlew :app:assemblePlayDebug       # Google Play edition APK (Google's test ads)
+./gradlew :app:verifyEditions          # checks that keep the two editions apart
 ```
+
+The Android app has two editions built from the same code, the **GitHub edition** and the **Google Play edition**. See [docs/PLAY_STORE.md](docs/PLAY_STORE.md#two-editions-one-app).
 
 Put domain logic in `:core` with tests that use the fakes in `core/src/test/.../fakes` (`FakeBluetoothAudioController`, `FakePeerTransport`, `FakeOwnershipRepository`, `TestHost`, `SimulatedHeadset`). `TestHost.mesh(...)` builds several fully wired simulated hosts sharing one headset.
 
@@ -52,44 +58,14 @@ Demo mode swaps in made-up headsets ("Aurora Buds", "Studio Headphones") and nev
 
 ## Releases
 
-Releases are built and signed on the maintainer's machine; no key is ever stored in the repository or on GitHub.
-
-**Keys** live in `%USERPROFILE%\.handoff-release\` and must be backed up somewhere safe and private:
-
-| File | Purpose | If lost |
-|---|---|---|
-| `handoff-release.jks` + `signing.properties` | Android release signing. Android only installs an update over an app signed with the same key. | Existing Android installs can't update in place; users must uninstall and reinstall. |
-| `update-signing.pk8` | Signs `update.json`, which the apps check before offering or installing an update. Its public half is `UpdateKeys` in `:core`. | Apps can't verify new releases until they are updated to a new public key by hand. |
-
-To create them on a new machine (only for a brand-new project; otherwise restore the backup): `keytool -genkeypair -keystore handoff-release.jks -storetype PKCS12 -alias handoff -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Handoff"`, write `signing.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), and run `./gradlew :core:releaseTool -PtoolArgs="keygen,<dir>"` for the update key.
-
-**Cutting a release:**
-
-```mermaid
-flowchart LR
-    v["Set the version<br/>(app + desktop)"] --> n["Write the release notes<br/>docs/releases/vX.Y.Z.md"]
-    n --> b["tools/release.ps1<br/>tests, APK, MSI, EXE, zip"]
-    b --> s["ReleaseTool signs update.json<br/>(key stays on this machine)"]
-    s --> c{"Files look right?"}
-    c -- yes --> p["release.ps1 -Publish<br/>tag + GitHub release"]
-    p --> u["Apps find the update<br/>via Check for updates"]
-```
-
-1. Set the version in `app/build.gradle.kts` (`versionName`, and increase `versionCode`) and `desktop/build.gradle.kts` (`appVersion`).
-2. Write the notes in `docs/releases/v<version>.md`.
-3. `powershell -ExecutionPolicy Bypass -File tools\release.ps1` builds and signs everything into `build/release/v<version>/`: the APK, the MSI and setup EXE, a portable zip, `update.json`, `update.json.sig` and `SHA256SUMS.txt`.
-4. Check the files, then run it again with `-Publish` to tag the version and create the GitHub release (`HANDOFF_GH` can point to a `gh` executable that isn't on the PATH).
-
-The Windows files are not code-signed yet, so SmartScreen shows "Windows protected your PC" for new downloads and Smart App Control blocks them. Code signing (e.g. through the SignPath Foundation's free program for open-source projects) removes both.
-
-**CI:** `.github/workflows/ci.yml` runs the tests and lint and builds the debug APK and MSI on every push and pull request. It needs no secrets.
+Releases are built and signed on the maintainer's machine; no key is ever stored in the repository or on GitHub. The keys, versioning, the GitHub and Google Play steps and CI are described in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Pull requests
 
 * Keep changes focused and include tests.
 * Bluetooth-behaviour changes need a hardware report: fill in the matrix row from `docs/HARDWARE_TEST_PLAN.md`.
 * Protocol changes must stay backward compatible within `protocolVersion` 1 (only add optional fields), or bump the version and handle both.
-* If you adapt third-party code or add a dependency, update `THIRD_PARTY_NOTICES.md` and `core/src/main/resources/dev/handoff/core/NOTICES.txt` in the same PR, and credit the source in the file header.
+* If you adapt third-party code or add a dependency, update `THIRD_PARTY_NOTICES.md` and `core/src/main/resources/dev/handoff/core/NOTICES.txt` in the same PR, and credit the source in the file header. A dependency used only by the Google Play edition goes in the Play section of `THIRD_PARTY_NOTICES.md` and in `app/src/play/.../edition/Edition.kt` instead.
 
 ## Where you can help
 

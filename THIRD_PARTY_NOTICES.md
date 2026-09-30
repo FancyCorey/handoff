@@ -70,4 +70,24 @@ This list is taken from the release runtime classpaths of both apps. Licenses ar
 | SLF4J API | MIT | QOS.ch | Windows |
 | Java runtime built from OpenJDK | GPL-2.0 with the Classpath Exception | Oracle and OpenJDK contributors | Windows (license files in the installed app's `runtime/legal` folder) |
 
+## Google Play edition only
+
+The Android app's Google Play edition shows one banner ad and adds the components below. The GitHub edition and the Windows app contain none of them (a build check, `:app:verifyEditions`, enforces this). In the Play edition, **Settings → Open-source licenses** lists them after the shared notices; the text is in [`app/src/play/.../edition/Edition.kt`](app/src/play/kotlin/dev/handoff/app/edition/Edition.kt).
+
+| Component | License | Copyright |
+|---|---|---|
+| Google Mobile Ads SDK (next-gen), Google User Messaging Platform, Google Play services (ads-identifier, appset, base, basement, cronet, tasks), `com.google.android.play:hsdp` | Proprietary, [Android Software Development Kit License](https://developer.android.com/studio/terms) | Google LLC |
+| AndroidX Browser, WebKit, WorkManager | Apache-2.0 | The Android Open Source Project |
+| Guava, failureaccess | Apache-2.0 | The Guava Authors |
+| Gson | Apache-2.0 | Google Inc. |
+| Tink | Apache-2.0 | Google LLC |
+| Error Prone annotations, J2ObjC annotations, JSR 305 annotations | Apache-2.0 | The Error Prone Authors, Google Inc., FindBugs |
+| OkHttp | Apache-2.0 | Square, Inc. |
+| kotlinx-coroutines-guava | Apache-2.0 | JetBrains s.r.o. and Kotlin contributors |
+| Cronet | BSD-3-Clause | The Chromium Authors |
+| Protocol Buffers (protobuf-javalite) | BSD-3-Clause | Google Inc. |
+| Checker Framework qualifiers | MIT | The Checker Framework developers |
+
+The Google libraries are not open source. Using them in the Play edition doesn't change Handoff's own license: Handoff's source code, including `app/src/play`, stays under the MIT License.
+
 The Handoff logo (`docs/brand`, app icons) is original artwork for this project, under the project's MIT License.

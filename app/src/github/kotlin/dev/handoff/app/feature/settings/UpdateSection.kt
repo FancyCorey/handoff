@@ -16,6 +16,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.handoff.app.persistence.SettingsRepository
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,9 +29,29 @@ import dev.handoff.app.BuildConfig
 import dev.handoff.app.update.AppUpdates
 import dev.handoff.app.update.AppUpdates.State
 
+/** GitHub edition: Handoff checks its signed GitHub releases and installs them itself. */
+@Composable
+fun UpdateSettings(updates: AppUpdates = koinInject(), settings: SettingsRepository = koinInject()) {
+    val state by updates.state.collectAsStateWithLifecycle()
+    val s by settings.settings.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    UpdateSection(
+        state = state,
+        canInstallInApp = updates.canInstallInApp,
+        autoCheck = s.autoUpdateCheck,
+        onAutoCheck = { value ->
+            scope.launch {
+                settings.setAutoUpdateCheck(value)
+                if (value) updates.check()
+            }
+        },
+        updates = updates,
+    )
+}
+
 /** Check for updates, the opt-in daily check, and installing a release that was found. */
 @Composable
-fun UpdateSection(
+private fun UpdateSection(
     state: State,
     canInstallInApp: Boolean,
     autoCheck: Boolean,
