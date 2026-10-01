@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">
-  <!-- Handoff logo master. Glyph in the 108x108 Android adaptive-icon space. -->
+  <!-- Handoff logo master: an "H" whose crossbar is a sound wave travelling between two devices.
+       Glyph in the 108x108 Android adaptive-icon space. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#1FA2C4"/>
@@ -7,9 +8,8 @@
     </linearGradient>
   </defs>
   <rect width="108" height="108" rx="24" fill="url(#bg)"/>
-  <g transform="translate(54 56) scale(1.42) translate(-54 -54.25)">
-    <path d="M35,58 A19,19 0 0,1 50.70,39.29 M63.5,41.55 A19,19 0 0,1 73,58" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
-    <path fill="#FFFFFF" d="M34,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z M72,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z"/>
-    <path fill="#FFC940" d="M48.68,33.55 L59.57,37.73 L50.76,45.37 Z"/>
+  <g transform="translate(54 54) scale(1.1) translate(-54 -54)">
+    <path fill="#FFFFFF" d="M29,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z M66,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z"/>
+    <path fill="none" stroke="#FFC940" stroke-width="9" stroke-linecap="round" d="M40,58 C48,58 49,48 54,48 C59,48 60,58 68,58"/>
   </g>
 </svg>

@@ -178,7 +178,7 @@ Don't claim: works on every Android device, universal Bluetooth control, turns a
 
 | Asset | Requirement | Status / source |
 |---|---|---|
-| App icon | 512×512 PNG, 32-bit, ≤ 1 MB | `docs/brand/handoff-logo-512.png` today. See [BRANDING.md](BRANDING.md) before launch. |
+| App icon | 512×512 PNG, 32-bit, ≤ 1 MB, full square | `docs/brand/handoff-play-icon-512.png` (see [BRANDING.md](BRANDING.md)) |
 | Feature graphic | 1024×500 PNG or JPEG | To do |
 | Phone screenshots | 2–8, 16:9 or 9:16, 320–3840 px sides | Take from demo mode (see CONTRIBUTING.md). Current ones are in `docs/screenshots/`. Use the Play edition so the banner is shown truthfully. |
 | Tablet screenshots (7" and 10") | Needed to be featured for tablets | To do, demo mode on a tablet emulator |

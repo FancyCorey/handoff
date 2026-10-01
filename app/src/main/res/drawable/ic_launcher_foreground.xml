@@ -1,21 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Handoff logo. Geometry shared with tools/IconGen.java and docs/brand/handoff-logo.svg. -->
+<!-- Handoff logo: an "H" whose crossbar is a sound wave travelling between two devices.
+     Geometry shared with tools/IconGen.java and docs/brand/handoff-logo.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group>
-        <path
-            android:pathData="M35,58 A19,19 0 0,1 50.70,39.29 M63.5,41.55 A19,19 0 0,1 73,58"
-            android:strokeWidth="5"
-            android:strokeLineCap="round"
-            android:strokeColor="#FFFFFFFF" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M34,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z M72,55 h2 a4,4 0 0 1 4,4 v12 a4,4 0 0 1 -4,4 h-2 a4,4 0 0 1 -4,-4 v-12 a4,4 0 0 1 4,-4 z" />
-        <path
-            android:fillColor="#FFFFC940"
-            android:pathData="M48.68,33.55 L59.57,37.73 L50.76,45.37 Z" />
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.9" android:scaleY="0.9">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M29,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z M66,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z" />
+    <path
+        android:pathData="M40,58 C48,58 49,48 54,48 C59,48 60,58 68,58"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeColor="#FFFFC940" />
     </group>
 </vector>

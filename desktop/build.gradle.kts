@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
-val appVersion = "0.6.0"
+val appVersion = "0.6.1"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -58,8 +58,8 @@ compose.desktop {
             packageName = "Handoff"
             packageVersion = appVersion
             description = "Move your Bluetooth headphones between your devices"
-            vendor = "Handoff contributors"
-            copyright = "MIT License"
+            vendor = "FancyCorey"
+            copyright = "Copyright (c) 2026 FancyCorey. MIT License."
             licenseFile.set(rootProject.file("LICENSE"))
             modules("java.naming", "jdk.crypto.ec")
             windows {

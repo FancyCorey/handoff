@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="27 27 54 54" width="512" height="512">
+  <!-- Handoff mark, single colour (uses currentColor). -->
+  <path fill="currentColor" d="M29,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z M66,38.5 a6.5,6.5 0 0 1 13,0 v31 a6.5,6.5 0 0 1 -13,0 z"/>
+  <path fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" d="M40,58 C48,58 49,48 54,48 C59,48 60,58 68,58"/>
+</svg>
