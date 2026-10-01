@@ -85,7 +85,7 @@ flowchart TD
 - Nothing ad-related starts before the home screen appears, so setup, linking and background mode never wait for it. Bluetooth, moves, linking, the tile and background mode don't depend on it in any way.
 - The banner sits below the home screen list, never over it. Its height is reserved from the start (Google's anchored adaptive size is known before loading), a divider and a "Sponsored" label separate it from the headset cards, and the list keeps 24 dp of padding below the last card, so a late-loading ad never moves a **Move here** button under the user's finger.
 - The ad request carries only the ad unit and size: no keywords, content URL, extras or custom targeting.
-- If ads can't be requested (no consent, offline, SDK error, no fill), the home screen simply has no ad.
+- If ads can't be requested (no consent, offline, SDK error) or Google has no ad to show (no fill), the slot closes and the home screen simply has no ad. The slot is below the list, so closing it moves nothing.
 - Not used, by design: interstitials, rewarded ads, app-open ads, native ads in the list, ads on any other screen, ads in notifications or the tile.
 - **Remove ads (future).** `AdMobAdService` takes an `adsRemoved: StateFlow<Boolean>`. A one-time Play Billing purchase would feed it; when true, no space is reserved and no ad is requested. No feature may ever depend on it.
 
@@ -155,7 +155,7 @@ The app opens `BuildConfig.PRIVACY_POLICY_URL`, set from `-Phandoff.privacyUrl=<
 
 ## Store listing
 
-**Name:** see [Name risk](#name-risk) before the first public listing.
+**Name (30 characters max):** `Handoff: Headphone Switcher`. The part after the colon says what the app does in the words people search for, and sets the listing apart from Apple's Handoff feature (see [Name risk](#name-risk)). The launcher label stays "Handoff".
 
 **Short description (80 characters max), suggested:**
 > Move your Bluetooth headphones between your phone, tablet and PC with one tap.
@@ -218,7 +218,7 @@ Until the owner decides:
 
 - Never describe Handoff as affiliated with, endorsed by, compatible with or a replacement for Apple Handoff or Apple Continuity. It doesn't work with Apple devices.
 - Avoid Apple's visual language in icons and screenshots.
-- Consider a distinctive store name, for example "Handoff: Headphone Switcher", or a new name altogether. Renaming the app on Play is possible later, but the package name `dev.handoff.app` is permanent once published.
+- The store name is "Handoff: Headphone Switcher" rather than "Handoff" alone. A fully distinctive name would be stronger if the project ever wants a registered trademark. Renaming the app on Play is possible later, but the package name `dev.handoff.app` is permanent once published.
 
 The decision is the project owner's.
 

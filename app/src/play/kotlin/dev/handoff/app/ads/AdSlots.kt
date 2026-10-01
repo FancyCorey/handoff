@@ -30,12 +30,14 @@ import com.google.android.libraries.ads.mobile.sdk.banner.AdView
 import com.google.android.libraries.ads.mobile.sdk.banner.BannerAd
 import com.google.android.libraries.ads.mobile.sdk.banner.BannerAdRequest
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError
 import org.koin.compose.koinInject
 
 /**
  * The one ad in Handoff: an anchored adaptive banner below the home screen's list, never over
  * it. Its height is reserved before anything loads, so nothing moves under the user's finger,
- * and a divider and label separate it from the headset cards and their Move here buttons.
+ * and a divider and label separate it from the headset cards and their Move here buttons. If
+ * Google has no ad to show, the slot closes; being below the list, that moves nothing either.
  *
  * The request carries only the ad unit and size: no keywords, content URL or extras, and
  * nothing about headsets, devices, networks or transfers.
@@ -47,7 +49,9 @@ fun HomeAdSlot(modifier: Modifier = Modifier) {
     LaunchedEffect(activity) { activity?.let(ads::start) }
     val reserve by ads.reserveSpace.collectAsStateWithLifecycle()
     val canShow by ads.canShowAds.collectAsStateWithLifecycle()
-    if (!reserve) return
+    // No fill or a load error: give the space back for the rest of this screen's life.
+    var failed by remember { mutableStateOf(false) }
+    if (!reserve || failed) return
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val context = LocalContext.current
@@ -75,6 +79,10 @@ fun HomeAdSlot(modifier: Modifier = Modifier) {
                                         object : AdLoadCallback<BannerAd> {
                                             override fun onAdLoaded(ad: BannerAd) {
                                                 post { loaded = true }
+                                            }
+
+                                            override fun onAdFailedToLoad(adError: LoadAdError) {
+                                                post { failed = true }
                                             }
                                         },
                                     )
