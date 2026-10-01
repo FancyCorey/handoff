@@ -209,7 +209,7 @@ fun BatteryChip(percent: Int, modifier: Modifier = Modifier) {
     val tint = if (percent < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         Icon(icon, contentDescription = "Battery", tint = tint, modifier = Modifier.size(16.dp))
-        Text("$percent%", style = MaterialTheme.typography.labelMedium, color = tint)
+        Text("$percent%", style = MaterialTheme.typography.labelMedium, color = tint, maxLines = 1, softWrap = false)
     }
 }
 

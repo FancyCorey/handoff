@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.home
 
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import dev.handoff.app.ui.OtherCopies
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
@@ -302,6 +304,7 @@ private fun DirectConnectCard() {
 /** The system "Hotspot & tethering" screen; not a public constant, so fall back to wireless settings. */
 private const val TETHER_SETTINGS = "android.settings.TETHER_SETTINGS"
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HeadsetCard(
     overview: DeviceOverview,
@@ -324,7 +327,12 @@ private fun HeadsetCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Wraps instead of squeezing: a long status moves the battery onto the next line.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
                         val (label, tone) = Texts.status(overview)
                         StatusPill(label, tone)
                         overview.batteryPercent?.let { BatteryChip(it) }

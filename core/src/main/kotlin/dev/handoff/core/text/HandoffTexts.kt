@@ -1,5 +1,6 @@
 package dev.handoff.core.text
 
+import dev.handoff.core.model.AudioDeviceKind
 import dev.handoff.core.bluetooth.CompatibilityLevel
 import dev.handoff.core.handoff.FailureReason
 import dev.handoff.core.handoff.HandoffResult
@@ -106,6 +107,33 @@ object HandoffTexts {
     }
 
     /** "Offline" wording for a linked device, with a hint when it was last seen on another network. */
+    /**
+     * Where a headset is, from its holder names: "Here and on Tab", "On Tab and Studio PC".
+     * [self] is how this device appears in [holders] ("This device", "This PC").
+     */
+    fun whereConnected(holders: List<String>, self: String): String {
+        val others = holders.filter { it != self }
+        val list = when (others.size) {
+            0 -> ""
+            1 -> others[0]
+            else -> others.dropLast(1).joinToString(", ") + " and " + others.last()
+        }
+        return when {
+            others.size == holders.size -> if (list.isEmpty()) "On another device" else "On $list"
+            others.isEmpty() -> "Connected here"
+            else -> "Here and on $list"
+        }
+    }
+
+    /** A headset type as people say it. */
+    fun kind(kind: AudioDeviceKind): String = when (kind) {
+        AudioDeviceKind.HEADPHONES -> "Headphones"
+        AudioDeviceKind.HEADSET -> "Headset"
+        AudioDeviceKind.SPEAKER -> "Speaker"
+        AudioDeviceKind.CAR_AUDIO -> "Car audio"
+        AudioDeviceKind.OTHER_AUDIO, AudioDeviceKind.UNKNOWN -> "Audio device"
+    }
+
     fun offline(probablyOtherNetwork: Boolean): String = if (probablyOtherNetwork) "On another network" else "Offline"
 
     /** The project's home: source code, releases and issues. */

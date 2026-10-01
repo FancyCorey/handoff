@@ -79,6 +79,7 @@ import dev.handoff.core.overview.DeviceOverview
 import dev.handoff.core.overview.PeerOverview
 import dev.handoff.core.ownership.Ownership
 import dev.handoff.core.text.HandoffTexts
+import dev.handoff.core.model.AudioConnectionState
 
 /** Callbacks from the home screen to the app shell. */
 class HomeActions(
@@ -357,11 +358,15 @@ private fun EmptyCard(icon: ImageVector, title: String, body: String, button: St
     }
 }
 
+/** How this PC appears in holder lists (DesktopApp passes the same label to OverviewRepository). */
+private const val THIS_PC = "This PC"
+
 fun status(d: DeviceOverview, released: Boolean): Pair<String, Tone> = when (val o = d.ownership) {
     Ownership.Local -> "Connected to this PC" to Tone.POSITIVE
-    is Ownership.Peer -> "On ${d.holders.firstOrNull() ?: "another device"}" to Tone.ACTIVE
-    is Ownership.Multipoint -> "On ${d.holders.joinToString(" + ")}" to Tone.ACTIVE
-    is Ownership.Conflict -> "Reported on ${d.holders.joinToString(" + ")}" to Tone.WARNING
+    is Ownership.Peer -> HandoffTexts.whereConnected(d.holders, THIS_PC) to Tone.ACTIVE
+    is Ownership.Multipoint ->
+        HandoffTexts.whereConnected(d.holders, THIS_PC) to (if (d.localState == AudioConnectionState.CONNECTED) Tone.POSITIVE else Tone.ACTIVE)
+    is Ownership.Conflict -> "Reported: ${HandoffTexts.whereConnected(d.holders, THIS_PC).replaceFirstChar { it.lowercase() }}" to Tone.WARNING
     Ownership.None -> (if (released) "Handed off · not on this PC" else "Not connected") to Tone.NEUTRAL
     is Ownership.Unknown -> when {
         d.device.localDeviceId == null -> "Not set up on this PC" to Tone.WARNING

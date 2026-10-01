@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.device
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import dev.handoff.app.ui.BatteryChip
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -94,6 +96,7 @@ class DeviceDetailViewModel(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeviceDetailScreen(
     logicalId: String,
@@ -117,7 +120,12 @@ fun DeviceDetailScreen(
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     HeroIcon(kindIcon(o.device.deviceType), size = 80.dp)
                     Text(o.device.displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Wraps instead of squeezing: on a narrow screen the battery moves under the status.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
                         val (label, tone) = Texts.status(o)
                         StatusPill(label, tone)
                         o.batteryPercent?.let { BatteryChip(it) }
@@ -142,11 +150,9 @@ fun DeviceDetailScreen(
             }
 
             SectionHeader("Status")
-            KeyValue("This device", o.localState.name.lowercase().replaceFirstChar { it.uppercase() })
-            KeyValue("Type", o.device.deviceType.name.lowercase().replace('_', ' '))
+            KeyValue("On this device", Texts.localState(o.localState))
+            KeyValue("Type", Texts.kind(o.device.deviceType))
             KeyValue("Added on", o.device.hostMappings.joinToString { vm.peerName(it.hostId) }.ifEmpty { "This device" })
-            KeyValue("Last known owner", o.device.lastKnownOwner?.let(vm::peerName) ?: "—")
-            KeyValue("Ownership generation", o.device.ownershipGeneration.toString())
 
             SectionHeader("Options")
             ListItem(
