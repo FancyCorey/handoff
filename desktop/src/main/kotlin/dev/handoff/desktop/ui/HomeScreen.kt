@@ -196,7 +196,7 @@ fun HomeScreen(
 private fun Header(pcName: String, adapter: AdapterState, actions: HomeActions) {
     Box(Modifier.fillMaxWidth().background(Brand.gradient).padding(horizontal = 20.dp, vertical = 18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Logo(44.dp)
+            Logo(44.dp, onBrand = true)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text("Handoff", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)

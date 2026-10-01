@@ -31,21 +31,21 @@ import org.jetbrains.skia.Image as SkiaImage
 
 /** Brand colours, taken from the logo gradient (see docs/brand). */
 object Brand {
-    val Teal = Color(0xFF1FA2C4)
-    val Indigo = Color(0xFF3D3BB7)
-    val Amber = Color(0xFFFFC940)
+    val Indigo = Color(0xFF4F46E5)
+    val DeepIndigo = Color(0xFF312E81)
+    val Lavender = Color(0xFFA5B4FC)
     val Success = Color(0xFF1E9E61)
-    val gradient = Brush.linearGradient(listOf(Teal, Indigo))
+    val gradient = Brush.linearGradient(listOf(Indigo, DeepIndigo))
 }
 
 private val Light = lightColorScheme(
-    primary = Color(0xFF3558C9),
+    primary = Color(0xFF4F46E5),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFDDE3FF),
     onPrimaryContainer = Color(0xFF0E1B5C),
-    secondary = Color(0xFF16809B),
-    secondaryContainer = Color(0xFFCDEFF8),
-    onSecondaryContainer = Color(0xFF002A35),
+    secondary = Color(0xFF5B5BD6),
+    secondaryContainer = Color(0xFFE0E7FF),
+    onSecondaryContainer = Color(0xFF1E1B4B),
     tertiary = Color(0xFF8A6100),
     tertiaryContainer = Color(0xFFFFE9B0),
     background = Color(0xFFF7F8FC),
@@ -59,9 +59,9 @@ private val Dark = darkColorScheme(
     onPrimary = Color(0xFF0E1B5C),
     primaryContainer = Color(0xFF2C3F9E),
     onPrimaryContainer = Color(0xFFDDE3FF),
-    secondary = Color(0xFF7FD3EA),
-    secondaryContainer = Color(0xFF004E60),
-    onSecondaryContainer = Color(0xFFCDEFF8),
+    secondary = Color(0xFFA5B4FC),
+    secondaryContainer = Color(0xFF3730A3),
+    onSecondaryContainer = Color(0xFFE0E7FF),
     tertiary = Color(0xFFFFC940),
     tertiaryContainer = Color(0xFF5E4300),
     background = Color(0xFF12131A),
@@ -82,13 +82,24 @@ object Resources {
     }
 
     val logo: ImageBitmap by lazy { image("handoff.png") }
+    val mark: ImageBitmap by lazy { image("handoff-mark.png") }
     val logoPainter by lazy { BitmapPainter(logo) }
     val trayPainter by lazy { BitmapPainter(image("tray.png")) }
 }
 
 @Composable
-fun Logo(size: Dp) {
-    Image(Resources.logo, contentDescription = "Handoff", modifier = Modifier.size(size))
+fun Logo(size: Dp, onBrand: Boolean = false) {
+    if (onBrand) {
+        // On the indigo header the full icon would blend in: show the mark on a soft backing instead.
+        Box(
+            Modifier.size(size).clip(RoundedCornerShape(size * 0.24f)).background(Color.White.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(Resources.mark, contentDescription = "Handoff", modifier = Modifier.size(size * 0.78f))
+        }
+    } else {
+        Image(Resources.logo, contentDescription = "Handoff", modifier = Modifier.size(size))
+    }
 }
 
 enum class Tone { POSITIVE, ACTIVE, NEUTRAL, WARNING }

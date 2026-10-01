@@ -96,7 +96,7 @@ fun BrandHeader(title: String, subtitle: String, actions: @Composable () -> Unit
             .padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 18.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Logo(44.dp)
+            Logo(44.dp, onBrand = true)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -108,8 +108,18 @@ fun BrandHeader(title: String, subtitle: String, actions: @Composable () -> Unit
 }
 
 @Composable
-fun Logo(size: Dp) {
-    Image(painterResource(R.drawable.ic_logo), contentDescription = "Handoff", modifier = Modifier.size(size))
+fun Logo(size: Dp, onBrand: Boolean = false) {
+    if (onBrand) {
+        // On the indigo header the full icon would blend in: show the mark on a soft backing instead.
+        Box(
+            Modifier.size(size).clip(RoundedCornerShape(size * 0.24f)).background(Color.White.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(painterResource(R.drawable.ic_mark), contentDescription = "Handoff", modifier = Modifier.size(size * 0.78f))
+        }
+    } else {
+        Image(painterResource(R.drawable.ic_logo), contentDescription = "Handoff", modifier = Modifier.size(size))
+    }
 }
 
 @Composable
