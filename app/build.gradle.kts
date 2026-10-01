@@ -39,8 +39,8 @@ android {
         applicationId = "dev.handoff.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.6.1"
+        versionCode = 15
+        versionName = "0.6.2"
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
     }
 
