@@ -119,7 +119,7 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
                     supportingContent = {
                         Text(
                             listOfNotNull(
-                                device.kind.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                dev.handoff.core.text.HandoffTexts.kind(device.kind),
                                 if (device.likelyA2dp) null else "may not play music",
                                 already?.let { "already added" },
                                 match?.let { "also on ${it.announcedBy.joinToString()}" },

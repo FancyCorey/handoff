@@ -102,7 +102,15 @@ class AndroidBluetoothAudioController(
     override val diagnostics: StateFlow<BluetoothDiagnostics> = if (demo == null) {
         _diagnostics.asStateFlow()
     } else {
-        MutableStateFlow(BluetoothDiagnostics(AdapterState.ON, true, compatibility = CompatibilityLevel.SUPPORTED)).asStateFlow()
+        MutableStateFlow(
+            // Demo mode looks like a typical device on first launch: everything available, not yet verified.
+            BluetoothDiagnostics(
+                AdapterState.ON, true,
+                reflectionConnect = MethodAvailability.AVAILABLE,
+                reflectionDisconnect = MethodAvailability.AVAILABLE,
+                compatibility = CompatibilityLevel.EXPERIMENTAL,
+            ),
+        ).asStateFlow()
     }
 
     @Volatile private var lastConnectStrategy: Pair<String, Long>? = null

@@ -174,7 +174,7 @@ fun AddHeadsetDialog(
                     bonded.forEach { device ->
                         OptionRow(
                             title = device.name,
-                            subtitle = if (device.fingerprint in mapped) "already added" else device.kind.name.lowercase().replace('_', ' '),
+                            subtitle = if (device.fingerprint in mapped) "Already added" else HandoffTexts.kind(device.kind),
                             selected = false,
                             icon = { Icon(kindIcon(device.kind), contentDescription = null) },
                         ) {
