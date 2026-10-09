@@ -357,6 +357,16 @@ private fun HeadsetCard(
                 }
                 overview.device.localDeviceId == null ->
                     OutlinedButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Set up on this device") }
+                Texts.sharedWith(overview) != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        HandoffTexts.alsoConnectedHint(Texts.sharedWith(overview).orEmpty()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FilledTonalButton(onClick = onMove, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(14.dp)) {
+                        Text(HandoffTexts.USE_ONLY_HERE)
+                    }
+                }
                 overview.connectedHere -> Unit
                 else -> Button(onClick = onMove, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp)) {
                     Icon(Icons.Filled.SwapHoriz, contentDescription = null)

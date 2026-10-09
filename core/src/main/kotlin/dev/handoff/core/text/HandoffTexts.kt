@@ -125,6 +125,24 @@ object HandoffTexts {
         }
     }
 
+    /** The option that lets a headset stay on several devices at once (a multipoint headset). */
+    const val STAY_CONNECTED_TITLE = "Stay connected to other devices"
+    const val STAY_CONNECTED_HELP =
+        "Off: Move here disconnects the headset from your other devices, so their sounds can't interrupt you. " +
+            "On: for headphones that connect to two devices at once, Move here adds this device and leaves the others."
+
+    const val USE_ONLY_HERE = "Use only here"
+
+    /** Shown when the headset is connected here and on [others] at the same time. */
+    fun alsoConnectedHint(others: List<String>): String {
+        val list = when (others.size) {
+            0 -> "another device"
+            1 -> others[0]
+            else -> others.dropLast(1).joinToString(", ") + " and " + others.last()
+        }
+        return "Also connected to $list. A sound there, like a notification or a video, can interrupt your audio here."
+    }
+
     /** A headset type as people say it. */
     fun kind(kind: AudioDeviceKind): String = when (kind) {
         AudioDeviceKind.HEADPHONES -> "Headphones"

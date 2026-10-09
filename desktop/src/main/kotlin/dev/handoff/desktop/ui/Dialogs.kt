@@ -239,7 +239,7 @@ fun HeadsetDialog(
                 StatusPill(label, tone)
                 Spacer(Modifier.height(4.dp))
                 ToggleRow("Tray headset", "“Move here” in the tray menu moves this headset.", preferred, onPreferred)
-                ToggleRow("Multipoint headset", "Can stay connected to two devices; Move here then joins instead of disconnecting.", overview.device.multipoint, onMultipoint)
+                ToggleRow(HandoffTexts.STAY_CONNECTED_TITLE, HandoffTexts.STAY_CONNECTED_HELP, overview.device.multipoint, onMultipoint)
                 if (released) {
                     Text(
                         "Handoff turned off this headset's Windows audio services when it moved it away, so Windows doesn't grab it back. " +

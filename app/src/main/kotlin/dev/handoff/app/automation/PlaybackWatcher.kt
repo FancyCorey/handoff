@@ -27,6 +27,8 @@ import dev.handoff.core.ownership.OwnershipRepository
 import dev.handoff.core.ownership.OwnershipResolver
 import dev.handoff.core.store.LogicalDeviceRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -57,6 +59,7 @@ class PlaybackWatcher(
     private val handler = Handler(Looper.getMainLooper())
     private var registered = false
     private var wasPlaying = false
+    private var pending: Job? = null
 
     private val callback = object : AudioManager.AudioPlaybackCallback() {
         override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) = evaluate(configs)
@@ -76,11 +79,22 @@ class PlaybackWatcher(
         runCatching { audio?.unregisterAudioPlaybackCallback(callback) }
         registered = false
         wasPlaying = false
+        pending?.cancel()
     }
 
     private fun evaluate(configs: List<AudioPlaybackConfiguration>) {
         val playing = isMediaPlaying(configs)
-        if (playing && !wasPlaying) appScope.launch { onPlaybackStarted() }
+        if (playing && !wasPlaying) {
+            // Only act on playback that keeps going: a short sound, or a video that starts and
+            // stops while scrolling, must not take the headset from another device.
+            pending?.cancel()
+            pending = appScope.launch {
+                delay(SUSTAINED_PLAYBACK_MS)
+                if (audio != null && isMediaPlaying(audio.activePlaybackConfigurations)) onPlaybackStarted()
+            }
+        } else if (!playing) {
+            pending?.cancel()
+        }
         wasPlaying = playing
     }
 
@@ -121,5 +135,10 @@ class PlaybackWatcher(
             AutoSwitchPolicy.Decision.Switch -> actions.moveHere(device.logicalId, TransferTrigger.AUTOMATIC)
             is AutoSwitchPolicy.Decision.Ignore -> Unit
         }
+    }
+
+    private companion object {
+        /** How long media must keep playing before automatic switching reacts. */
+        const val SUSTAINED_PLAYBACK_MS = 2_000L
     }
 }

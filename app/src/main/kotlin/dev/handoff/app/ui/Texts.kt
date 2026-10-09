@@ -16,7 +16,7 @@ object Texts {
     fun ownership(o: DeviceOverview): String = when (val owner = o.ownership) {
         Ownership.Local -> "Connected here"
         is Ownership.Peer, is Ownership.Multipoint -> where(o)
-        is Ownership.Conflict -> "Reported: ${where(o).replaceFirstChar { it.lowercase() }}"
+        is Ownership.Conflict -> where(o)
         Ownership.None -> "Not connected"
         is Ownership.Unknown -> when {
             o.device.localDeviceId == null -> "Not mapped on this device"
@@ -31,7 +31,7 @@ object Texts {
         Ownership.Local -> "Connected here" to Tone.POSITIVE
         is Ownership.Peer -> where(o) to Tone.ACTIVE
         is Ownership.Multipoint -> where(o) to (if (o.connectedHere) Tone.POSITIVE else Tone.ACTIVE)
-        is Ownership.Conflict -> "Reported: ${where(o).replaceFirstChar { it.lowercase() }}" to Tone.WARNING
+        is Ownership.Conflict -> where(o) to Tone.WARNING
         Ownership.None -> "Not connected" to Tone.NEUTRAL
         is Ownership.Unknown -> when {
             o.device.localDeviceId == null -> "Not set up on this device" to Tone.WARNING
@@ -44,6 +44,14 @@ object Texts {
     private fun where(o: DeviceOverview) = HandoffTexts.whereConnected(o.holders, OverviewRepository.THIS_DEVICE)
 
     fun kind(kind: AudioDeviceKind): String = HandoffTexts.kind(kind)
+
+    /**
+     * Connected here and on other devices, for a headset meant to be on one device at a time: the
+     * other devices' names, else null. Sounds on those devices can take the audio away from here.
+     */
+    fun sharedWith(o: DeviceOverview): List<String>? =
+        o.holders.filter { it != OverviewRepository.THIS_DEVICE }
+            .takeIf { o.connectedHere && o.ownership is Ownership.Conflict && it.isNotEmpty() }
 
     fun localState(state: AudioConnectionState): String = when (state) {
         AudioConnectionState.CONNECTED -> "Connected"

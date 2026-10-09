@@ -191,7 +191,11 @@ class DefaultHandoffCoordinator(
                 else -> return fail(FailureReason.BLUETOOTH_OFF, "Bluetooth is off")
             }
 
-            if (bluetooth.isConnected(local)) {
+            // Already here and nowhere else: nothing to do. Already here *and* on another device,
+            // for a headset meant to be on one device at a time: run the normal move, which asks
+            // the others to let go (a multipoint headset follows whichever device makes a sound,
+            // so leaving it connected elsewhere lets that device interrupt the audio here).
+            if (bluetooth.isConnected(local) && !alsoConnectedElsewhere()) {
                 step(StepKind.ALREADY_CONNECTED)
                 move(TransferPhase.COMPLETE)
                 publish(HandoffResult.AlreadyConnected)
@@ -225,6 +229,17 @@ class DefaultHandoffCoordinator(
                     move(TransferPhase.RESOLVING_OWNER)
                 }
             }
+        }
+
+        /**
+         * Connected on another linked device too, by the latest status reports, while the user
+         * wants this headset on one device at a time (it isn't set to stay connected everywhere).
+         */
+        private fun alsoConnectedElsewhere(): Boolean {
+            val current = devices.find(id) ?: device
+            if (current.multipoint) return false
+            val owner = resolver.resolve(current, localConnected = true, ownership.reportsFor(id), onlinePeers())
+            return owner is Ownership.Conflict
         }
 
         /** Owner lookup, release, connect and verify. Throws [RoundExhausted] if the connect fails. */

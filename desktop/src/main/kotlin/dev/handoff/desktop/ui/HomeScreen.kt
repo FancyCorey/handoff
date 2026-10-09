@@ -260,6 +260,16 @@ private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit
             when {
                 d.transferRunning && t != null -> TransferProgress(t.steps.map(HandoffTexts::step), onCancel)
                 d.device.localDeviceId == null -> OutlinedButton(onClick = onMore, modifier = Modifier.fillMaxWidth()) { Text("Choose this headset on this PC") }
+                d.connectedHere && d.ownership is Ownership.Conflict -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        HandoffTexts.alsoConnectedHint(d.holders.filter { it != THIS_PC }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FilledTonalButton(onClick = onMove, modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp)) {
+                        Text(HandoffTexts.USE_ONLY_HERE)
+                    }
+                }
                 d.connectedHere -> Unit
                 else -> Button(onClick = onMove, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Filled.SwapHoriz, contentDescription = null)
@@ -366,7 +376,7 @@ fun status(d: DeviceOverview, released: Boolean): Pair<String, Tone> = when (val
     is Ownership.Peer -> HandoffTexts.whereConnected(d.holders, THIS_PC) to Tone.ACTIVE
     is Ownership.Multipoint ->
         HandoffTexts.whereConnected(d.holders, THIS_PC) to (if (d.localState == AudioConnectionState.CONNECTED) Tone.POSITIVE else Tone.ACTIVE)
-    is Ownership.Conflict -> "Reported: ${HandoffTexts.whereConnected(d.holders, THIS_PC).replaceFirstChar { it.lowercase() }}" to Tone.WARNING
+    is Ownership.Conflict -> HandoffTexts.whereConnected(d.holders, THIS_PC) to Tone.WARNING
     Ownership.None -> (if (released) "Handed off · not on this PC" else "Not connected") to Tone.NEUTRAL
     is Ownership.Unknown -> when {
         d.device.localDeviceId == null -> "Not set up on this PC" to Tone.WARNING

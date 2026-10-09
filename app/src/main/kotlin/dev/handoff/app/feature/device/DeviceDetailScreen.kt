@@ -1,5 +1,8 @@
 package dev.handoff.app.feature.device
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.FilledTonalButton
+import dev.handoff.core.text.HandoffTexts
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import dev.handoff.app.ui.BatteryChip
@@ -143,6 +146,21 @@ fun DeviceDetailScreen(
                             Text("Move here")
                         }
                     }
+                    Texts.sharedWith(o)?.let { others ->
+                        Text(
+                            HandoffTexts.alsoConnectedHint(others),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        FilledTonalButton(
+                            onClick = {
+                                vm.moveHere()
+                                onMoveStarted(logicalId)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                        ) { Text(HandoffTexts.USE_ONLY_HERE) }
+                    }
                     OutlinedButton(onClick = onMap, modifier = Modifier.fillMaxWidth()) {
                         Text(if (o.device.localDeviceId == null) "Set up on this device" else "Choose a different paired device")
                     }
@@ -161,10 +179,8 @@ fun DeviceDetailScreen(
                 trailingContent = { Switch(checked = preferred, onCheckedChange = { vm.setPreferred(it) }) },
             )
             ListItem(
-                headlineContent = { Text("Multipoint headset") },
-                supportingContent = {
-                    Text("Can stay connected to two devices. Move here then joins instead of disconnecting the others.")
-                },
+                headlineContent = { Text(HandoffTexts.STAY_CONNECTED_TITLE) },
+                supportingContent = { Text(HandoffTexts.STAY_CONNECTED_HELP) },
                 trailingContent = { Switch(checked = o.device.multipoint, onCheckedChange = { vm.setMultipoint(it) }) },
             )
             TextButton(onClick = { confirmForget = true }, modifier = Modifier.fillMaxWidth().padding(8.dp)) {

@@ -187,7 +187,7 @@ Checking for updates is the only time the GitHub edition uses the internet, and 
 - **Linked devices:** on Android, **My devices** lists them and shows whether each is online. Tap the unlink icon to remove one. Unlink on both devices to remove the link completely.
 - **Names:** on Android, **Settings → Device name**. On Windows, **Settings → This PC's name**.
 - **Headphone options:** tap your headphones on Android, or their **⋮** button on Windows:
-  - **Multipoint headset:** switch this on for headphones that can connect to two devices at once. **Move here** then adds this device instead of disconnecting the other.
+  - **Stay connected to other devices:** off by default. When it's off, **Move here** disconnects the headset from your other devices, even if your headphones can connect to two at once. That stops a notification or video on another device from interrupting what you're listening to. Turn it on only if you want the headphones connected to several devices at once; **Move here** then adds this device and leaves the others. If the headphones end up connected to two devices anyway (many reconnect to both when switched on), Handoff shows **Use only here**.
   - **Use for the Quick Settings tile** (Android) or **Tray headset** (Windows): the headphones the tile or tray menu moves.
   - **Forget:** removes the headphones from Handoff on that device. Their Bluetooth pairing isn't changed.
 - **Start with Windows:** on or off in the Windows **Settings**.

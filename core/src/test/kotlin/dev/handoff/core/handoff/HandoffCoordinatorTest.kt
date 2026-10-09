@@ -6,6 +6,7 @@ import dev.handoff.core.bluetooth.BluetoothOperationResult
 import dev.handoff.core.bluetooth.ConnectReason
 import dev.handoff.core.fakes.FakeBluetoothAudioController.ConnectStep
 import dev.handoff.core.fakes.HEADSET_ID
+import dev.handoff.core.fakes.SimulatedHeadset
 import dev.handoff.core.fakes.TestHost
 import dev.handoff.core.mesh.protocol.PeerMessage
 import dev.handoff.core.mesh.protocol.ReleaseAudioDevice
@@ -506,5 +507,37 @@ class HandoffCoordinatorTest {
         val result = tablet.moveHere()
 
         assertEquals(HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "phone"), result)
+    }
+
+    @Test
+    fun `connected here and elsewhere, move here keeps it on this device only`() = runTest {
+        // A headset that can connect to two devices at once, which the user wants on one at a time.
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet", multipoint = false, headset = SimulatedHeadset(multipoint = true))
+        val (phone, tablet) = hosts
+        headset.connect(phone.bluetooth, phone.localBt)
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        phone.ownership.refresh(1_000)
+
+        val result = phone.moveHere()
+
+        assertSuccess(result, TransferPath.COORDINATED)
+        assertEquals(listOf("phone"), headset.connectedHosts())
+        assertEquals(1, tablet.bluetooth.disconnectCalls)
+        assertEquals(0, phone.bluetooth.disconnectCalls)
+    }
+
+    @Test
+    fun `connected here and elsewhere, staying connected everywhere leaves the others alone`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet", multipoint = true, headset = SimulatedHeadset(multipoint = true))
+        val (phone, tablet) = hosts
+        headset.connect(phone.bluetooth, phone.localBt)
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        phone.ownership.refresh(1_000)
+
+        val result = phone.moveHere()
+
+        assertEquals(HandoffResult.AlreadyConnected, result)
+        assertEquals(listOf("phone", "tablet"), headset.connectedHosts().sorted())
+        assertEquals(0, tablet.bluetooth.disconnectCalls)
     }
 }
