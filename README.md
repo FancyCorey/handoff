@@ -24,9 +24,9 @@ One tap moves your headphones between your Android phone, tablet and Windows PC.
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="The phone shows the headphones are on the PC, with a Move here button"></td>
-    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="The PC has let go of the headphones"></td>
-    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="The headphones are now connected to the phone"></td>
+    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="The phone shows the headphones on Studio PC, with an arrow towards the phone and a Move here button"></td>
+    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="Studio PC has let go; the headphones travel along the arrow"></td>
+    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="Moved here, with each step ticked off"></td>
   </tr>
   <tr>
     <td align="center"><sub>Your headphones are on the PC</sub></td>
@@ -61,13 +61,13 @@ You're listening on your laptop, then pick up your phone to watch a video, and t
 3. **Link your devices.** One shows a code, the other scans it, and you confirm that both show the same number.
 4. **Add your headphones** in Handoff on each device.
 
-Then press **Move here** whenever you want to switch. The [getting started guide](docs/GETTING_STARTED.md) walks through every step.
+Then tap **Move here** whenever you want to listen on another device. The [getting started guide](docs/GETTING_STARTED.md) walks through every step.
 
 <table align="center">
   <tr>
     <td align="center"><img src="docs/screenshots/android-link-code.png" width="230" alt="A link code shown on Android"></td>
     <td align="center"><img src="docs/screenshots/windows-link-approval.png" width="260" alt="Windows asking to link My Phone after checking the 6-digit number"></td>
-    <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="The headphones connected to the phone at 80% battery, with the PC online"></td>
+    <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="The headphones on the phone at 80% battery, with Studio PC online"></td>
   </tr>
   <tr>
     <td align="center"><sub>Show a code on one device…</sub></td>
@@ -112,7 +112,7 @@ The technical details are in the [security overview](docs/SECURITY.md), and what
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshots/android-settings.png" width="230" alt="Android settings, with running in the background switched off"></td>
+    <td align="center"><img src="docs/screenshots/android-settings.png" width="230" alt="Android settings, with Only while open chosen for when the phone is locked"></td>
     <td align="center"><img src="docs/screenshots/windows-no-shared-wifi.png" width="260" alt="Windows suggesting a hotspot when no other device is on the same network"></td>
   </tr>
   <tr>
@@ -124,7 +124,7 @@ The technical details are in the [security overview](docs/SECURITY.md), and what
 ## Q&A
 
 **Which headphones work?**
-Any Bluetooth headphones, earbuds or headset that you can pair with your devices. Handoff works best with headphones that connect to one device at a time. For headphones that can already connect to two devices at once, Handoff moves the sound without disconnecting the other device.
+Any Bluetooth headphones, earbuds or headset that you can pair with your devices. Headphones that can connect to two devices at once work too: **Move here** disconnects them from your other devices so their sounds can't interrupt you, or, if you turn on **Stay connected to other devices**, connects this device as well and leaves the others.
 
 **Does my audio go through Handoff?**
 No. Sound always goes straight from your phone or PC to your headphones. Handoff only decides *which* device is connected.
@@ -136,7 +136,7 @@ No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of 
 If it runs Android 12 or newer, most likely. Android doesn't offer apps an official way to connect headphones, so Handoff uses features that some phone makers can restrict. The first time you open Handoff, it tells you whether your phone supports it. See [Compatibility](#compatibility).
 
 **Does it need to stay open?**
-On Windows, Handoff runs in the tray. On Android, it works while the app is open. Turn on **Stay reachable in the background** if you also want other devices to take the headphones while your phone is locked.
+On Windows, Handoff runs in the tray. On Android, it works while the app is open. Choose **Stay reachable** in Settings if you also want other devices to take the headphones while your phone is locked.
 
 **Why does Windows warn me about the download?**
 Handoff is new and not yet code-signed, so Windows may say "Windows protected your PC". Choose **More info → Run anyway**. On PCs with *Smart App Control* switched on, Windows doesn't offer this option yet.
@@ -190,4 +190,4 @@ Handoff is free and open source under the [MIT License](LICENSE).
 
 Handoff is not affiliated with Apple, and doesn't work with Apple's Handoff feature.
 
-Its approach to connecting and disconnecting Bluetooth headphones was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Credits and the licenses of every open-source component Handoff uses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and in the apps under **Settings → Open-source licenses**.
+Its approach to connecting and disconnecting Bluetooth headphones was adapted from **[PodSwitch](https://github.com/Felip6499/PodSwitch)** by Felip6499 (MIT License). Credits and the licenses of every open-source component Handoff uses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and in the apps under **Settings → Licenses**.

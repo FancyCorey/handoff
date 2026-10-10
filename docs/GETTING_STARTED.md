@@ -40,12 +40,12 @@ Pair your headphones with each device the usual way, in its Bluetooth settings. 
     <td align="center"><img src="screenshots/guide/setup-welcome.png" width="190" alt="Welcome screen"></td>
     <td align="center"><img src="screenshots/guide/setup-permissions.png" width="190" alt="The permissions step, with an Allow button for Nearby devices"></td>
     <td align="center"><img src="screenshots/guide/setup-name.png" width="190" alt="Naming the device My Phone"></td>
-    <td align="center"><img src="screenshots/guide/setup-check.png" width="190" alt="Handoff checking whether the device can switch headphones"></td>
+    <td align="center"><img src="screenshots/guide/setup-check.png" width="190" alt="Handoff checking whether this phone can move headphones"></td>
   </tr>
   <tr>
     <td align="center"><sub>Welcome</sub></td>
     <td align="center"><sub>Allow <b>Nearby devices</b></sub></td>
-    <td align="center"><sub>Name this device</sub></td>
+    <td align="center"><sub>Name this phone</sub></td>
     <td align="center"><sub>The device check</sub></td>
   </tr>
 </table>
@@ -53,11 +53,11 @@ Pair your headphones with each device the usual way, in its Bluetooth settings. 
 1. Read the welcome screen and tap **Continue**.
 2. Tap **Allow**, then allow **Nearby devices** when Android asks. Handoff needs this to see and connect your headphones, and it's the only permission setup asks for. Despite the wording of Android's prompt, Handoff doesn't use your location.
 3. Give your phone or tablet a name, so your other devices can show it.
-4. Handoff checks whether your device can switch headphones:
-   - **Supported:** Handoff has already moved headphones on this device.
-   - **Experimental:** everything Handoff needs is available. It changes to Supported after your first successful move.
-   - **Not supported on this device:** your phone maker doesn't let apps connect headphones. Your other devices can still take the headphones from it.
-5. Choose whether Handoff should **stay reachable in the background**. Switched on, your other devices can take the headphones from this one even when Handoff is closed or the screen is locked. Switched off, open Handoff on this device before moving the headphones away from it. You can change this later in Settings; see [Running in the background](#running-in-the-background-android).
+4. Handoff checks whether your phone can move headphones:
+   - **Yes, it works:** Handoff has already moved headphones on this phone.
+   - **Should work. Try your first move:** everything Handoff needs is available. It changes to "Yes" after your first successful move.
+   - **No:** your phone maker doesn't let apps connect headphones. Your other devices can still take the headphones from it.
+5. Choose what happens **when this phone is locked**: **Only while open** (open Handoff here before moving the headphones away) or **Stay reachable** (your other devices can take the headphones even when Handoff is closed or the screen is locked; Android shows a small notification). You can change this later in Settings; see [Running in the background](#running-in-the-background-android).
 
 **On Windows**, there's nothing to set up. Your PC appears under its own name, which you can change in **Settings**.
 
@@ -79,10 +79,10 @@ You link each pair of devices once. After that they recognise each other on any 
 </table>
 
 1. On your PC, choose **Link a phone**. A code appears.
-2. On your phone, open **My devices** (**Link a device** or **Manage** on the home screen), choose **Scan a Handoff code** and point the camera at the code. No camera handy? Choose **Copy code as text** on the PC and paste the code on the phone.
+2. On your phone, tap **Link a device** on the home screen, choose **Scan a code** and point the camera at the code. No camera handy? Choose **Copy the code** on the PC and paste it on the phone.
 3. Both screens now show the same 6-digit number. If they match, tap **Link**.
 
-To link two Android devices, choose **Show my code instead** on one and **Scan a Handoff code** on the other.
+To link two Android devices, choose **Show my code** on one and **Scan a code** on the other.
 
 A code works only once and expires after five minutes. Only link devices that you own and have in front of you: a linked device can move your headphones.
 
@@ -90,9 +90,9 @@ A code works only once and expires after five minutes. Only link devices that yo
 
 <img src="screenshots/guide/add-headset.png" width="200" align="right" alt="Choosing headphones to add">
 
-On each device, tap **Add headset** and choose your headphones from the list. It shows the headphones already paired with that device.
+On each device, tap **Add headphones** and choose your headphones from the list. It shows the headphones already paired with that device.
 
-If another of your devices already has those headphones in Handoff, the list says so ("also on Studio PC") and Handoff treats them as the same pair everywhere.
+If another of your devices already has those headphones in Handoff, the list says so ("also on Studio PC"), and Handoff asks whether they're the same pair. Choose the one marked **Recommended** and Handoff treats them as the same pair everywhere.
 
 Add the same headphones on every device you want to use them with.
 
@@ -100,14 +100,14 @@ Add the same headphones on every device you want to use them with.
 
 ## Moving your headphones
 
-Tap **Move here** on the device you want to listen on.
+Each pair of headphones has a small picture of your devices, with the headphones drawn as a dot above the device that has them. When they can come to the device you're holding, an arrow points to it. Tap **Move here** on the device you want to listen on.
 
 <table>
   <tr>
-    <td align="center"><img src="screenshots/android-before.png" width="190" alt="The headphones are on Studio PC, with a Move here button"></td>
-    <td align="center"><img src="screenshots/android-moving.png" width="190" alt="Studio PC has let go"></td>
-    <td align="center"><img src="screenshots/android-move.png" width="190" alt="Connected. Handed over cleanly."></td>
-    <td align="center"><img src="screenshots/guide/home-moving.png" width="190" alt="The home screen during a move, with View progress and Cancel"></td>
+    <td align="center"><img src="screenshots/android-before.png" width="190" alt="The headphones are on Studio PC, with an arrow towards this phone and a Move here button"></td>
+    <td align="center"><img src="screenshots/android-moving.png" width="190" alt="Studio PC has let go; the headphones travel along the arrow"></td>
+    <td align="center"><img src="screenshots/android-move.png" width="190" alt="Moved here, with each step ticked off"></td>
+    <td align="center"><img src="screenshots/guide/home-moving.png" width="190" alt="The home screen during a move, with Cancel and Show progress"></td>
   </tr>
   <tr>
     <td align="center"><sub>Tap <b>Move here</b></sub></td>
@@ -123,15 +123,15 @@ You'll see each step as it happens:
 2. It disconnects them.
 3. Your device connects and checks that sound really comes through.
 
-It usually takes a few seconds. You can leave the screen while it's running: the home screen shows the progress, with **View progress** to see the details again and **Cancel** to stop.
+It usually takes a few seconds. You can leave the screen while it's running: the home screen shows the progress, with **Show progress** to see the details again and **Cancel** to stop.
 
 You can also move your headphones from:
-- **Android:** the **Move here** tile in Quick Settings. Swipe down twice, tap the pencil (edit) icon and drag the tile into place. If you've added more than one pair of headphones, choose which pair the tile moves in the headphones' details (**Use for the Quick Settings tile**).
+- **Android:** the **Move here** tile in Quick Settings. Swipe down twice, tap the pencil (edit) icon and drag the tile into place. If you've added more than one pair of headphones, choose which pair the tile moves in the headphones' details (**Quick Settings tile**).
 - **Windows:** the tray icon's menu (**Move … here**).
 
 <img src="screenshots/guide/windows-home.png" width="260" align="right" alt="Handoff on Windows, with the headphones on My Phone">
 
-**On Windows**, the Handoff window shows where your headphones are, their battery level and your linked devices. Closing the window keeps Handoff running in the tray, so your phone can still reach the PC. To quit, choose **Quit Handoff** in the tray menu. Opening Handoff again brings the same window back.
+**On Windows**, the Handoff window shows where your headphones are, their battery level and your linked devices. Closing the window keeps Handoff running in the tray, so your phone can still reach the PC. To quit, choose **Quit** in the tray menu. Opening Handoff again brings the same window back.
 
 <br clear="right">
 
@@ -145,26 +145,26 @@ Links belong to your devices, not to a network, so they keep working wherever yo
 
 ## Running in the background (Android)
 
-<img src="screenshots/android-settings.png" width="200" align="right" alt="Android settings, with Stay reachable in the background switched off">
+<img src="screenshots/android-settings.png" width="200" align="right" alt="Android settings, with Only while open chosen for when the phone is locked">
 
 By default, Handoff on Android runs while the app is open and never leaves a notification behind. Your other devices can take the headphones from your phone while Handoff is open on it.
 
-To let them take the headphones even while your phone is locked, turn on **Settings → Stay reachable in the background**. Android requires a small permanent notification for this; **Hide the notification** lets you turn it off. **Start after reboot** brings background mode back after the phone restarts.
+To let them take the headphones even while your phone is locked, choose **Stay reachable** under **Settings → When this phone is locked**. Android requires a small permanent notification for this; **Hide the notification** lets you turn it off. **Start after restart** brings it back after the phone restarts.
 
-Some phone makers close background apps to save battery. If your locked phone doesn't respond, set Handoff's battery usage to **Unrestricted**. **Settings → Battery optimization** in Handoff takes you there.
+Some phone makers close background apps to save battery. If your locked phone doesn't respond, set Handoff's battery usage to **Unrestricted**. **Settings → Battery use** in Handoff takes you there.
 
 <br clear="right">
 
 ## Automatic switching (Android, optional)
 
-Handoff can react when you start playing something on your phone while your headphones are on another device. In **Settings → Automatic switching**, choose **Ask with a notification** or **Move automatically**. This needs **Stay reachable in the background**, and it moves the headphones chosen for the Quick Settings tile.
+Handoff can react when you start playing something on your phone while your headphones are on another device. In **Settings → When something starts playing here**, choose **Ask me** or **Move here**. This needs **Stay reachable**, and it moves the headphones chosen for the Quick Settings tile.
 
 ## Keeping Handoff up to date
 
 <table>
   <tr>
     <td align="center"><img src="screenshots/guide/settings-updates.png" width="200" alt="Android settings: Check for updates"></td>
-    <td align="center"><img src="screenshots/guide/windows-settings.png" width="260" alt="Windows settings: Check now and Check automatically"></td>
+    <td align="center"><img src="screenshots/guide/windows-settings.png" width="260" alt="Windows settings: Check and Check automatically"></td>
   </tr>
   <tr>
     <td align="center"><sub>Android</sub></td>
@@ -172,7 +172,7 @@ Handoff can react when you start playing something on your phone while your head
   </tr>
 </table>
 
-In **Settings**, **Check for updates** (Android) or **Check now** (Windows) looks for a new version. Turn on **Check automatically** to have Handoff look once a day. When an update is available, a banner appears on the home screen. **Download and install** fetches it and checks that it really comes from this project before installing it. Android and Windows then ask you to confirm the installation.
+In **Settings**, **Check for updates** (Android) or **Check** (Windows) looks for a new version. Turn on **Check automatically** to have Handoff look once a day. When an update is available, **Update available** appears on the home screen. **Update** fetches it and checks that it really comes from this project before installing it. Android and Windows then ask you to confirm the installation.
 
 If you use the portable Windows version, Handoff opens the release page instead, so you can download the new zip.
 
@@ -184,12 +184,12 @@ Checking for updates is the only time the GitHub edition uses the internet, and 
 
 <img src="screenshots/guide/my-devices.png" width="200" align="right" alt="My devices, with Studio PC linked">
 
-- **Linked devices:** on Android, **My devices** lists them and shows whether each is online. Tap the unlink icon to remove one. Unlink on both devices to remove the link completely.
-- **Names:** on Android, **Settings → Device name**. On Windows, **Settings → This PC's name**.
-- **Headphone options:** tap your headphones on Android, or their **⋮** button on Windows:
+- **Linked devices:** they're shown as a row on the home screen, with a dot when they're online. On Android, tap one to open **My devices**, where the unlink icon removes it. Unlink on both devices to remove the link completely.
+- **Names:** on Android, tap the name at the top of **Settings**. On Windows, **Settings → Name**.
+- **Headphone options:** tap your headphones' card, on Android or Windows:
   - **Stay connected to other devices:** off by default. When it's off, **Move here** disconnects the headset from your other devices, even if your headphones can connect to two at once. That stops a notification or video on another device from interrupting what you're listening to. Turn it on only if you want the headphones connected to several devices at once; **Move here** then adds this device and leaves the others. If the headphones end up connected to two devices anyway (many reconnect to both when switched on), Handoff shows **Use only here**.
-  - **Use for the Quick Settings tile** (Android) or **Tray headset** (Windows): the headphones the tile or tray menu moves.
-  - **Forget:** removes the headphones from Handoff on that device. Their Bluetooth pairing isn't changed.
+  - **Quick Settings tile** (Android) or **Tray menu** (Windows): the headphones the tile or tray menu moves.
+  - **Remove from this phone** (or **this PC**): removes the headphones from Handoff on that device. They stay connected in Bluetooth settings.
 - **Start with Windows:** on or off in the Windows **Settings**.
 
 <br clear="right">
@@ -200,23 +200,25 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 
 | Handoff says | What to do |
 |---|---|
-| **Couldn't reach …** or **On another network** | Open Handoff on the other device, or turn on **Stay reachable in the background** there. Make sure both devices are on the same Wi-Fi. No shared Wi-Fi? Use a hotspot. |
-| **The other device couldn't let go** | Disconnect the headphones on that device yourself, then tap **Move here** again. |
-| **… doesn't recognise this device** | The link only exists on one of the two devices. In **My devices**, unlink the other device and link them again. If an older copy of Handoff is installed on either device, uninstall it first. |
-| **The headset didn't connect** | Check that your headphones are on, charged and close by, and not connected to a device without Handoff. |
-| **Another device is taking it** | Two devices asked for the headphones at the same moment. Wait a second and try again. |
-| **Bluetooth permission needed** | Tap **Open app settings** and allow **Nearby devices**. |
-| **Bluetooth is off** | Turn Bluetooth on and try again. |
-| **Not paired with this device** | Pair the headphones in this device's Bluetooth settings first. |
-| **Too many attempts** | Handoff pauses briefly to protect your Bluetooth. Wait a minute. |
+| **… didn't answer**, **… is offline** or **Other Wi-Fi** | Open Handoff on the other device, or choose **Stay reachable** there. Make sure both devices are on the same Wi-Fi. No shared Wi-Fi? Use a hotspot. |
+| **The other device couldn't let go** | Disconnect the headphones on that device yourself, then tap **Try again**. |
+| **… doesn't recognize this phone** | The link only exists on one of the two devices. Tap **Link again**: unlink the other device in **My devices** and link them again. If an older copy of Handoff is installed on either device, remove it first. |
+| **The headphones didn't connect** | Check that your headphones are on, charged and close by, out of the case, and not connected to a device without Handoff. |
+| **Another device is moving them** | Two devices asked for the headphones at the same moment. Wait a second and try again. |
+| **Handoff needs Bluetooth access** | Tap **Allow** and allow **Nearby devices**. |
+| **Bluetooth is off** | Tap **Turn on Bluetooth**. |
+| **Not connected to this phone yet** | Connect the headphones once in this device's Bluetooth settings. |
+| **Too many tries. Wait a minute.** | Handoff pauses briefly to protect your Bluetooth. |
 
-**On Windows**, after your headphones move to another device, they no longer appear in the PC's sound settings. That's on purpose: it stops Windows from pulling them back. Tap **Move here** on the PC to get them back, or choose **Restore Windows audio** in the headphones' options.
+Most problems show one button that fixes them; **More** shows a longer explanation.
 
-**Two copies of Handoff on one device?** If you installed a test version of Handoff earlier, it can still be on your device next to the current one, and your other devices may link to the wrong copy. Handoff shows a warning on its home screen when it finds one; tap **Uninstall the older copy**, then link your devices again.
+**On Windows**, after your headphones move to another device, they no longer appear in the PC's sound settings. That's on purpose: it stops Windows from pulling them back. Tap **Move here** on the PC to get them back, or choose **Connect to this PC** in the headphones' options.
+
+**Two copies of Handoff on one device?** If you installed a test version of Handoff earlier, it can still be on your device next to the current one, and your other devices may link to the wrong copy. Handoff shows a warning on its home screen when it finds one; tap **Remove it**, then link your devices again.
 
 **Windows won't start Handoff?** If your PC has *Smart App Control* switched on, Windows blocks apps that aren't code-signed yet and offers no "Run anyway" option. Code signing is planned.
 
-**Still stuck?** **Diagnostics** (the bug icon in the app) shows what Handoff sees on your device. You can share a report (the share button on Android, **Copy & close** on Windows) when you [open an issue](https://github.com/FancyCorey/handoff/issues). Reports hide most of your headphones' Bluetooth address and never include your keys.
+**Still stuck?** **Settings → Help and diagnostics** shows what Handoff sees on your device. You can share a report (the share button on Android, **Copy the report** on Windows) when you [open an issue](https://github.com/FancyCorey/handoff/issues). Reports hide most of your headphones' Bluetooth address and never include your keys.
 
 ## What Handoff is allowed to do on Android
 
@@ -225,8 +227,8 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 | Nearby devices | See your paired headphones, and connect or disconnect them. |
 | Network access | Talk to your other devices on your network, and check for updates when you ask. |
 | Install apps | GitHub edition only: install an update you've downloaded. Android asks you to confirm each time. The Google Play edition doesn't have this permission. |
-| Run in the background | Only if you turn on **Stay reachable in the background**. |
-| Notifications | Only if you turn on background mode or **Ask with a notification**. |
+| Run in the background | Only if you choose **Stay reachable**. |
+| Notifications | Only if you choose **Stay reachable** or **Ask me**. |
 | Start at boot | Only to restart background mode after a reboot, if it's on. |
 | Camera | Only when you scan a link code. You can paste the code instead. |
 
@@ -235,4 +237,4 @@ Handoff never asks for your location and never searches for new Bluetooth device
 ## Uninstalling
 
 - **Android:** uninstall Handoff like any other app. Its data and keys are removed with it.
-- **Windows:** first, if your headphones were last handed to another device, choose **Restore Windows audio** in their options so Windows can use them again. Then go to **Settings → Apps → Installed apps → Handoff → Uninstall**. Your settings and links stay in `%APPDATA%\Handoff` in case you reinstall; delete that folder to remove them too.
+- **Windows:** first, if your headphones were last handed to another device, choose **Connect to this PC** in their options so Windows can use them again. Then go to **Settings → Apps → Installed apps → Handoff → Uninstall**. Your settings and links stay in `%APPDATA%\Handoff` in case you reinstall; delete that folder to remove them too.

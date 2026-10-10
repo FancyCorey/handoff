@@ -13,6 +13,10 @@ updates:
       compose:
         patterns: ["org.jetbrains.compose*", "androidx.compose*"]
     open-pull-requests-limit: 5
+    ignore:
+      # protobuf-javalite comes with the Google ads SDK, which is built against 3.x; only patch 3.x here.
+      - dependency-name: "com.google.protobuf:protobuf-javalite"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

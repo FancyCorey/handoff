@@ -89,7 +89,7 @@ A "requested" result is never treated as success. The coordinator always calls `
 
 * No crash: every reflection path returns a value, and this is unit-tested with hostile stand-in proxies.
 * No loops: at most 2 connect attempts per transfer, with a 12-operations-per-minute throttle.
-* Clear messages, plus **Open Bluetooth settings** and **Diagnostics** buttons on failure.
+* Short messages with one button that fixes the problem (such as **Open Bluetooth settings**), and **Help and diagnostics** in Settings.
 
 ## Compatibility
 
@@ -117,7 +117,7 @@ A "requested" result is never treated as success. The coordinator always calls `
 | Headphones | Status |
 |---|---|
 | Bluetooth headphones, earbuds and headsets that connect to one device at a time | ✅ Works best. Handoff hands them from one device to the next. |
-| Headphones that connect to two devices at once (multipoint) | ✅ Handoff moves the sound without disconnecting the other device. |
+| Headphones that connect to two devices at once (multipoint) | ✅ **Move here** disconnects them from your other devices, so their sounds can't interrupt you. With **Stay connected to other devices** on, this device joins and the others stay connected. |
 | Bluetooth speakers and car audio | ⚠️ Should work, as they connect the same way as headphones, but haven't been tested yet. |
 | Headphones that only support Bluetooth LE Audio | ⚠️ Not supported yet. Most LE Audio headphones also support classic Bluetooth, which works. |
 
@@ -125,7 +125,7 @@ Android doesn't give apps an official way to connect headphones, so some phone m
 
 Some phone makers close background apps aggressively to save battery. If a locked phone doesn't respond, set Handoff's battery usage to *Unrestricted*.
 
-**Tried Handoff on your device?** Share the report from **Diagnostics** in an [issue](https://github.com/FancyCorey/handoff/issues). Reports from more devices help everyone. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
+**Tried Handoff on your device?** Share the report from **Settings → Help and diagnostics** in an [issue](https://github.com/FancyCorey/handoff/issues). Reports from more devices help everyone. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
 
 ## Windows
 

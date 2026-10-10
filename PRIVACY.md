@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated: 30 September 2026. Applies to Handoff 0.6.0 and later, on Android and Windows.*
+*Last updated: 10 October 2026. Applies to Handoff 0.6.0 and later, on Android and Windows.*
 
 Handoff moves your Bluetooth headphones between your own phones, tablets and PCs. It works on your local network: your devices talk directly to each other, and Handoff has no servers, accounts or cloud service of its own.
 
@@ -56,11 +56,11 @@ The camera is used only while you scan a link code, after you tap **Scan**. Imag
 
 ### Notifications and background mode
 
-Background mode (**Stay reachable in the background**) is off unless you turn it on. When it is on, Android shows a notification for as long as Handoff runs in the background, so your other devices can reach this one while it is locked. You can turn it off at any time in Handoff's settings. Notifications are also used for the optional "Move here?" prompt.
+Background mode (**Stay reachable**, under "When this phone is locked") is off unless you choose it. When it is on, Android shows a notification for as long as Handoff runs in the background, so your other devices can reach this one while it is locked. You can turn it off at any time in Handoff's settings. Notifications are also used for the optional "Move here?" prompt.
 
 ### Diagnostics
 
-The diagnostics screen shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains your phone's make, model and Android version, device and headset names, and recent events; Bluetooth addresses are shortened and link codes and keys are removed.
+The diagnostics screen (**Settings → Help and diagnostics**) shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains your phone's make, model and Android version, device and headset names, and recent events; Bluetooth addresses are shortened and link codes and keys are removed.
 
 ### Update checks
 
@@ -99,7 +99,7 @@ Handoff is a general-purpose utility and isn't directed at children.
 
 ## Your choices
 
-- Everything Handoff stores is on your devices. **Unlink** a device or use **Forget on this device** on a headset to delete that record, or uninstall Handoff to delete everything.
+- Everything Handoff stores is on your devices. **Unlink** a device or use **Remove from this phone** on a headset to delete that record, or uninstall Handoff to delete everything.
 - Background mode, automatic update checks and "Move here?" notifications are all optional and can be turned off in Settings.
 - In the Google Play edition: change ad consent under **Settings → Privacy → Ad privacy choices** (where offered), and reset or delete your advertising ID in Android's settings.
 

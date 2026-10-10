@@ -203,7 +203,7 @@ flowchart LR
     c --> p["Production<br/>staged rollout"]
 ```
 
-1. **Internal testing** first. Check on real devices: install from Play, Bluetooth and notification permissions, setup (including the background-mode choice), linking by QR code, moves in both directions, background release while locked, the Quick Settings tile, the banner position and that it never covers anything, Settings → Privacy, that Settings shows "Updates are managed by Google Play" and there is no install prompt anywhere, and a Play update from one internal build to the next.
+1. **Internal testing** first. Check on real devices: install from Play, Bluetooth and notification permissions, setup (including the background-mode choice), linking by QR code, moves in both directions, background release while locked, the Quick Settings tile, the banner position and that it never covers anything, Settings → Privacy, that Settings → Updates says "through Google Play" and there is no install prompt anywhere, and a Play update from one internal build to the next.
 2. Read the **pre-launch report** (crashes, accessibility, warnings about non-SDK interfaces).
 3. **Closed testing.** Personal developer accounts created after 13 November 2023 need a closed test with at least 12 testers opted in for 14 days in a row before applying for production access. Use it to collect device and headset reports (see [HARDWARE_TEST_PLAN.md](HARDWARE_TEST_PLAN.md)).
 4. **Production** with a staged rollout.
