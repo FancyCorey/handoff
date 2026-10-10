@@ -34,6 +34,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 | Can move here (first 3 moves only) | {x} lets go, then they connect here. | Studio PC lets go first, then it connects here. |
 | Here and elsewhere | Sounds on {x} can interrupt your audio. | Also connected to Tab. A sound there, like a notification or a video, can interrupt your audio here. |
 | On two others, Stay connected off (first 3 moves only) | Both let go, then they connect here. | Both let go first, then it connects here. |
+| Stay connected on, one other | {x} stays connected too. | (new) |
 | Stay connected on, two others | The others stay connected too. | This device joins. Studio PC and Tab stay connected. |
 | Unknown | Handoff asks {x} first. | Handoff asks Studio PC, or connects directly if it doesn't answer. |
 | Holder offline | Connects directly instead. | Studio PC can't be reached, so this device connects directly. |
@@ -118,7 +119,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 | List title | On this phone | Paired audio devices |
 | Empty | Nothing here yet  +  "Connect your headphones once in Bluetooth settings."  +  [Open Bluetooth settings] | No paired audio devices found. Pair your headset in Bluetooth settings, or grant the Bluetooth permission. |
 | Match step title | Already added on another device? | Is this a headset your other devices already know? |
-| Match option | Yes, the ones on {x} (recommended) | Recommended · same Bluetooth address · on Studio PC |
+| Match option | Aurora Buds on {x}  +  "Recommended" | Recommended · same Bluetooth address · on Studio PC |
 | New option | No, these are new | New headset  +  "Not added on any other device yet" |
 | Row subtitle | Headset · also on {x} | Headset · already added · also on Studio PC |
 

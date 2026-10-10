@@ -1,5 +1,13 @@
 package dev.handoff.app.feature.setup
 
+import androidx.compose.material3.CardDefaults
+import dev.handoff.app.ui.PrimaryButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.graphics.Color
+import dev.handoff.core.text.HandoffTexts
 import androidx.compose.material3.Switch
 import androidx.compose.foundation.layout.width
 import dev.handoff.core.bluetooth.CompatibilityLevel
@@ -141,72 +149,58 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                 0 -> {
                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) { Logo(112.dp) }
                     Text(
-                        "Move your headphones between your devices",
+                        "Your headphones, on whichever device you pick up",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        "Handoff coordinates which of your devices is connected to an already-paired Bluetooth headset. " +
-                            "Press Move here and the other device lets go, then this one connects.",
+                        "Tap Move here. Your other device lets go and this one connects.",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    Card {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(24.dp)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Before you start", style = MaterialTheme.typography.titleSmall)
-                            Text("• Pair the headset with each device in Android Bluetooth settings.")
-                            Text("• Install Handoff on each device and link them once. Links keep working on every Wi-Fi; devices just need to share a network when you move the headset.")
-                            Text("• Handoff does not create real multipoint and never streams audio itself.")
-                            Text("• Switching relies on non-public Android Bluetooth functions and may not work on every phone.")
-                            Text("• ${dev.handoff.app.edition.Edition.PRIVACY_SUMMARY}")
+                            Text("• Connect your headphones to each device once.")
+                            Text("• Install Handoff on each device.")
                         }
                     }
-                    Button(onClick = vm::next, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+                    PrimaryButton("Continue", vm::next)
                 }
                 1 -> {
-                    Text("Permissions", style = MaterialTheme.typography.headlineSmall)
+                    Text("Allow Bluetooth access", style = MaterialTheme.typography.headlineSmall)
                     PermissionRow(
-                        title = "Nearby devices (Bluetooth) — required",
-                        why = "To see your paired headphones, their connection state, and to connect or release them.",
+                        why = "So Handoff can see and move your headphones. Android calls this Nearby devices.",
                         granted = state.bluetoothGranted,
                         onRequest = { launcher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT)) },
                     )
-                    Text(
-                        "Handoff does not ask for location or notifications, and does not scan for new Bluetooth devices.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Button(onClick = vm::next, enabled = state.bluetoothGranted, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+                    PrimaryButton("Continue", vm::next, enabled = state.bluetoothGranted)
                 }
                 2 -> {
-                    Text("Name this device", style = MaterialTheme.typography.headlineSmall)
-                    Text("Your other devices will show this name.")
+                    Text("Name ${HandoffTexts.meInSentence}", style = MaterialTheme.typography.headlineSmall)
+                    Text("Your other devices see this name.")
                     OutlinedTextField(
                         value = state.name,
                         onValueChange = vm::setName,
                         singleLine = true,
-                        label = { Text("Device name") },
+                        label = { Text("Name") },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Button(onClick = vm::next, enabled = state.name.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+                    PrimaryButton("Continue", vm::next, enabled = state.name.isNotBlank())
                 }
                 else -> {
-                    Text("Can this device switch headphones?", style = MaterialTheme.typography.headlineSmall)
-                    Card {
+                    Text("Can ${HandoffTexts.meInSentence} move headphones?", style = MaterialTheme.typography.headlineSmall)
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(24.dp)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(Texts.compatibility(diagnostics.compatibility), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                when (diagnostics.compatibility) {
-                                    CompatibilityLevel.SUPPORTED -> "Handoff has already moved headphones on this device."
-                                    CompatibilityLevel.EXPERIMENTAL ->
-                                        "Everything Handoff needs is available. It will show “Supported” after your first successful move."
-                                    CompatibilityLevel.UNSUPPORTED ->
-                                        "This device doesn't let apps connect headphones, so Handoff can't move them here. " +
-                                            "Your other devices can still take the headphones from it."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
+                                HandoffTexts.compatibilityAnswer(diagnostics.compatibility),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (diagnostics.compatibility == CompatibilityLevel.UNSUPPORTED) MaterialTheme.colorScheme.error else Color.Unspecified,
                             )
-                            CheckRow("Connect headphones", diagnostics.reflectionConnect)
-                            CheckRow("Let go of headphones", diagnostics.reflectionDisconnect)
+                            CheckRow("Connect", diagnostics.reflectionConnect)
+                            CheckRow("Let go", diagnostics.reflectionDisconnect)
                             Text(
                                 "Android ${Build.VERSION.RELEASE} · ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -214,38 +208,45 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                             )
                         }
                     }
-                    Card {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Stay reachable in the background", style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    "Lets your other devices take the headset from this one while Handoff is closed or the " +
-                                        "screen is locked. Otherwise, open Handoff here before moving the headset away. " +
-                                        "Android shows a small notification, which you can hide in Settings.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Switch(checked = state.stayReachable, onCheckedChange = vm::setStayReachable)
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(24.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("When ${HandoffTexts.meInSentence} is locked", style = MaterialTheme.typography.titleSmall)
+                            LockedChoice(state.stayReachable, vm::setStayReachable)
+                            Text("Stay reachable shows a small notification.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = { vm.finish(onDone) }, modifier = Modifier.fillMaxWidth()) { Text("Finish") }
+                    PrimaryButton("Finish", { vm.finish(onDone) })
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PermissionRow(title: String, why: String, granted: Boolean, onRequest: () -> Unit) {
-    Card {
+private fun LockedChoice(stayReachable: Boolean, onChange: (Boolean) -> Unit) {
+    val options = listOf(false to "Only while open", true to "Stay reachable")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        options.forEachIndexed { i, (value, label) ->
+            SegmentedButton(
+                selected = value == stayReachable,
+                onClick = { onChange(value) },
+                shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                icon = {},
+            ) { Text(label, maxLines = 1) }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRow(why: String, granted: Boolean, onRequest: () -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
             Text(why, style = MaterialTheme.typography.bodyMedium)
             Row {
                 if (granted) {
-                    Text("Granted", color = MaterialTheme.colorScheme.primary)
+                    Text("Allowed", color = MaterialTheme.colorScheme.primary)
                 } else {
                     OutlinedButton(onClick = onRequest) { Text("Allow") }
                 }

@@ -13,6 +13,8 @@ Handoff answers one question: *where is my sound, and can it come here?* Every h
 
 The stage appears on Home (full for the main headset, compact for others), on the move screen (animated) and at the top of the headset's details.
 
+Both apps draw it from one description built in `:core` (`dev.handoff.core.stage.StageBuilder`), so they always agree; the states below are its unit tests. Debug builds of the Android app include a gallery of every state, for checking changes against this page: `adb shell am start -n dev.handoff.app.debug/dev.handoff.app.StageGalleryActivity`.
+
 ## Stage states
 
 | State | Picture | Status | Line under the stage | Action |

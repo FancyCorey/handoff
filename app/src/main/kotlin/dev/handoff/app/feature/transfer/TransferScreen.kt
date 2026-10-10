@@ -1,6 +1,22 @@
 package dev.handoff.app.feature.transfer
 
-import android.net.Uri
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import dev.handoff.app.ui.MoveIcon
+import dev.handoff.app.ui.OutlineButton
+import dev.handoff.app.ui.PrimaryButton
+import dev.handoff.app.ui.StageView
+import dev.handoff.app.ui.SystemScreens
+import dev.handoff.app.ui.toneColor
+import dev.handoff.core.stage.Stage
+import dev.handoff.core.stage.StageRepository
+import dev.handoff.core.text.HandoffTexts
 import dev.handoff.core.handoff.FailureReason
 import android.content.Intent
 import android.provider.Settings
@@ -78,6 +94,7 @@ class TransferViewModel(
     coordinator: HandoffCoordinator,
     private val actions: HandoffActions,
     overview: OverviewRepository,
+    stages: StageRepository,
 ) : ViewModel() {
     private val id = LogicalDeviceId(logicalId)
 
@@ -94,8 +111,10 @@ class TransferViewModel(
     }
 
     val deviceName: StateFlow<String> = overview.devices
-        .map { list -> list.firstOrNull { it.device.logicalId == id }?.device?.displayName ?: "headset" }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "headset")
+        .map { list -> list.firstOrNull { it.device.logicalId == id }?.device?.displayName ?: "Headphones" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "Headphones")
+
+    val stage: StateFlow<Stage?> = stages.stages.map { it[id] }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun retry() {
         since.value = System.currentTimeMillis() - STALE_SLACK_MS
@@ -112,68 +131,72 @@ fun TransferScreen(
     logicalId: String,
     onDone: () -> Unit,
     onDiagnostics: () -> Unit,
+    onPeers: () -> Unit,
+    onAdd: () -> Unit,
     viewOnly: Boolean = false,
     vm: TransferViewModel = koinViewModel(key = "transfer-$logicalId-$viewOnly") { parametersOf(logicalId, viewOnly) },
 ) {
     val transfer by vm.transfer.collectAsStateWithLifecycle()
     val name by vm.deviceName.collectAsStateWithLifecycle()
+    val stage by vm.stage.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val t = transfer
     val result = t?.result
+    var more by remember(t?.startedAtMs) { mutableStateOf(false) }
 
-    HandoffScaffold(title = "Moving $name", onBack = onDone) { padding ->
+    HandoffScaffold(title = name, onBack = onDone) { padding ->
         Column(
             Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Hero: spinner while running, then a success or failure mark.
-            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
-                when {
-                    result == null -> Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(Modifier.size(96.dp), strokeWidth = 5.dp)
-                        Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-                    }
-                    result.isGood() -> HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
-                    result == HandoffResult.Cancelled ->
-                        HeroIcon(Icons.Filled.Close, size = 96.dp, brush = SolidColor(MaterialTheme.colorScheme.outline))
-                    else -> HeroIcon(Icons.Filled.PriorityHigh, size = 96.dp, brush = SolidColor(MaterialTheme.colorScheme.error))
+            stage?.let { s ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(s.status, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = toneColor(s.statusTone))
+                    StageView(s, Modifier.fillMaxWidth(), steps = t?.steps.orEmpty().takeIf { result == null }.orEmpty())
                 }
             }
-            Text(
-                when {
-                    result != null -> Texts.result(result)
-                    t == null -> "Starting…"
-                    else -> t.steps.lastOrNull()?.let(Texts::step) ?: "Starting…"
-                },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            result?.let(Texts::help)?.let { help ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val failed = result != null && !result.isGood() && result != HandoffResult.Cancelled && result != HandoffResult.InProgress
                 Text(
-                    help,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
+                    when {
+                        result != null -> Texts.result(result)
+                        t == null -> HandoffTexts.STARTING
+                        else -> t.steps.lastOrNull()?.let(Texts::step) ?: HandoffTexts.STARTING
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (failed) MaterialTheme.colorScheme.error else Color.Unspecified,
                 )
+                result?.let(Texts::help)?.let { help ->
+                    Text(help, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                result?.let(HandoffTexts::more)?.let { detail ->
+                    if (more) {
+                        Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        TextButton(onClick = { more = true }, contentPadding = PaddingValues(0.dp)) { Text("More") }
+                    }
+                }
             }
             if (result is HandoffResult.Success) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    result.timings.releaseMs?.let { TimingChip("Release", "%.1f s".format(it / 1000.0)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    result.timings.releaseMs?.let { TimingChip("Let go", "%.1f s".format(it / 1000.0)) }
                     result.timings.connectMs?.let { TimingChip("Connect", "%.1f s".format(it / 1000.0)) }
                     TimingChip("Total", "%.1f s".format(result.timings.totalMs / 1000.0))
                 }
             }
 
-            // Timeline of what happened.
+            // What happened, step by step: progress is always in words, even without motion.
             if (t != null && t.steps.isNotEmpty()) {
-                SectionCard(Modifier.padding(horizontal = 0.dp)) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                ) {
                     Column(Modifier.padding(vertical = 12.dp)) {
                         t.steps.forEachIndexed { index, step ->
                             val last = index == t.steps.lastIndex
@@ -192,46 +215,37 @@ fun TransferScreen(
                 }
             }
 
-            when (result) {
-                null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = vm::cancel, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Cancel") }
+            when {
+                result == null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlineButton(HandoffTexts.CANCEL, vm::cancel)
                     Text(
-                        "You can leave this screen; the move keeps going. Tap the headset on the home screen to come back.",
+                        HandoffTexts.CAN_LEAVE,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                is HandoffResult.Success, HandoffResult.AlreadyConnected, HandoffResult.InProgress ->
-                    Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Done") }
-                HandoffResult.Cancelled -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = vm::retry, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                        Icon(Icons.Filled.SwapHoriz, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Move here")
-                    }
-                    OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Done") }
-                }
+                result.isGood() || result == HandoffResult.InProgress -> PrimaryButton("Done", onDone)
                 else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = vm::retry, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Try again")
-                    }
-                    val needsPermission = (result as? HandoffResult.Failed)?.reason == FailureReason.PERMISSION_DENIED
-                    OutlinedButton(
+                    val fix = HandoffTexts.fix(result) ?: HandoffTexts.Fix.TRY_AGAIN
+                    PrimaryButton(
+                        HandoffTexts.label(fix),
+                        icon = if (fix == HandoffTexts.Fix.MOVE_HERE) MoveIcon else null,
                         onClick = {
-                            val intent = if (needsPermission) {
-                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
-                            } else {
-                                Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+                            when (fix) {
+                                HandoffTexts.Fix.TRY_AGAIN, HandoffTexts.Fix.MOVE_HERE -> vm.retry()
+                                HandoffTexts.Fix.LINK_AGAIN -> onPeers()
+                                HandoffTexts.Fix.ADD_HERE -> onAdd()
+                                HandoffTexts.Fix.TURN_ON_BLUETOOTH -> SystemScreens.turnOnBluetooth(context)
+                                HandoffTexts.Fix.ALLOW -> SystemScreens.appSettings(context)
+                                HandoffTexts.Fix.OPEN_BLUETOOTH_SETTINGS -> SystemScreens.bluetoothSettings(context)
                             }
-                            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (needsPermission) "Open app settings" else "Open Bluetooth settings") }
-                    TextButton(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("Diagnostics") }
+                    )
+                    if ((result as? HandoffResult.Failed)?.reason == FailureReason.INTERNAL) {
+                        TextButton(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("Share a report") }
+                    }
                 }
             }
         }

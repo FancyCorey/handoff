@@ -36,6 +36,7 @@ import dev.handoff.desktop.mesh.JmdnsDiscovery
 import dev.handoff.desktop.ui.AddHeadsetDialog
 import dev.handoff.desktop.ui.ApprovalDialog
 import dev.handoff.desktop.ui.DiagnosticsDialog
+import dev.handoff.desktop.ui.openBluetoothSettings
 import dev.handoff.desktop.ui.HandoffTheme
 import dev.handoff.desktop.ui.HeadsetDialog
 import dev.handoff.desktop.ui.HomeActions
@@ -43,7 +44,6 @@ import dev.handoff.desktop.ui.HomeScreen
 import dev.handoff.desktop.ui.LinkPhoneDialog
 import dev.handoff.desktop.ui.Resources
 import dev.handoff.desktop.ui.SettingsDialog
-import dev.handoff.desktop.ui.status
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -88,7 +88,7 @@ fun main(args: Array<String>) {
         Tray(
             icon = Resources.trayPainter,
             state = tray,
-            tooltip = preferred?.let { "Handoff · ${it.device.displayName}: ${status(it, false).first}" } ?: "Handoff",
+            tooltip = preferred?.let { "Handoff · ${it.device.displayName}: ${HandoffTexts.whereConnected(it.holders, HandoffTexts.me)}" } ?: "Handoff",
             onAction = { windowVisible = true },
             menu = {
                 if (preferred != null && preferred.device.localDeviceId != null && !preferred.connectedHere) {
@@ -100,7 +100,7 @@ fun main(args: Array<String>) {
                     Separator()
                 }
                 Item("Open Handoff", onClick = { windowVisible = true })
-                Item("Quit Handoff", onClick = ::quit)
+                Item("Quit", onClick = ::quit)
             },
         )
 
@@ -130,6 +130,7 @@ private sealed interface Sheet {
 private fun App(app: DesktopApp) {
     val scope = rememberCoroutineScope()
     val devices by app.overview.devices.collectAsState()
+    val stages by app.stages.stages.collectAsState()
     val peers by app.overview.peers.collectAsState()
     val announced by app.overview.announced.collectAsState()
     val adapter by app.bluetooth.adapterState.collectAsState()
@@ -148,8 +149,9 @@ private fun App(app: DesktopApp) {
         pcName = name,
         adapter = adapter,
         devices = devices,
+        stages = stages,
+        preferred = settings.preferredDevice,
         peers = peers,
-        released = released,
         update = update,
         actions = HomeActions(
             moveHere = { app.moveHere(it.device.logicalId) },
@@ -158,9 +160,9 @@ private fun App(app: DesktopApp) {
             addHeadset = { sheet = Sheet.AddHeadset },
             linkPhone = { sheet = Sheet.Link },
             settings = { sheet = Sheet.Settings },
-            diagnostics = { sheet = Sheet.Diagnostics },
             refresh = { scope.launch { app.refreshNow() } },
             openHotspot = { runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-mobilehotspot").start() } },
+            openBluetooth = ::openBluetoothSettings,
         ),
     )
 
@@ -202,6 +204,7 @@ private fun App(app: DesktopApp) {
                 }
             },
             onReleasePage = app.updates::openReleasePage,
+            onDiagnostics = { sheet = Sheet.Diagnostics },
             onClose = { sheet = null },
         )
         Sheet.Diagnostics -> DiagnosticsDialog(report = diagnostics(app, devices)) { sheet = null }
@@ -213,11 +216,13 @@ private fun App(app: DesktopApp) {
                 val address = d.device.localDeviceId
                 HeadsetDialog(
                     overview = d,
+                    stage = stages[d.device.logicalId],
                     preferred = settings.preferredDevice == d.device.logicalId.value,
                     released = address?.address?.uppercase() in released,
                     onPreferred = { on -> app.settings.update { it.copy(preferredDevice = if (on) d.device.logicalId.value else null) } },
                     onMultipoint = { on -> scope.launch { app.devices.upsert(d.device.copy(multipoint = on)) } },
                     onRestore = { address?.let { a -> scope.launch { app.bluetooth.restore(a) } } },
+                    onChoose = { sheet = Sheet.AddHeadset },
                     onForget = {
                         scope.launch { app.devices.remove(d.device.logicalId) }
                         sheet = null
@@ -326,7 +331,7 @@ private fun diagnostics(app: DesktopApp, devices: List<DeviceOverview>): String 
         appendLine()
         appendLine("== Headsets ==")
         devices.forEach { d ->
-            appendLine("${d.device.displayName}: ${status(d, false).first} · local ${d.localState} · mapped here ${d.device.localDeviceId != null}")
+            appendLine("${d.device.displayName}: ${HandoffTexts.whereConnected(d.holders, HandoffTexts.me)} · local ${d.localState} · mapped here ${d.device.localDeviceId != null}")
         }
         appendLine()
         appendLine("== Linked devices ==")

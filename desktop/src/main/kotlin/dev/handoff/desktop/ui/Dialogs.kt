@@ -1,5 +1,6 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.core.stage.Stage
 import dev.handoff.desktop.DesktopUpdates
 import dev.handoff.core.update.UpdateManifest
 import androidx.compose.material3.LinearProgressIndicator
@@ -81,19 +82,19 @@ fun LinkPhoneDialog(invitation: PairingManager.ActiveInvitation?, linkedName: St
     AlertDialog(
         onDismissRequest = onClose,
         icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-        title = { Text(if (linkedName != null) "Linked" else "Link a phone or tablet") },
+        title = { Text(if (linkedName != null) HandoffTexts.linkedWith(linkedName) else "Scan this with your phone") },
         text = {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when {
-                    linkedName != null -> Text("$linkedName can now move your headphones to and from this PC.")
+                    linkedName != null -> Text(HandoffTexts.LINKED_ONCE)
                     error != null -> Text(error)
                     invitation == null -> CircularProgressIndicator()
                     else -> {
-                        Text("On your phone open Handoff → My devices → Scan a Handoff code, and point it at this code.")
+                        Text("In Handoff, tap Link a device.")
                         val code = invitation.invitation.encode()
                         val image = remember(code) { qrImage(code) }
                         Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color.White).padding(10.dp)) {
-                            Image(image, contentDescription = "Pairing QR code", modifier = Modifier.size(260.dp))
+                            Image(image, contentDescription = "Link code", modifier = Modifier.size(260.dp))
                         }
                         var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
                         LaunchedEffect(invitation) {
@@ -104,11 +105,11 @@ fun LinkPhoneDialog(invitation: PairingManager.ActiveInvitation?, linkedName: St
                         }
                         val left = ((invitation.expiresAtMs - now) / 1000).coerceAtLeast(0)
                         Text(
-                            "Works once · expires in %d:%02d · you'll confirm a 6-digit code here".format(left / 60, left % 60),
+                            "Expires in %d:%02d".format(left / 60, left % 60),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        TextButton(onClick = { copyToClipboard(code) }) { Text("Copy code as text") }
+                        TextButton(onClick = { copyToClipboard(code) }) { Text("Copy the code") }
                     }
                 }
             }
@@ -127,7 +128,7 @@ fun ApprovalDialog(pending: PairingManager.PendingPairing, onAnswer: (Boolean) -
         title = { Text("Link ${pending.displayName}?") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Only continue if the phone shows this code:")
+                Text(HandoffTexts.linkCheck(pending.displayName))
                 Text(
                     pending.sas.chunked(3).joinToString(" "),
                     style = MaterialTheme.typography.displaySmall,
@@ -160,21 +161,25 @@ fun AddHeadsetDialog(
     var target by remember { mutableStateOf<AnnouncedDevice?>(null) }
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text(if (selected == null) "Add headset" else "Is this a headset your phone knows?") },
+        title = { Text(if (selected == null) "Add headphones" else "Already added on another device?") },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val chosen = selected
                 if (chosen == null) {
                     Text(
-                        "Headsets paired with this PC in Windows Bluetooth settings:",
+                        "Choose them from the list. Add them on each of your devices.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (bonded.isEmpty()) Text("No paired audio devices found. Pair your headset in Windows Settings → Bluetooth & devices.")
+                    if (bonded.isEmpty()) {
+                        Text("Nothing here yet", style = MaterialTheme.typography.titleSmall)
+                        Text("Connect your headphones once in Bluetooth settings.")
+                        TextButton(onClick = ::openBluetoothSettings, contentPadding = PaddingValues(0.dp)) { Text("Open Bluetooth settings") }
+                    }
                     bonded.forEach { device ->
                         OptionRow(
                             title = device.name,
-                            subtitle = if (device.fingerprint in mapped) "Already added" else HandoffTexts.kind(device.kind),
+                            subtitle = HandoffTexts.kind(device.kind) + if (device.fingerprint in mapped) " · added" else "",
                             selected = false,
                             icon = { Icon(kindIcon(device.kind), contentDescription = null) },
                         ) {
@@ -187,12 +192,12 @@ fun AddHeadsetDialog(
                     val others = announced.filter { it !in matches }
                     (matches + others).forEach { option ->
                         OptionRow(
-                            title = option.displayName,
-                            subtitle = (if (option in matches) "Recommended · same Bluetooth address · " else "") + "on ${option.announcedBy.joinToString()}",
+                            title = "${option.displayName} on ${HandoffTexts.names(option.announcedBy)}",
+                            subtitle = if (option in matches) "Recommended" else null,
                             selected = target == option,
                         ) { target = option }
                     }
-                    OptionRow(title = "New headset", subtitle = "Not added on any other device yet", selected = target == null) { target = null }
+                    OptionRow(title = "No, these are new", subtitle = null, selected = target == null) { target = null }
                 }
             }
         },
@@ -205,7 +210,7 @@ fun AddHeadsetDialog(
 }
 
 @Composable
-private fun OptionRow(title: String, subtitle: String, selected: Boolean, icon: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+private fun OptionRow(title: String, subtitle: String?, selected: Boolean, icon: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +219,7 @@ private fun OptionRow(title: String, subtitle: String, selected: Boolean, icon: 
         Spacer(Modifier.width(12.dp))
         Column {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -222,34 +227,52 @@ private fun OptionRow(title: String, subtitle: String, selected: Boolean, icon: 
 @Composable
 fun HeadsetDialog(
     overview: DeviceOverview,
+    stage: Stage?,
     preferred: Boolean,
     released: Boolean,
     onPreferred: (Boolean) -> Unit,
     onMultipoint: (Boolean) -> Unit,
     onRestore: () -> Unit,
+    onChoose: () -> Unit,
     onForget: () -> Unit,
     onClose: () -> Unit,
 ) {
+    var confirmRemove by remember { mutableStateOf(false) }
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove from ${HandoffTexts.meInSentence}?") },
+            text = { Text("They stay connected in Bluetooth settings.") },
+            confirmButton = { TextButton(onClick = onForget) { Text("Remove") } },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Keep") } },
+        )
+        return
+    }
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text(overview.device.displayName) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val (label, tone) = status(overview, released)
-                StatusPill(label, tone)
-                Spacer(Modifier.height(4.dp))
-                ToggleRow("Tray headset", "“Move here” in the tray menu moves this headset.", preferred, onPreferred)
-                ToggleRow(HandoffTexts.STAY_CONNECTED_TITLE, HandoffTexts.STAY_CONNECTED_HELP, overview.device.multipoint, onMultipoint)
+            Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                stage?.let {
+                    Text(it.status, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = toneColor(it.statusTone))
+                    StageView(it, Modifier.fillMaxWidth())
+                }
                 if (released) {
                     Text(
-                        "Handoff turned off this headset's Windows audio services when it moved it away, so Windows doesn't grab it back. " +
-                            "Move here, or restore Windows audio to use it from Windows directly.",
+                        "Windows won't reconnect them by itself while they're on another device.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = onRestore) { Text("Restore Windows audio (connects it here)") }
+                    TextButton(onClick = onRestore, contentPadding = PaddingValues(0.dp)) { Text("Connect to this PC") }
                 }
-                TextButton(onClick = onForget) { Text("Forget on this PC", color = MaterialTheme.colorScheme.error) }
+                ToggleRow("Tray menu", "Move here in the tray menu moves these headphones.", preferred, onPreferred)
+                ToggleRow(HandoffTexts.STAY_CONNECTED_TITLE, HandoffTexts.STAY_CONNECTED_HELP, overview.device.multipoint, onMultipoint)
+                Column {
+                    TextButton(onClick = onChoose, contentPadding = PaddingValues(0.dp)) { Text("Choose different headphones") }
+                    TextButton(onClick = { confirmRemove = true }, contentPadding = PaddingValues(0.dp)) {
+                        Text("Remove from ${HandoffTexts.meInSentence}", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
@@ -284,6 +307,7 @@ fun SettingsDialog(
     onCheckUpdate: () -> Unit,
     onInstallUpdate: (UpdateManifest) -> Unit,
     onReleasePage: (UpdateManifest?) -> Unit,
+    onDiagnostics: () -> Unit,
     onClose: () -> Unit,
 ) {
     var editing by remember { mutableStateOf(name) }
@@ -297,29 +321,36 @@ fun SettingsDialog(
         title = { Text("Settings") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(editing, { editing = it }, label = { Text("This PC's name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    editing,
+                    { editing = it },
+                    label = { Text("Name") },
+                    supportingText = { Text("Your other devices see this name.") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 ToggleRow(
                     "Start with Windows",
-                    if (autostartAvailable) "Starts minimized to the tray so your phone can always reach this PC." else "Available in the installed app.",
+                    if (autostartAvailable) "So your phone can always reach this PC" else "Available in the installed app",
                     startWithWindows,
                     onStartWithWindows,
                     enabled = autostartAvailable,
                 )
                 Text(
-                    "Closing the window keeps Handoff running in the tray. Quit from the tray menu.\n" +
-                        "Windows Firewall may ask to allow Handoff on private networks; allow it so linked devices can reach this PC.",
+                    "Closing keeps Handoff in the tray.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 UpdateRow(update, autoUpdateCheck, canInstallUpdate, onAutoUpdateCheck, onCheckUpdate, onInstallUpdate, onReleasePage)
                 Text(
-                    "Handoff $version · identity key $keyFingerprint · MIT License",
+                    "Handoff $version · key $keyFingerprint",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Column {
-                    TextButton(onClick = { openInBrowser(HandoffTexts.REPO_URL) }, contentPadding = PaddingValues(0.dp)) { Text("Source code on GitHub") }
-                    TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Open-source licenses") }
+                    TextButton(onClick = onDiagnostics, contentPadding = PaddingValues(0.dp)) { Text("Help and diagnostics") }
+                    TextButton(onClick = { openInBrowser(HandoffTexts.REPO_URL) }, contentPadding = PaddingValues(0.dp)) { Text("Source code") }
+                    TextButton(onClick = { showLicenses = true }, contentPadding = PaddingValues(0.dp)) { Text("Licenses") }
                 }
             }
         },
@@ -346,17 +377,17 @@ private fun UpdateRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when (state) {
-                    DesktopUpdates.State.Idle -> "Updates come from Handoff's GitHub releases and are signature-checked."
-                    DesktopUpdates.State.Checking -> "Checking for updates…"
-                    is DesktopUpdates.State.UpToDate -> "You're up to date (${state.latest})."
-                    is DesktopUpdates.State.Available -> "Handoff ${state.manifest.version} is available."
-                    is DesktopUpdates.State.Downloading -> "Downloading Handoff ${state.manifest.version}…"
+                    DesktopUpdates.State.Idle -> "Check for updates"
+                    DesktopUpdates.State.Checking -> "Checking…"
+                    is DesktopUpdates.State.UpToDate -> "Up to date"
+                    is DesktopUpdates.State.Available -> "${state.manifest.version} is available"
+                    is DesktopUpdates.State.Downloading -> "Downloading…"
                     is DesktopUpdates.State.Failed -> state.message
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onCheck, enabled = state != DesktopUpdates.State.Checking) { Text("Check now") }
+            TextButton(onClick = onCheck, enabled = state != DesktopUpdates.State.Checking) { Text("Check") }
         }
         val manifest = when (state) {
             is DesktopUpdates.State.Available -> state.manifest
@@ -371,12 +402,12 @@ private fun UpdateRow(
             if (state is DesktopUpdates.State.Downloading) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (canInstall && state !is DesktopUpdates.State.Downloading) {
-                    Button(onClick = { onInstall(manifest) }) { Text("Download and install") }
+                    Button(onClick = { onInstall(manifest) }) { Text("Update") }
                 }
-                OutlinedButton(onClick = { onReleasePage(manifest) }) { Text("Release page") }
+                OutlinedButton(onClick = { onReleasePage(manifest) }) { Text("What's new") }
             }
         }
-        ToggleRow("Check automatically", "Once a day. This contacts GitHub; nothing about you or your devices is sent.", autoCheck, onAutoCheck)
+        ToggleRow("Check automatically", "Once a day", autoCheck, onAutoCheck)
     }
 }
 
@@ -385,7 +416,7 @@ private fun UpdateRow(
 fun LicensesDialog(onClose: () -> Unit) {
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Open-source licenses") },
+        title = { Text("Licenses") },
         text = {
             Text(
                 OpenSourceNotices.readable,
@@ -401,7 +432,7 @@ fun LicensesDialog(onClose: () -> Unit) {
 fun DiagnosticsDialog(report: String, onClose: () -> Unit) {
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Diagnostics") },
+        title = { Text("Help and diagnostics") },
         text = {
             Text(
                 report,
@@ -410,7 +441,12 @@ fun DiagnosticsDialog(report: String, onClose: () -> Unit) {
                 modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
             )
         },
-        confirmButton = { TextButton(onClick = { copyToClipboard(report); onClose() }) { Text("Copy & close") } },
+        confirmButton = { TextButton(onClick = { copyToClipboard(report); onClose() }) { Text("Copy the report") } },
         dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
     )
+}
+
+/** Windows' own Bluetooth settings page. */
+fun openBluetoothSettings() {
+    runCatching { ProcessBuilder("explorer.exe", "ms-settings:bluetooth").start() }
 }

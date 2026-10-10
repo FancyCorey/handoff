@@ -1,24 +1,14 @@
 package dev.handoff.desktop.ui
 
-import dev.handoff.desktop.DesktopUpdates
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material.icons.filled.BatteryAlert
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.Battery5Bar
-import androidx.compose.material.icons.filled.Battery3Bar
-import androidx.compose.material.icons.filled.Battery2Bar
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,59 +17,66 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.Battery2Bar
+import androidx.compose.material.icons.filled.Battery3Bar
+import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speaker
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TabletAndroid
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.outlined.QrCode2
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.handoff.HandoffResult
 import dev.handoff.core.handoff.Platforms
-import dev.handoff.core.handoff.StepKind
 import dev.handoff.core.model.AudioDeviceKind
+import dev.handoff.core.model.LogicalDeviceId
 import dev.handoff.core.overview.DeviceOverview
 import dev.handoff.core.overview.PeerOverview
-import dev.handoff.core.ownership.Ownership
+import dev.handoff.core.stage.Stage
+import dev.handoff.core.stage.StageAction
 import dev.handoff.core.text.HandoffTexts
-import dev.handoff.core.model.AudioConnectionState
+import dev.handoff.desktop.DesktopUpdates
 
 /** Callbacks from the home screen to the app shell. */
 class HomeActions(
@@ -89,9 +86,9 @@ class HomeActions(
     val addHeadset: () -> Unit,
     val linkPhone: () -> Unit,
     val settings: () -> Unit,
-    val diagnostics: () -> Unit,
     val refresh: () -> Unit,
     val openHotspot: () -> Unit,
+    val openBluetooth: () -> Unit,
 )
 
 @Composable
@@ -99,289 +96,272 @@ fun HomeScreen(
     pcName: String,
     adapter: AdapterState,
     devices: List<DeviceOverview>,
+    stages: Map<LogicalDeviceId, Stage>,
+    preferred: String?,
     peers: List<PeerOverview>,
-    released: Set<String>,
     update: DesktopUpdates.State,
     actions: HomeActions,
 ) {
+    // The tray headphones get the full stage; the others get compact cards.
+    val main = devices.firstOrNull { it.device.logicalId.value == preferred } ?: devices.firstOrNull()
+    val others = devices.filter { it !== main }
+
+    fun act(d: DeviceOverview, action: StageAction) = when (action) {
+        StageAction.MOVE_HERE, StageAction.USE_ONLY_HERE, StageAction.CONNECT_HERE_TOO -> actions.moveHere(d)
+        StageAction.CANCEL -> actions.cancelMove(d)
+        StageAction.TURN_ON_BLUETOOTH -> actions.openBluetooth()
+        StageAction.ADD_HERE -> actions.addHeadset()
+        StageAction.NONE -> Unit
+    }
+
     // Surface provides the on-background content colour (dark mode text would be black otherwise).
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-    Column(Modifier.fillMaxSize()) {
-        Header(pcName, adapter, actions)
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (update is DesktopUpdates.State.Available) {
-                item {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.SystemUpdate, contentDescription = null)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Handoff ${update.manifest.version} is available", modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
-                            TextButton(onClick = actions.settings) { Text("Update") }
+        Column(Modifier.fillMaxSize()) {
+            Header(pcName, adapter, actions)
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (update is DesktopUpdates.State.Available) {
+                    item { Notice("Update available", null, "Update", actions.settings) }
+                }
+                if (main == null) {
+                    item { FirstRun(peers.isEmpty(), actions) }
+                } else {
+                    item(key = main.device.logicalId.value) {
+                        stages[main.device.logicalId]?.let { HeadsetCard(main, it, { a -> act(main, a) }, { actions.openHeadset(main) }) }
+                    }
+                    items(others, key = { it.device.logicalId.value }) { d ->
+                        stages[d.device.logicalId]?.let { CompactCard(d, it, { a -> act(d, a) }, { actions.openHeadset(d) }) }
+                    }
+                    item {
+                        TextButton(onClick = actions.addHeadset) {
+                            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add headphones")
                         }
                     }
                 }
-            }
-            item { SectionTitle("Your audio", action = "Add headset", onAction = actions.addHeadset) }
-            if (devices.isEmpty()) {
-                item {
-                    EmptyCard(
-                        icon = Icons.Filled.Headphones,
-                        title = "No headset yet",
-                        body = "Pick headphones that are already paired with this PC in Windows Bluetooth settings.",
-                        button = "Add headset",
-                        onClick = actions.addHeadset,
-                    )
+                if (main != null || peers.isNotEmpty()) {
+                    item { SectionLabel("Your devices") }
+                    item { DeviceChips(peers, actions.linkPhone) }
                 }
-            }
-            items(devices, key = { it.device.logicalId.value }) { d ->
-                HeadsetCard(
-                    d,
-                    released = d.device.localDeviceId?.address?.uppercase() in released,
-                    onMove = { actions.moveHere(d) },
-                    onCancel = { actions.cancelMove(d) },
-                    onMore = { actions.openHeadset(d) },
-                )
-            }
-            item { Spacer(Modifier.height(4.dp)) }
-            item { SectionTitle("Your devices", action = "Link a phone", onAction = actions.linkPhone) }
-            item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                    Column {
-                        DeviceRow(Icons.Filled.Computer, pcName, "This PC", Tone.ACTIVE)
-                        peers.forEach { p ->
-                            HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            DeviceRow(
-                                platformIcon(p.platform),
-                                p.peer.displayName,
-                                if (p.online) "Online" else HandoffTexts.offline(p.probablyOtherNetwork),
-                                when {
-                                    p.online -> Tone.POSITIVE
-                                    p.probablyOtherNetwork -> Tone.WARNING
-                                    else -> Tone.NEUTRAL
-                                },
-                            )
-                        }
-                        if (peers.isEmpty()) {
-                            Text(
-                                "Link your phone or tablet: open Handoff there, go to My devices → Scan a Handoff code, and scan the code from “Link a phone”.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                            )
-                        }
-                    }
-                }
-            }
-            if (peers.isNotEmpty() && peers.none { it.online }) {
-                item {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(HandoffTexts.DIRECT_TITLE, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text(HandoffTexts.DIRECT_HELP, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = actions.openHotspot, contentPadding = PaddingValues(0.dp)) { Text("Open Mobile hotspot settings") }
-                        }
-                    }
+                if (peers.isNotEmpty() && peers.none { it.online }) {
+                    item { Notice(HandoffTexts.DIRECT_TITLE, HandoffTexts.DIRECT_HELP, "Hotspot settings", actions.openHotspot) }
                 }
             }
         }
     }
-    }
 }
 
+/** Slim header: the mark, the name, this PC as a chip, and a warning only when Bluetooth needs attention. */
 @Composable
 private fun Header(pcName: String, adapter: AdapterState, actions: HomeActions) {
-    Box(Modifier.fillMaxWidth().background(Brand.gradient).padding(horizontal = 20.dp, vertical = 18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Logo(44.dp, onBrand = true)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Handoff", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
-                Text(
-                    when (adapter) {
-                        AdapterState.ON -> "$pcName · Bluetooth on"
-                        AdapterState.NOT_AVAILABLE -> "$pcName · no Bluetooth adapter"
-                        else -> "$pcName · Bluetooth is off"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.85f),
-                )
-            }
-            HeaderButton(Icons.Filled.Refresh, "Refresh", actions.refresh)
-            HeaderButton(Icons.Outlined.BugReport, "Diagnostics", actions.diagnostics)
-            HeaderButton(Icons.Filled.Settings, "Settings", actions.settings)
-        }
-    }
-}
-
-@Composable
-private fun HeaderButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Icon(icon, contentDescription = label, tint = Color.White) }
-}
-
-@Composable
-private fun SectionTitle(title: String, action: String, onAction: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        TextButton(onClick = onAction) {
-            Icon(if (action == "Link a phone") Icons.Outlined.QrCode2 else Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(action)
-        }
-    }
-}
-
-@Composable
-private fun HeadsetCard(d: DeviceOverview, released: Boolean, onMove: () -> Unit, onCancel: () -> Unit, onMore: () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth().animateContentSize(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge { Icon(kindIcon(d.device.deviceType), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer) }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(d.device.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        val (label, tone) = status(d, released)
-                        StatusPill(label, tone)
-                        d.batteryPercent?.let { BatteryChip(it) }
-                    }
-                }
-                IconButton(onClick = onMore) { Icon(Icons.Filled.MoreVert, contentDescription = "Options") }
-            }
-            val t = d.transfer
-            when {
-                d.transferRunning && t != null -> TransferProgress(t.steps.map(HandoffTexts::step), onCancel)
-                d.device.localDeviceId == null -> OutlinedButton(onClick = onMore, modifier = Modifier.fillMaxWidth()) { Text("Choose this headset on this PC") }
-                d.connectedHere && d.ownership is Ownership.Conflict -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        HandoffTexts.alsoConnectedHint(d.holders.filter { it != THIS_PC }),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FilledTonalButton(onClick = onMove, modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp)) {
-                        Text(HandoffTexts.USE_ONLY_HERE)
-                    }
-                }
-                d.connectedHere -> Unit
-                else -> Button(onClick = onMove, modifier = Modifier.fillMaxWidth().height(44.dp), shape = RoundedCornerShape(12.dp)) {
-                    Icon(Icons.Filled.SwapHoriz, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (d.ownership is Ownership.Multipoint) "Move media here" else "Move here")
-                }
-            }
-            AnimatedVisibility(visible = !d.transferRunning && t?.result != null && t.result !is HandoffResult.Success) {
-                t?.let { ResultLine(it.result ?: return@let, it.steps.map(HandoffTexts::step)) }
-            }
-        }
-    }
-}
-
-/** Every step so far, newest last, with a way to stop the move. */
-@Composable
-private fun TransferProgress(steps: List<String>, onCancel: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        LinearProgressIndicator(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)))
-        StepList(steps.ifEmpty { listOf("Starting…") }, activeLast = true)
-        TextButton(onClick = onCancel, contentPadding = PaddingValues(0.dp)) { Text("Cancel") }
-    }
-}
-
-@Composable
-private fun StepList(steps: List<String>, activeLast: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        steps.forEachIndexed { i, step ->
-            val current = activeLast && i == steps.lastIndex
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Logo(30.dp)
+        Spacer(Modifier.width(10.dp))
+        Text("Handoff", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            pcName,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+        if (adapter != AdapterState.ON) {
+            Spacer(Modifier.width(8.dp))
             Text(
-                (if (current) "›  " else "✓  ") + step,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (current) FontWeight.Medium else FontWeight.Normal,
-                color = if (current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                if (adapter == AdapterState.NOT_AVAILABLE) "No Bluetooth" else HandoffTexts.BLUETOOTH_OFF,
+                style = MaterialTheme.typography.labelMedium,
+                color = tokens.warning,
+                maxLines = 1,
             )
         }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = actions.refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
+        IconButton(onClick = actions.settings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
     }
 }
 
 @Composable
-private fun ResultLine(result: HandoffResult, steps: List<String>) {
-    var showSteps by remember { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val ok = result is HandoffResult.AlreadyConnected
-        val cancelled = result == HandoffResult.Cancelled
-        Icon(
-            when {
-                ok -> Icons.Filled.CheckCircle
-                cancelled -> Icons.Filled.Close
-                else -> Icons.Filled.Error
-            },
-            contentDescription = null,
-            tint = when {
-                ok -> Brand.Success
-                cancelled -> MaterialTheme.colorScheme.outline
-                else -> MaterialTheme.colorScheme.error
-            },
-            modifier = Modifier.size(18.dp),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(HandoffTexts.result(result), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-            HandoffTexts.help(result)?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (steps.isNotEmpty()) {
-                TextButton(onClick = { showSteps = !showSteps }, contentPadding = PaddingValues(0.dp)) {
-                    Text(if (showSteps) "Hide steps" else "Show steps")
+private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Card(
+        modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) { content() }
+}
+
+@Composable
+private fun Title(d: DeviceOverview, stage: Stage, maxLines: Int = 1) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                d.device.displayName,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (!stage.dimmed) {
+                d.batteryPercent?.let {
+                    Spacer(Modifier.width(8.dp))
+                    BatteryChip(it)
                 }
-                if (showSteps) StepList(steps, activeLast = false)
             }
+        }
+        Text(stage.status, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = toneColor(stage.statusTone))
+    }
+}
+
+@Composable
+private fun HeadsetCard(d: DeviceOverview, stage: Stage, onAct: (StageAction) -> Unit, onOpen: () -> Unit) {
+    val moving = d.transferRunning
+    Panel(Modifier.animateContentSize().clip(RoundedCornerShape(24.dp)).clickable(onClick = onOpen)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Title(d, stage)
+            StageView(stage, Modifier.fillMaxWidth(), steps = d.transfer?.steps.orEmpty().takeIf { moving }.orEmpty())
+            stage.line?.let { Text(it, fontSize = 12.sp, color = toneColor(stage.lineTone, quiet = true)) }
+            if (moving) Text(HandoffTexts.CAN_LEAVE, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Unfinished(d)
+            StageButton(stage.action, { onAct(stage.action) })
+        }
+    }
+}
+
+/** A move that failed or was cancelled: title, reason, and the rest behind More. */
+@Composable
+private fun Unfinished(d: DeviceOverview) {
+    val t = d.transfer ?: return
+    val result = t.result?.takeIf { !d.transferRunning && (it is HandoffResult.Failed || it == HandoffResult.Cancelled) } ?: return
+    var more by remember(t.startedAtMs) { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(HandoffTexts.result(result), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        HandoffTexts.help(result)?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (more) {
+            HandoffTexts.more(result)?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            t.steps.forEach { Text("·  " + HandoffTexts.step(it), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        } else {
+            TextButton(onClick = { more = true }, contentPadding = PaddingValues(0.dp)) { Text("More") }
         }
     }
 }
 
 @Composable
-private fun DeviceRow(icon: ImageVector, name: String, status: String, tone: Tone) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconBadge(container = MaterialTheme.colorScheme.primaryContainer) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
-        Spacer(Modifier.width(12.dp))
-        Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        StatusPill(status, tone)
-    }
-}
-
-@Composable
-private fun EmptyCard(icon: ImageVector, title: String, body: String, button: String, onClick: () -> Unit) {
-    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(64.dp).clip(CircleShape).background(Brand.gradient), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+private fun CompactCard(d: DeviceOverview, stage: Stage, onAct: (StageAction) -> Unit, onOpen: () -> Unit) {
+    Panel(Modifier.clip(RoundedCornerShape(24.dp)).clickable(onClick = onOpen)) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            StageView(stage, Modifier.width(64.dp), mini = true, steps = d.transfer?.steps.orEmpty().takeIf { d.transferRunning }.orEmpty())
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f)) { Title(d, stage, maxLines = 2) }
+            val action = stage.action
+            if (action == StageAction.MOVE_HERE || action == StageAction.CONNECT_HERE_TOO || action == StageAction.USE_ONLY_HERE) {
+                Spacer(Modifier.width(8.dp))
+                TonalButton(action.label!!, { onAct(action) }, compact = true, icon = MoveIcon.takeIf { action != StageAction.USE_ONLY_HERE })
             }
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            FilledTonalButton(onClick = onClick) { Text(button) }
         }
     }
 }
 
-/** How this PC appears in holder lists (DesktopApp passes the same label to OverviewRepository). */
-private const val THIS_PC = "This PC"
+/** Linked devices as chips: the dot means online; words only for exceptions. */
+@Composable
+private fun DeviceChips(peers: List<PeerOverview>, onLink: () -> Unit) {
+    val c = tokens
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        peers.forEach { p ->
+            val state = if (p.online) "online" else HandoffTexts.offline(p.probablyOtherNetwork)
+            Row(
+                Modifier
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clearAndSetSemantics { contentDescription = "${p.peer.displayName}, $state" }
+                    .padding(start = 8.dp, end = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(c.tile).border(1.dp, c.tileOutline, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(platformIcon(p.platform), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(p.peer.displayName, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp))
+                Spacer(Modifier.width(6.dp))
+                if (p.online) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(c.online))
+                } else {
+                    Text(HandoffTexts.offline(p.probablyOtherNetwork), style = MaterialTheme.typography.labelMedium, color = c.warning)
+                }
+            }
+        }
+        Row(
+            Modifier
+                .height(40.dp)
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, c.tileOutline, RoundedCornerShape(50))
+                .clickable(onClick = onLink)
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = c.accent)
+            Spacer(Modifier.width(6.dp))
+            Text("Link a phone", style = MaterialTheme.typography.labelLarge, color = c.accent)
+        }
+    }
+}
 
-fun status(d: DeviceOverview, released: Boolean): Pair<String, Tone> = when (val o = d.ownership) {
-    Ownership.Local -> "Connected to this PC" to Tone.POSITIVE
-    is Ownership.Peer -> HandoffTexts.whereConnected(d.holders, THIS_PC) to Tone.ACTIVE
-    is Ownership.Multipoint ->
-        HandoffTexts.whereConnected(d.holders, THIS_PC) to (if (d.localState == AudioConnectionState.CONNECTED) Tone.POSITIVE else Tone.ACTIVE)
-    is Ownership.Conflict -> HandoffTexts.whereConnected(d.holders, THIS_PC) to Tone.WARNING
-    Ownership.None -> (if (released) "Handed off · not on this PC" else "Not connected") to Tone.NEUTRAL
-    is Ownership.Unknown -> when {
-        d.device.localDeviceId == null -> "Not set up on this PC" to Tone.WARNING
-        o.lastKnownOwner != null -> "Last seen on another device" to Tone.NEUTRAL
-        else -> "Not connected here" to Tone.NEUTRAL
+/** First run: an empty stage in dashed outline and the two steps. */
+@Composable
+private fun FirstRun(noLinks: Boolean, actions: HomeActions) {
+    val c = tokens
+    Panel {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Two steps to start", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+                    .drawBehind {
+                        drawRoundRect(
+                            c.tileOutline,
+                            cornerRadius = CornerRadius(24.dp.toPx()),
+                            style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))),
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(MoveIcon, contentDescription = null, tint = c.tileOutline, modifier = Modifier.size(40.dp))
+            }
+            Text("Add your headphones, then link your phone.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PrimaryButton("Add headphones", actions.addHeadset)
+            if (noLinks) OutlineButton("Link a phone", actions.linkPhone)
+        }
+    }
+}
+
+/** A short notice: title, an optional line, and one action. */
+@Composable
+private fun Notice(title: String, line: String?, action: String, onClick: () -> Unit) {
+    Panel {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                line?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            TextButton(onClick = onClick) { Text(action) }
+        }
     }
 }
 

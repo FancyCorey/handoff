@@ -31,6 +31,10 @@ import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.app.runtime.HandoffActions
 import dev.handoff.app.runtime.HandoffRuntime
 import dev.handoff.core.overview.OverviewRepository
+import dev.handoff.core.stage.MoveCount
+import dev.handoff.core.stage.StageRepository
+import dev.handoff.core.text.HandoffTexts
+import dev.handoff.app.ui.ThisDevice
 import dev.handoff.app.service.HandoffService
 import dev.handoff.app.service.Notifications
 import dev.handoff.bluetooth.AndroidBluetoothAudioController
@@ -133,10 +137,9 @@ val appModule = module {
     }
     single { AudioReleaseHandler(get(), get(), get(), get(), get()) }
     single {
-        val tablet = androidContext().resources.configuration.smallestScreenWidthDp >= 600
         HandoffRequestHandler(
             get(), get(), get(), get(), get(), get(), BuildConfig.VERSION_NAME,
-            platform = if (tablet) Platforms.ANDROID_TABLET else Platforms.ANDROID_PHONE,
+            platform = ThisDevice.platform(androidContext()),
         )
     }
     single { PeerServer(get(), get(), get(), get<HandoffRequestHandler>(), get(), get(), get()) }
@@ -188,9 +191,15 @@ val appModule = module {
     }
     single { HandoffActions(get(APP_SCOPE), get(), get(), get()) }
     single {
+        val settings = get<SettingsRepository>()
+        MoveCount(get(APP_SCOPE), get(), load = { settings.current().movesDone }, save = settings::setMovesDone)
+    }
+    single { StageRepository(get(APP_SCOPE), get(), get(), ThisDevice.platform(androidContext()), get<MoveCount>().count) }
+    single {
         val context = androidContext()
         OverviewRepository(
             get(APP_SCOPE), get(), get(), get(), get(), get(), get(), get(), get(),
+            thisDeviceLabel = HandoffTexts.me,
             localNetworks = { NetworkAddresses.lanIpv4(context).mapNotNull(::networkPrefix).toSet() },
         )
     }
@@ -216,13 +225,13 @@ val appModule = module {
 
     // Screens
     viewModel { SetupViewModel(androidContext(), get(), get(), get()) }
-    viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
-    viewModel { params -> DeviceDetailViewModel(params.get(), get(), get(), get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { params -> DeviceDetailViewModel(params.get(), get(), get(), get(), get(), get()) }
     viewModel { MapDeviceViewModel(get(), get(), get(), get(), get()) }
     viewModel { PeersViewModel(get(), get(), get(), get(), get()) }
     viewModel { AddPeerViewModel(androidContext(), get(), get(), get(), get(), get(APP_SCOPE)) }
     viewModel { ScanPeerViewModel(get()) }
-    viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get()) }
+    viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
     viewModel { DiagnosticsViewModel(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { BluetoothTestViewModel(get()) }

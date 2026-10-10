@@ -1,5 +1,7 @@
 package dev.handoff.app.ads
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ListItemDefaults
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -63,7 +65,7 @@ fun HomeAdSlot(modifier: Modifier = Modifier) {
         Column(Modifier.fillMaxWidth()) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
-                if (loaded) "Sponsored" else "",
+                if (loaded) "Ad" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).height(16.dp),
@@ -104,18 +106,16 @@ fun AdPrivacySettings() {
     val required by ads.privacyOptionsRequired.collectAsStateWithLifecycle()
     val activity = LocalActivity.current
     ListItem(
-        headlineContent = { Text("Advertising") },
+        headlineContent = { Text("Ads") },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         supportingContent = {
-            Text(
-                "This edition shows one banner from Google AdMob at the bottom of the home screen. Handoff gives it " +
-                    "nothing about your headsets, devices or network. The GitHub edition has no ads.",
-            )
+            Text("One small ad at the bottom of Home. Handoff shares nothing about your headphones or other devices with it.")
         },
     )
     if (required) {
         ListItem(
             headlineContent = { Text("Ad privacy choices") },
-            supportingContent = { Text("Review or change your consent for ads.") },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable { activity?.let(ads::showPrivacyOptions) },
         )
     }

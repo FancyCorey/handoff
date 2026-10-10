@@ -1,5 +1,8 @@
 package dev.handoff.app.feature.peers
 
+import dev.handoff.app.ui.OutlineButton
+import dev.handoff.core.text.HandoffTexts
+import dev.handoff.app.ui.SectionLabel
 import dev.handoff.app.ui.Texts
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -136,21 +139,21 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
                             HeroIcon(Icons.Outlined.QrCode2, size = 48.dp)
                             Spacer(Modifier.width(14.dp))
                             Text(
-                                "Link another phone, tablet or Windows PC running Handoff. Show the code on one device and scan it on the other.",
+                                "Show a code on one device and scan it on the other.",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                         Button(onClick = onScan, modifier = Modifier.fillMaxWidth().height(48.dp)) {
                             Icon(Icons.Outlined.QrCodeScanner, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Scan a Handoff code")
+                            Text("Scan a code")
                         }
-                        OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) { Text("Show my code instead") }
+                        OutlineButton("Show my code", onAdd)
                     }
                 }
             }
-            item { SectionHeader("Linked") }
-            if (peers.isEmpty()) item { Hint("No linked devices yet. Links work on any Wi-Fi both devices share; you only link once.") }
+            item { SectionLabel("Linked") }
+            if (peers.isEmpty()) item { Hint("No devices yet. You only link once.") }
             if (peers.isNotEmpty()) {
                 item {
                     SectionCard {
@@ -161,26 +164,17 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(p.peer.displayName, style = MaterialTheme.typography.bodyLarge)
-                                    StatusPill(
-                                        if (p.online) "Online" else Texts.offline(p.probablyOtherNetwork),
-                                        when {
-                                            p.online -> Tone.POSITIVE
-                                            p.probablyOtherNetwork -> Tone.WARNING
-                                            else -> Tone.NEUTRAL
-                                        },
-                                    )
+                                    if (p.online) {
+                                        StatusPill("Online", Tone.POSITIVE)
+                                    } else {
+                                        StatusPill(Texts.offline(p.probablyOtherNetwork), if (p.probablyOtherNetwork) Tone.WARNING else Tone.NEUTRAL)
+                                    }
                                 }
                                 IconButton(onClick = { removing = p }) { Icon(Icons.Outlined.LinkOff, contentDescription = "Unlink") }
                             }
                         }
                     }
                 }
-            }
-            item {
-                Hint(
-                    "Linked devices can ask this device to release a headset. Unlinking stops that immediately. " +
-                        "Unlink on both devices to remove the link completely.",
-                )
             }
         }
     }
@@ -189,14 +183,14 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
         AlertDialog(
             onDismissRequest = { removing = null },
             title = { Text("Unlink ${p.peer.displayName}?") },
-            text = { Text("It will no longer be able to move headsets to or from this device.") },
+            text = { Text("It can't move your headphones any more. Unlink it on ${p.peer.displayName} too.") },
             confirmButton = {
                 TextButton(onClick = {
                     vm.remove(p.peer.peerId)
                     removing = null
                 }) { Text("Unlink") }
             },
-            dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Keep") } },
         )
     }
 }
@@ -240,7 +234,7 @@ class AddPeerViewModel(
             pairing.invitation.collect { current ->
                 val shown = _state.value.invitation
                 if (current == null && shown != null && _state.value.linkedName == null) {
-                    _state.value = _state.value.copy(invitation = null, error = "This code is no longer valid (declined or already used).")
+                    _state.value = _state.value.copy(invitation = null, error = "That code has expired. Show a new one.")
                 }
             }
         }
@@ -250,7 +244,7 @@ class AddPeerViewModel(
         val port = server.port.filterNotNull().first()
         val hosts = NetworkAddresses.lanIpv4(context)
         if (hosts.isEmpty()) {
-            _state.value = AddPeerState(error = "Connect to Wi-Fi first. Both devices must be on the same network.")
+            _state.value = AddPeerState(error = "Connect to Wi-Fi first.")
             return@launch
         }
         val active = pairing.createInvitation(hosts, port)
@@ -258,7 +252,7 @@ class AddPeerViewModel(
         _state.value = AddPeerState(invitation = invitation, expiresAtMs = active.expiresAtMs)
         delay(active.expiresAtMs - System.currentTimeMillis())
         if (_state.value.invitation == invitation && _state.value.linkedName == null) {
-            _state.value = _state.value.copy(invitation = null, error = "Code expired.")
+            _state.value = _state.value.copy(invitation = null, error = "That code has expired. Show a new one.")
         }
     }
 
@@ -296,13 +290,13 @@ fun AddPeerScreen(onBack: () -> Unit, vm: AddPeerViewModel = koinViewModel()) {
                         onBack()
                     }
                     HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
-                    Text("Linked with ${state.linkedName}", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    Text("It can now move headsets to and from this device, on any Wi-Fi you both use.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(HandoffTexts.linkedWith(state.linkedName.orEmpty()), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    Text(HandoffTexts.LINKED_ONCE, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Done") }
                 }
                 invitation != null -> {
                     Text(
-                        "On the other device open Handoff → My devices → Scan a Handoff code.",
+                        "Scan this from your other device.",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                     )
@@ -311,7 +305,7 @@ fun AddPeerScreen(onBack: () -> Unit, vm: AddPeerViewModel = koinViewModel()) {
                     Surface(shape = RoundedCornerShape(24.dp), color = Color.White, shadowElevation = 2.dp) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Pairing QR code",
+                            contentDescription = "Link code",
                             modifier = Modifier.size(260.dp).padding(14.dp),
                         )
                     }
@@ -323,14 +317,8 @@ fun AddPeerScreen(onBack: () -> Unit, vm: AddPeerViewModel = koinViewModel()) {
                         }
                     }
                     val left = ((state.expiresAtMs - now) / 1000).coerceAtLeast(0)
-                    StatusPill("Works once · expires in %d:%02d".format(left / 60, left % 60), Tone.ACTIVE)
-                    Text(
-                        "You'll confirm a 6-digit code on this device before anything is linked.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    TextButton(onClick = vm::copyLink) { Text("Copy code as text") }
+                    StatusPill("Expires in %d:%02d".format(left / 60, left % 60), Tone.ACTIVE)
+                    TextButton(onClick = vm::copyLink) { Text("Copy the code") }
                 }
                 state.error != null -> {
                     HeroIcon(Icons.Filled.PriorityHigh, size = 80.dp, brush = SolidColor(MaterialTheme.colorScheme.error))
@@ -381,7 +369,7 @@ class ScanPeerViewModel(private val client: PairingClient) : ViewModel() {
     fun pair(text: String) {
         val invitation = PairingInvitation.parse(text)
         if (invitation == null) {
-            _state.value = ScanState.Failed("That isn't a Handoff code.")
+            _state.value = ScanState.Failed("That's not a Handoff code.")
             return
         }
         _state.value = ScanState.Connecting
@@ -389,12 +377,11 @@ class ScanPeerViewModel(private val client: PairingClient) : ViewModel() {
             val outcome = client.pair(invitation) { code -> _state.value = ScanState.WaitingForApproval(code, "the other device") }
             _state.value = when (outcome) {
                 is PairingOutcome.Paired -> ScanState.Linked(outcome.peer.displayName)
-                is PairingOutcome.Declined -> ScanState.Failed("The other device declined the link.")
-                PairingOutcome.Expired -> ScanState.Failed("That code has expired or was already used. Show a new one on the other device.")
+                is PairingOutcome.Declined -> ScanState.Failed("The other device declined.")
+                PairingOutcome.Expired -> ScanState.Failed("That code has expired. Show a new one.")
                 PairingOutcome.SelfInvitation -> ScanState.Failed("That's this device's own code.")
                 is PairingOutcome.Unreachable -> ScanState.Failed(
-                    "Couldn't reach the other device. Make sure both are on the same Wi-Fi and the code is still showing. " +
-                        "If it's a Windows PC, allow Handoff through Windows Firewall (private networks).",
+                    "Couldn't reach the other device. Are both on the same Wi-Fi? On a PC, allow Handoff in Windows Firewall.",
                 )
                 is PairingOutcome.Failed -> ScanState.Failed("Couldn't link: ${outcome.reason}.")
             }
@@ -423,7 +410,7 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                     HeroIcon(Icons.Outlined.QrCodeScanner, size = 96.dp)
                     Text("Scan the code on your other device", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                     Text(
-                        "On the other phone or tablet: Handoff → My devices → Show my code.\nOn a Windows PC: Handoff → Link a phone.",
+                        "On a PC it's under Link a phone.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
@@ -446,7 +433,7 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                     OutlinedTextField(
                         value = pasted,
                         onValueChange = { pasted = it },
-                        label = { Text("…or paste a HANDOFF: code") },
+                        label = { Text("Or paste the code") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -459,8 +446,7 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                     Text("Connecting…", style = MaterialTheme.typography.titleMedium)
                 }
                 is ScanState.WaitingForApproval -> {
-                    Text("Confirm on ${s.peerName}", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    Text("Check that ${s.peerName} shows this code, then tap Link there:", textAlign = TextAlign.Center)
+                    Text("Make sure ${s.peerName} shows this number:", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                         Text(
                             s.code.chunked(3).joinToString("  "),
@@ -470,6 +456,7 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                             modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
                         )
                     }
+                    Text("Then tap Link on ${s.peerName}.", textAlign = TextAlign.Center)
                     CircularProgressIndicator()
                 }
                 is ScanState.Linked -> {
@@ -478,8 +465,8 @@ fun ScanPeerScreen(onBack: () -> Unit, vm: ScanPeerViewModel = koinViewModel()) 
                         onBack()
                     }
                     HeroIcon(Icons.Filled.Check, size = 96.dp, brush = SolidColor(Brand.Success))
-                    Text("Linked with ${s.peerName}", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                    Text("You won't need to link again, even on another Wi-Fi.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Text(HandoffTexts.linkedWith(s.peerName), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    Text(HandoffTexts.LINKED_ONCE, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                     Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Done") }
                 }
                 is ScanState.Failed -> {

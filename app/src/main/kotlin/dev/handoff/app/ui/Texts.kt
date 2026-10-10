@@ -1,7 +1,6 @@
 package dev.handoff.app.ui
 
 import dev.handoff.core.overview.DeviceOverview
-import dev.handoff.core.overview.OverviewRepository
 import dev.handoff.core.model.AudioDeviceKind
 import dev.handoff.core.bluetooth.CompatibilityLevel
 import dev.handoff.core.handoff.FailureReason
@@ -14,7 +13,7 @@ import dev.handoff.core.text.HandoffTexts
 /** All user-facing wording for domain states lives here, in one place. */
 object Texts {
     fun ownership(o: DeviceOverview): String = when (val owner = o.ownership) {
-        Ownership.Local -> "Connected here"
+        Ownership.Local -> HandoffTexts.HERE
         is Ownership.Peer, is Ownership.Multipoint -> where(o)
         is Ownership.Conflict -> where(o)
         Ownership.None -> "Not connected"
@@ -26,32 +25,9 @@ object Texts {
         }
     }
 
-    /** Short status label + tone for the status pill. */
-    fun status(o: DeviceOverview): Pair<String, Tone> = when (val owner = o.ownership) {
-        Ownership.Local -> "Connected here" to Tone.POSITIVE
-        is Ownership.Peer -> where(o) to Tone.ACTIVE
-        is Ownership.Multipoint -> where(o) to (if (o.connectedHere) Tone.POSITIVE else Tone.ACTIVE)
-        is Ownership.Conflict -> where(o) to Tone.WARNING
-        Ownership.None -> "Not connected" to Tone.NEUTRAL
-        is Ownership.Unknown -> when {
-            o.device.localDeviceId == null -> "Not set up on this device" to Tone.WARNING
-            o.localState == AudioConnectionState.UNAVAILABLE -> "Bluetooth unavailable" to Tone.WARNING
-            owner.lastKnownOwner != null -> "Last seen on another device" to Tone.NEUTRAL
-            else -> "Not connected here" to Tone.NEUTRAL
-        }
-    }
-
-    private fun where(o: DeviceOverview) = HandoffTexts.whereConnected(o.holders, OverviewRepository.THIS_DEVICE)
+    private fun where(o: DeviceOverview) = HandoffTexts.whereConnected(o.holders, HandoffTexts.me)
 
     fun kind(kind: AudioDeviceKind): String = HandoffTexts.kind(kind)
-
-    /**
-     * Connected here and on other devices, for a headset meant to be on one device at a time: the
-     * other devices' names, else null. Sounds on those devices can take the audio away from here.
-     */
-    fun sharedWith(o: DeviceOverview): List<String>? =
-        o.holders.filter { it != OverviewRepository.THIS_DEVICE }
-            .takeIf { o.connectedHere && o.ownership is Ownership.Conflict && it.isNotEmpty() }
 
     fun localState(state: AudioConnectionState): String = when (state) {
         AudioConnectionState.CONNECTED -> "Connected"

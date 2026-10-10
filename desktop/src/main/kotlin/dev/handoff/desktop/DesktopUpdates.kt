@@ -62,14 +62,14 @@ class DesktopUpdates(
      */
     fun downloadAndInstall(manifest: UpdateManifest, quit: () -> Unit) {
         val asset = manifest.asset(UpdatePlatform.WINDOWS_MSI) ?: run {
-            _state.value = State.Failed("This release has no Windows installer.", manifest)
+            _state.value = State.Failed("This update isn't for Windows.", manifest)
             return
         }
         scope.launch {
             val file = File(File(System.getProperty("java.io.tmpdir"), "Handoff-update"), asset.name)
             _state.value = State.Downloading(manifest, 0f)
             if (!checker.download(asset, file) { _state.value = State.Downloading(manifest, it) }) {
-                _state.value = State.Failed("The download didn't match the signed release, so it was discarded.", manifest)
+                _state.value = State.Failed("The download was damaged. Try again.", manifest)
                 return@launch
             }
             try {

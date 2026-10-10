@@ -2,20 +2,20 @@
 <resources>
     <string name="app_name">Handoff</string>
     <string name="tile_label">Move here</string>
-    <string name="tile_setup">Set up Handoff</string>
+    <string name="tile_setup">Set up</string>
     <string name="tile_connected_here">Connected here</string>
     <string name="tile_on_peer">On %1$s</string>
     <string name="tile_moving">Moving…</string>
     <string name="tile_not_connected">Not connected</string>
 
-    <string name="channel_service">Handoff service</string>
-    <string name="channel_service_desc">Keeps Handoff reachable so linked devices can move your headphones.</string>
-    <string name="channel_prompts">Move prompts</string>
-    <string name="channel_prompts_desc">Asks before moving your headphones when audio starts.</string>
-    <string name="notif_service_title">Handoff is ready</string>
-    <string name="notif_service_text">Linked devices can move your headphones here.</string>
-    <string name="notif_ask_title">Audio started on this device</string>
-    <string name="notif_ask_text">%1$s is connected to %2$s.</string>
+    <string name="channel_service">Staying reachable</string>
+    <string name="channel_service_desc">Your other devices can take your headphones while this one is locked.</string>
+    <string name="channel_prompts">Move suggestions</string>
+    <string name="channel_prompts_desc">Asks before moving your headphones when something starts playing.</string>
+    <string name="notif_service_title">Staying reachable</string>
+    <string name="notif_service_text">Your other devices can take your headphones from %1$s.</string>
+    <string name="notif_ask_title">Move %1$s here?</string>
+    <string name="notif_ask_text">They’re on %1$s.</string>
     <string name="notif_action_move_here">Move here</string>
     <string name="notif_action_stop">Turn off</string>
 </resources>

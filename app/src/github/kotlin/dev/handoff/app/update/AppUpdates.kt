@@ -79,7 +79,7 @@ class AppUpdates(
 
     fun downloadAndInstall(manifest: UpdateManifest) {
         val asset = manifest.asset(UpdatePlatform.ANDROID) ?: run {
-            _state.value = State.Failed("This release has no Android download.", manifest)
+            _state.value = State.Failed("This update isn't for Android.", manifest)
             return
         }
         if (!context.packageManager.canRequestPackageInstalls()) {
@@ -91,7 +91,7 @@ class AppUpdates(
             _state.value = State.Downloading(manifest, 0f)
             val ok = checker.download(asset, file) { _state.value = State.Downloading(manifest, it) }
             if (!ok) {
-                _state.value = State.Failed("The download didn't match the signed release, so it was discarded.", manifest)
+                _state.value = State.Failed("The download was damaged. Try again.", manifest)
                 return@launch
             }
             _state.value = State.Available(manifest)

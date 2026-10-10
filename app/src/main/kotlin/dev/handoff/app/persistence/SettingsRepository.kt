@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -27,6 +28,8 @@ data class AppSettings(
     /** Opt-in: look for a new release on GitHub once a day. */
     val autoUpdateCheck: Boolean = false,
     val lastUpdateCheckMs: Long = 0,
+    /** Successful moves so far, counted up to the point where the stage stops explaining them. */
+    val movesDone: Int = 0,
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -52,6 +55,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         preferredDevice = p[PREFERRED]?.let(::LogicalDeviceId),
         autoUpdateCheck = p[AUTO_UPDATE] ?: false,
         lastUpdateCheckMs = p[LAST_UPDATE_CHECK] ?: 0,
+        movesDone = p[MOVES_DONE] ?: 0,
         autoSwitchMode = p[AUTO_MODE]?.let { runCatching { AutoSwitchMode.valueOf(it) }.getOrNull() } ?: AutoSwitchMode.OFF,
     )
 
@@ -61,6 +65,9 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
     suspend fun setAutoSwitchMode(value: AutoSwitchMode) = store.edit { it[AUTO_MODE] = value.name }
     suspend fun setAutoUpdateCheck(value: Boolean) = store.edit { it[AUTO_UPDATE] = value }
     suspend fun setLastUpdateCheck(atMs: Long) = store.edit { it[LAST_UPDATE_CHECK] = atMs }
+    suspend fun setMovesDone(value: Int) {
+        store.edit { it[MOVES_DONE] = value }
+    }
     suspend fun setPreferredDevice(value: LogicalDeviceId?) = store.edit {
         if (value == null) it.remove(PREFERRED) else it[PREFERRED] = value.value
     }
@@ -73,5 +80,6 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val AUTO_MODE = stringPreferencesKey("auto_switch_mode")
         val AUTO_UPDATE = booleanPreferencesKey("auto_update_check")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
+        val MOVES_DONE = intPreferencesKey("moves_done")
     }
 }

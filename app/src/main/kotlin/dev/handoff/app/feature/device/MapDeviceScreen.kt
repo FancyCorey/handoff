@@ -1,5 +1,13 @@
 package dev.handoff.app.feature.device
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.ui.platform.LocalContext
+import dev.handoff.app.ui.SectionLabel
+import dev.handoff.app.ui.SectionCard
+import dev.handoff.app.ui.OutlineButton
+import dev.handoff.app.ui.SystemScreens
+import dev.handoff.core.text.HandoffTexts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -99,17 +107,23 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
     val mapped by vm.mapped.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<AudioDevice?>(null) }
 
-    HandoffScaffold(title = "Add headset", onBack = onBack) { padding ->
+    HandoffScaffold(title = "Add headphones", onBack = onBack) { padding ->
+        val context = LocalContext.current
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
             item {
-                Hint(
-                    "Pick the headset as it appears on this device. It must already be paired in Android Bluetooth settings. " +
-                        "Add the same headset on each of your devices.",
-                )
+                Hint("Choose them from the list. Add them on each of your devices.")
             }
-            item { SectionHeader("Paired audio devices") }
+            item { SectionLabel("On ${HandoffTexts.meInSentence}") }
             if (bonded.isEmpty()) {
-                item { Hint("No paired audio devices found. Pair your headset in Bluetooth settings, or grant the Bluetooth permission.") }
+                item {
+                    SectionCard {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Nothing here yet", style = MaterialTheme.typography.titleSmall)
+                            Text("Connect your headphones once in Bluetooth settings.", style = MaterialTheme.typography.bodyMedium)
+                            OutlineButton("Open Bluetooth settings", { SystemScreens.bluetoothSettings(context) })
+                        }
+                    }
+                }
             }
             items(bonded, key = { it.fingerprint }) { device ->
                 val already = mapped.firstOrNull { it.localDeviceId == device.id }
@@ -119,10 +133,10 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
                     supportingContent = {
                         Text(
                             listOfNotNull(
-                                dev.handoff.core.text.HandoffTexts.kind(device.kind),
+                                HandoffTexts.kind(device.kind),
                                 if (device.likelyA2dp) null else "may not play music",
-                                already?.let { "already added" },
-                                match?.let { "also on ${it.announcedBy.joinToString()}" },
+                                already?.let { "added" },
+                                match?.let { "also on ${HandoffTexts.names(it.announcedBy)}" },
                             ).joinToString(" · "),
                         )
                     },
@@ -141,24 +155,20 @@ fun MapDeviceScreen(onBack: () -> Unit, vm: MapDeviceViewModel = koinViewModel()
             title = { Text("Add ${device.name}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Is this a headset your other devices already know?", style = MaterialTheme.typography.bodyMedium)
+                    Text("Already added on another device?", style = MaterialTheme.typography.bodyMedium)
                     (matches + others).forEach { option ->
                         ListItem(
-                            headlineContent = { Text(option.displayName) },
-                            supportingContent = {
-                                Text(
-                                    (if (option in matches) "Recommended · same Bluetooth address · " else "") +
-                                        "on ${option.announcedBy.joinToString()}",
-                                )
-                            },
+                            headlineContent = { Text("${option.displayName} on ${HandoffTexts.names(option.announcedBy)}") },
+                            supportingContent = if (option in matches) ({ Text("Recommended") }) else null,
                             leadingContent = { RadioButton(selected = choice == option, onClick = { choice = option }) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             modifier = Modifier.clickable { choice = option },
                         )
                     }
                     ListItem(
-                        headlineContent = { Text("New headset") },
-                        supportingContent = { Text("Not added on any other device yet") },
+                        headlineContent = { Text("No, these are new") },
                         leadingContent = { RadioButton(selected = choice == null, onClick = { choice = null }) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable { choice = null },
                     )
                 }

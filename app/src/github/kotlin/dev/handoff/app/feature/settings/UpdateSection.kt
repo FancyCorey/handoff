@@ -11,6 +11,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -63,17 +65,18 @@ private fun UpdateSection(
         supportingContent = {
             Text(
                 when (state) {
-                    State.Idle -> "Version ${BuildConfig.VERSION_NAME}. Updates come from Handoff's GitHub releases and are signature-checked."
+                    State.Idle -> "Version ${BuildConfig.VERSION_NAME}"
                     State.Checking -> "Checking…"
-                    is State.UpToDate -> "You're up to date (${state.latest})."
-                    is State.Available -> "Handoff ${state.manifest.version} is available."
-                    is State.Downloading -> "Downloading Handoff ${state.manifest.version}…"
-                    is State.NeedsInstallPermission -> "Allow Handoff to install updates, then tap Install."
+                    is State.UpToDate -> "Up to date"
+                    is State.Available -> "${state.manifest.version} is available"
+                    is State.Downloading -> "Downloading…"
+                    is State.NeedsInstallPermission -> "Allow Handoff to install updates."
                     is State.Failed -> state.message
                 },
             )
         },
         trailingContent = { if (state == State.Checking) CircularProgressIndicator(Modifier.size(24.dp)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = updates::check),
     )
     val manifest = when (state) {
@@ -92,20 +95,21 @@ private fun UpdateSection(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     state is State.NeedsInstallPermission -> {
-                        Button(onClick = updates::openInstallPermission) { Text("Allow installs") }
-                        OutlinedButton(onClick = { updates.downloadAndInstall(manifest) }) { Text("Install") }
+                        Button(onClick = updates::openInstallPermission) { Text("Allow") }
+                        OutlinedButton(onClick = { updates.downloadAndInstall(manifest) }) { Text("Update") }
                     }
                     canInstallInApp && state !is State.Downloading ->
-                        Button(onClick = { updates.downloadAndInstall(manifest) }) { Text("Download and install") }
+                        Button(onClick = { updates.downloadAndInstall(manifest) }) { Text("Update") }
                     else -> Unit
                 }
-                OutlinedButton(onClick = { updates.openReleasePage(manifest) }) { Text("Release page") }
+                OutlinedButton(onClick = { updates.openReleasePage(manifest) }) { Text("What's new") }
             }
         }
     }
     ListItem(
         headlineContent = { Text("Check automatically") },
-        supportingContent = { Text("Once a day, when Handoff opens. This contacts GitHub; nothing about you or your devices is sent.") },
+        supportingContent = { Text("Once a day") },
         trailingContent = { Switch(checked = autoCheck, onCheckedChange = onAutoCheck) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }

@@ -226,6 +226,8 @@ data class DesktopSettings(
     /** Opt-in: look for a new release on GitHub once a day. */
     val autoUpdateCheck: Boolean = false,
     val lastUpdateCheckMs: Long = 0,
+    /** Successful moves so far, counted up to the point where the stage stops explaining them. */
+    val movesDone: Int = 0,
 )
 
 class SettingsStore(dir: File) : ReleasedServicesStore {

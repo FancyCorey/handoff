@@ -53,6 +53,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.handoff.app.R
 import dev.handoff.core.handoff.Platforms
 import dev.handoff.core.model.AudioDeviceKind
@@ -85,28 +86,6 @@ fun HandoffScaffold(
     )
 }
 
-/** Gradient brand header used on the home screen. */
-@Composable
-fun BrandHeader(title: String, subtitle: String, actions: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(Brand.gradient)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 18.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Logo(44.dp, onBrand = true)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
-            }
-            actions()
-        }
-    }
-}
-
 @Composable
 fun Logo(size: Dp, onBrand: Boolean = false) {
     if (onBrand) {
@@ -130,12 +109,33 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, trailing: @Compos
     }
 }
 
+/** Small uppercase label above a group of cards or chips. */
+@Composable
+fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text.uppercase(),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.8.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 6.dp),
+    )
+}
+
+/** Text colour for a stage tone. [quiet] keeps normal lines in the secondary colour. */
+@Composable
+fun toneColor(tone: dev.handoff.core.stage.Tone, quiet: Boolean = false): Color = when (tone) {
+    dev.handoff.core.stage.Tone.ACCENT -> tokens.accent
+    dev.handoff.core.stage.Tone.WARNING -> tokens.warning
+    dev.handoff.core.stage.Tone.NORMAL -> if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+}
+
 /** Rounded surface card used for grouped content. */
 @Composable
 fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         content = content,
     )
@@ -221,12 +221,6 @@ fun BatteryChip(percent: Int, modifier: Modifier = Modifier) {
         Icon(icon, contentDescription = "Battery", tint = tint, modifier = Modifier.size(16.dp))
         Text("$percent%", style = MaterialTheme.typography.labelMedium, color = tint, maxLines = 1, softWrap = false)
     }
-}
-
-fun kindIcon(kind: AudioDeviceKind): ImageVector = when (kind) {
-    AudioDeviceKind.HEADPHONES -> Icons.Filled.Headphones
-    AudioDeviceKind.SPEAKER, AudioDeviceKind.CAR_AUDIO -> Icons.Filled.Speaker
-    else -> Icons.Filled.Headset
 }
 
 fun platformIcon(platform: String?): ImageVector = when (platform) {

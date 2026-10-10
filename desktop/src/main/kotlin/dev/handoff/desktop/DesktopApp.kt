@@ -1,5 +1,8 @@
 package dev.handoff.desktop
 
+import dev.handoff.core.stage.MoveCount
+import dev.handoff.core.stage.StageRepository
+import dev.handoff.core.text.HandoffTexts
 import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.mesh.transport.DiscoveryTags
@@ -50,6 +53,11 @@ import java.io.File
  * the same :core code the Android app runs, so both speak exactly the same protocol.
  */
 class DesktopApp(dataDir: File = defaultDataDir()) {
+    init {
+        // "This PC", in every message and holder list.
+        HandoffTexts.me = "This PC"
+    }
+
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val version: String = System.getProperty("handoff.version") ?: "dev"
 
@@ -104,9 +112,15 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
     )
     private val reconciler = MappingReconciler(selfId, { identity.identity().displayName }, devices)
     private val discovery = JmdnsDiscovery(directory, events, DiscoveryTags(trust)) { identity.identity().publicKey }
-    val overview = OverviewRepository(scope, identity, devices, bluetooth, ownership, resolver, directory, trust, coordinator, thisDeviceLabel = "This PC",
+    val overview = OverviewRepository(scope, identity, devices, bluetooth, ownership, resolver, directory, trust, coordinator, thisDeviceLabel = HandoffTexts.me,
         localNetworks = { JmdnsDiscovery.lanAddresses().mapNotNull { it.hostAddress?.let(::networkPrefix) }.toSet() },
     )
+    private val moveCount = MoveCount(
+        scope, coordinator,
+        load = { settings.settings.value.movesDone },
+        save = { done -> settings.update { it.copy(movesDone = done) } },
+    )
+    val stages = StageRepository(scope, overview, selfId, Platforms.WINDOWS, moveCount.count)
 
     private val sync = MeshSync(
         selfId, devices, bluetooth, ownership, reconciler, broadcaster, coordinator, directory, trust,

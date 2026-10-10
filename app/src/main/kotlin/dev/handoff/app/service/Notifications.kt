@@ -1,5 +1,6 @@
 package dev.handoff.app.service
 
+import dev.handoff.core.text.HandoffTexts
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -28,7 +29,7 @@ class Notifications(private val context: Context) {
         Notification.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_tile)
             .setContentTitle(context.getString(R.string.notif_service_title))
-            .setContentText(context.getString(R.string.notif_service_text))
+            .setContentText(context.getString(R.string.notif_service_text, HandoffTexts.meInSentence))
             .setContentIntent(openApp())
             .setOngoing(true)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
@@ -44,8 +45,8 @@ class Notifications(private val context: Context) {
     fun showAsk(logicalId: LogicalDeviceId, deviceName: String, ownerName: String) {
         val notification = Notification.Builder(context, CHANNEL_PROMPTS)
             .setSmallIcon(R.drawable.ic_tile)
-            .setContentTitle(context.getString(R.string.notif_ask_title))
-            .setContentText(context.getString(R.string.notif_ask_text, deviceName, ownerName))
+            .setContentTitle(context.getString(R.string.notif_ask_title, deviceName))
+            .setContentText(context.getString(R.string.notif_ask_text, ownerName))
             .setContentIntent(openApp())
             .setAutoCancel(true)
             .setTimeoutAfter(ASK_TIMEOUT_MS)

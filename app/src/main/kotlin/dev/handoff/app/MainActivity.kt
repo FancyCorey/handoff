@@ -99,7 +99,6 @@ class MainActivity : ComponentActivity() {
                     onMapDevice = { nav.navigate(Routes.MAP) },
                     onPeers = { nav.navigate(Routes.PEERS) },
                     onSettings = { nav.navigate(Routes.SETTINGS) },
-                    onDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) },
                 )
             }
             composable(
@@ -135,9 +134,11 @@ class MainActivity : ComponentActivity() {
                     viewOnly = entry.arguments?.getBoolean("view") ?: false,
                     onDone = { nav.popBackStack() },
                     onDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) },
+                    onPeers = { nav.navigate(Routes.PEERS) },
+                    onAdd = { nav.navigate(Routes.device(entry.arguments?.getString("id").orEmpty())) },
                 )
             }
-            composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
+            composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }, onDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) }) }
             composable(Routes.DIAGNOSTICS) {
                 DiagnosticsScreen(onBack = { nav.popBackStack() }, onBluetoothTest = { nav.navigate(Routes.BT_TEST) })
             }
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
                 title = { Text("Link ${request.displayName}?") },
                 text = {
                     Column {
-                        Text("Only continue if the other device shows this code:")
+                        Text(HandoffTexts.linkCheck(request.displayName))
                         Text(
                             request.sas.chunked(3).joinToString(" "),
                             style = MaterialTheme.typography.headlineMedium,
