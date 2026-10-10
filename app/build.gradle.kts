@@ -160,7 +160,7 @@ dependencies {
     constraints {
         // GHSA-735f-pc8j-v9w8: protobuf-javalite before 3.25.5 can be made to recurse without limit.
         // It arrives through the ads SDK; 3.25.x stays compatible with the version it was built against.
-        "playImplementation"("com.google.protobuf:protobuf-javalite:3.25.9")
+        "playImplementation"("com.google.protobuf:protobuf-javalite:4.36.2")
     }
 
     testImplementation(libs.junit)
