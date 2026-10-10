@@ -1,0 +1,35 @@
+name: Device test report
+description: Tell us how Handoff works with your phone, tablet, PC and headphones.
+labels: [compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you! Reports like this fill in the [compatibility list](https://github.com/FancyCorey/handoff/blob/main/docs/BLUETOOTH_COMPATIBILITY.md). The [hardware test plan](https://github.com/FancyCorey/handoff/blob/main/docs/HARDWARE_TEST_PLAN.md) has a full checklist if you'd like to go further.
+  - type: input
+    id: device-a
+    attributes:
+      label: Device 1 (make, model, Android or Windows version)
+    validations:
+      required: true
+  - type: input
+    id: device-b
+    attributes:
+      label: Device 2 (make, model, Android or Windows version)
+  - type: input
+    id: headphones
+    attributes:
+      label: Headphones (make and model)
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Did moving the headphones work?
+      options: [Every time, Most of the time, Rarely, Never]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: What the device check showed on setup (Supported, Experimental, Not supported), how long a move takes, anything odd.

@@ -8,6 +8,8 @@ plugins {
 }
 
 val appVersion = "0.6.3"
+group = "dev.handoff"
+version = appVersion
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -72,4 +74,11 @@ compose.desktop {
             }
         }
     }
+}
+
+// SBOM of what the Windows app ships.
+tasks.named<org.cyclonedx.gradle.CyclonedxDirectTask>("cyclonedxDirectBom") {
+    includeConfigs = listOf("runtimeClasspath")
+    componentName = "handoff-windows"
+    projectType = org.cyclonedx.model.Component.Type.APPLICATION
 }

@@ -80,8 +80,10 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // Kept off until keep-rules are validated on hardware; behaviour then matches debug.
-            isMinifyEnabled = false
+            // Shrinking removes unused code and resources (most of Compose's icon set, for one). The
+            // hidden Bluetooth methods are looked up on framework classes, which R8 never renames.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -104,6 +106,9 @@ android {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 }
+
+group = "dev.handoff"
+version = android.defaultConfig.versionName!!
 
 // Output files are named after the app and version, e.g. Handoff-0.6.0-github-release.apk.
 base {
@@ -152,9 +157,21 @@ dependencies {
     // Google Play edition only: one banner on the home screen, and Google's consent form.
     "playImplementation"(libs.gma.nextgen)
     "playImplementation"(libs.ump)
+    constraints {
+        // GHSA-735f-pc8j-v9w8: protobuf-javalite before 3.25.5 can be made to recurse without limit.
+        // It arrives through the ads SDK; 3.25.x stays compatible with the version it was built against.
+        "playImplementation"("com.google.protobuf:protobuf-javalite:3.25.9")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// SBOM of what the GitHub edition ships (the Play edition adds the libraries listed in THIRD_PARTY_NOTICES.md).
+tasks.named<org.cyclonedx.gradle.CyclonedxDirectTask>("cyclonedxDirectBom") {
+    includeConfigs = listOf("githubReleaseRuntimeClasspath")
+    componentName = "handoff-android"
+    projectType = org.cyclonedx.model.Component.Type.APPLICATION
 }
 
 // Guards for the two editions, checked before anything is packaged:

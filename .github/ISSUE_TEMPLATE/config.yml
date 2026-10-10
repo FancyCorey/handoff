@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/FancyCorey/handoff/security/advisories/new
+    about: Please report security problems privately, not as an issue.
+  - name: Getting started and troubleshooting
+    url: https://github.com/FancyCorey/handoff/blob/main/docs/GETTING_STARTED.md
+    about: Setup steps and answers to common problems.

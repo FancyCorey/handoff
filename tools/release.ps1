@@ -35,7 +35,7 @@ foreach ($f in 'signing.properties', 'update-signing.pk8') {
 
 Write-Host "Building Handoff $version..."
 $tasks = @('test', ':bluetooth:lintDebug', ':app:lintGithubRelease', ':app:verifyEditions', ':app:assembleGithubRelease',
-    ':desktop:packageMsi', ':desktop:packageExe', ':desktop:createDistributable')
+    ':desktop:packageMsi', ':desktop:packageExe', ':desktop:createDistributable', ':app:cyclonedxDirectBom', ':desktop:cyclonedxDirectBom')
 if ($PlayBundle) { $tasks += @(':app:lintPlayRelease', ':app:bundlePlayRelease') }
 & "$root\gradlew.bat" -p $root --console=plain -q @tasks
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
@@ -48,6 +48,9 @@ Copy-Item (Get-ChildItem "$root\app\build\outputs\apk\github\release\*.apk" | Se
 Copy-Item "$root\desktop\build\compose\binaries\main\msi\Handoff-$version.msi" "$out\Handoff-$version.msi"
 Copy-Item "$root\desktop\build\compose\binaries\main\exe\Handoff-$version.exe" "$out\Handoff-$version-setup.exe"
 Compress-Archive -Path "$root\desktop\build\compose\binaries\main\app\Handoff" -DestinationPath "$out\Handoff-$version-windows-portable.zip"
+# Software bills of materials (CycloneDX JSON): every component each app ships.
+Copy-Item "$root\app\build\reports\cyclonedx-direct\bom.json" "$out\Handoff-$version-android-sbom.cdx.json"
+Copy-Item "$root\desktop\build\reports\cyclonedx-direct\bom.json" "$out\Handoff-$version-windows-sbom.cdx.json"
 
 & "$root\gradlew.bat" -p $root --console=plain -q ':core:releaseTool' "-PtoolArgs=sign,$out,$version,$notes,$keys\update-signing.pk8"
 if ($LASTEXITCODE -ne 0) { throw 'Signing failed' }

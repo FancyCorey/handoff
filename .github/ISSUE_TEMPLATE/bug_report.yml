@@ -1,0 +1,41 @@
+name: Something isn't working
+description: Moving your headphones fails, the app crashes, or something looks wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Handoff version
+      description: In Settings, at the bottom (for example 0.6.3).
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Where did you get Handoff?
+      options: [GitHub, Google Play]
+  - type: input
+    id: devices
+    attributes:
+      label: Your devices
+      description: For example "Samsung Galaxy S22, Android 16" and "Windows 11 PC".
+    validations:
+      required: true
+  - type: input
+    id: headphones
+    attributes:
+      label: Your headphones
+      description: Make and model.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics report (optional)
+      description: In Handoff, open Diagnostics and share the report. It doesn't include your keys, and Bluetooth addresses are shortened. Please check it before posting.
+      render: text

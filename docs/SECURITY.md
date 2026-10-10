@@ -148,4 +148,4 @@ The Play edition includes Google's Mobile Ads and consent SDKs (`app/src/play` o
 
 ## Reporting vulnerabilities
 
-Please report privately to the maintainers (e.g. a GitHub security advisory) rather than in a public issue.
+See the [security policy](../SECURITY.md): report privately through GitHub, never in a public issue.

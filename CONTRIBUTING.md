@@ -71,5 +71,4 @@ Releases are built and signed on the maintainer's machine; no key is ever stored
 
 * **Test on your devices.** Reports from more phones, PCs and headphones are the most valuable contribution; see the [hardware test plan](docs/HARDWARE_TEST_PLAN.md).
 * **Translations.** Some screen text still lives in code and needs moving to `strings.xml` before the apps can be translated. Notification and tile text already can be.
-* **Smaller downloads.** Code shrinking (R8) is off for release builds until its rules are checked on real devices; turning it on would make the Android download much smaller.
 * **Moving between networks.** Today both devices must share a local network. An optional relay could remove that limit (see [the architecture notes](docs/ARCHITECTURE.md#future-remote-mode)).

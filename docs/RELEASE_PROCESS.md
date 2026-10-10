@@ -47,7 +47,7 @@ flowchart LR
 1. Set the version (see above).
 2. Write the notes in `docs/releases/v<version>.md`: what changed for people using the app, in plain words. They appear on the release page and, as plain text, in the apps' update screen.
 3. `powershell -ExecutionPolicy Bypass -File tools\release.ps1 -PlayBundle` runs the tests, lint and edition checks, then builds and signs:
-   - `build/release/v<version>/`: the GitHub edition APK, the MSI and setup EXE, a portable zip, `update.json`, `update.json.sig` and `SHA256SUMS.txt`;
+   - `build/release/v<version>/`: the GitHub edition APK, the MSI and setup EXE, a portable zip, `update.json`, `update.json.sig`, `SHA256SUMS.txt`, and a software bill of materials for each app (`Handoff-<version>-android-sbom.cdx.json`, `Handoff-<version>-windows-sbom.cdx.json`, CycloneDX) listing every library it ships;
    - `build/release/play-v<version>/Handoff-<version>-play.aab`.
 4. Check the files, then run it again with `-Publish` to tag the version and create the GitHub release (`HANDOFF_GH` can point to a `gh` executable that isn't on the PATH). Only the files in `v<version>` are uploaded; the Play bundle never is.
 5. Upload the bundle in Play Console, following [PLAY_STORE.md](PLAY_STORE.md#testing-tracks): internal testing first, then closed testing, then production with a staged rollout. Go through the [submission checklist](PLAY_STORE.md#before-each-play-submission) each time.
@@ -61,7 +61,17 @@ The Windows files are not code-signed yet, so SmartScreen shows "Windows protect
 1. `./gradlew test`: all unit tests.
 2. Lint for `:bluetooth`, the GitHub and Play debug builds, and the Play release build.
 3. `:app:verifyEditions`: the Play edition can't self-install; the GitHub edition has no advertising library or advertising-ID permission.
-4. `:app:assembleGithubDebug`, `:app:assemblePlayDebug`, and `:app:bundlePlayRelease` (unsigned in CI, which proves the bundle builds).
+4. `:app:assembleGithubDebug`, `:app:assemblePlayDebug`, `:app:assembleGithubRelease` and `:app:bundlePlayRelease` (unsigned in CI; release builds prove that code shrinking still succeeds).
 5. `:desktop:test` and `:desktop:packageMsi`.
 
 The APKs, the bundle and the MSI are kept as build artifacts for 14 days.
+
+Other automation, also without secrets:
+
+- **CodeQL** (`.github/workflows/codeql.yml`) scans the Kotlin code for security problems on every push and pull request to `main`, and weekly. Findings appear under the repository's Security tab.
+- **Dependabot** (`.github/dependabot.yml`) opens pull requests each week for new versions of libraries and GitHub Actions, and at once for security fixes.
+- Every GitHub Action is pinned to a full commit hash, so a changed tag can't change what CI runs; Dependabot keeps the hashes current.
+
+## Release builds
+
+Release builds of both Android editions are shrunk by R8 (unused code and resources removed; class names kept, see `app/proguard-rules.pro`). After adding or upgrading a library, install a release build and check setup, linking, a move, Diagnostics, and consent and ads in the Play edition before releasing. Security problems are reported privately, as described in [SECURITY.md](../SECURITY.md).

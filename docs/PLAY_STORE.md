@@ -46,7 +46,7 @@ The build enforces the split. `./gradlew :app:verifyEditions` (also run before e
 
 **Versions.** `versionCode` must increase with every upload to Play (and every GitHub release). Both editions share `versionCode` and `versionName` from `app/build.gradle.kts`.
 
-**Code shrinking (R8)** stays off for now, in both editions. Turn it on only after checking Compose, the reflective Bluetooth calls, Room, Koin, QR scanning, serialization and the peer protocol on real devices, and add keep rules for what breaks.
+**Code shrinking (R8)** is on for release builds in both editions (names are kept, see `app/proguard-rules.pro`). After changing dependencies, check a release build on a device: setup, linking, a move, Diagnostics, and consent and ads in the Play edition.
 
 ## AdMob
 

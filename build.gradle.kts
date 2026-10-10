@@ -7,4 +7,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.compose.multiplatform) apply false
+    // Software bill of materials (CycloneDX) for each release: `cyclonedxDirectBom` in :app and :desktop.
+    alias(libs.plugins.cyclonedx)
 }
