@@ -59,6 +59,9 @@ fun HomeAdSlot(modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val width = maxWidth.value.toInt()
         val size = remember(width) {
+            // The suggested replacement, the "large" anchored banner, is taller; Handoff promises one
+            // small banner (PRIVACY.md, the store listing), so it keeps the standard anchored size.
+            @Suppress("DEPRECATION")
             runCatching { AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, width) }.getOrDefault(AdSize.BANNER)
         }
         var loaded by remember(size) { mutableStateOf(false) }
