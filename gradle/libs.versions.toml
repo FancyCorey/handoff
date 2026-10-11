@@ -1,15 +1,15 @@
 [versions]
-agp = "8.13.2"
+agp = "9.4.1"
 kotlin = "2.4.20"
 ksp = "2.3.12"
 coroutines = "1.11.0"
 serialization = "1.11.0"
-compose-bom = "2026.02.00"
+compose-bom = "2026.09.00"
 activity-compose = "1.12.4"
 lifecycle = "2.10.0"
-core-ktx = "1.17.0"
-navigation = "2.9.6"
-room = "2.8.4"
+core-ktx = "1.19.1"
+navigation = "2.10.2"
+room = "2.8.5"
 datastore = "1.1.7"
 koin = "4.2.2"
 zxing-core = "3.5.3"
@@ -57,7 +57,6 @@ ump = { module = "com.google.android.ump:user-messaging-platform", version.ref =
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
