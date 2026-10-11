@@ -85,14 +85,16 @@ class LanTransportIntegrationTest {
 
     private fun pair(a: Node, b: Node, approve: Boolean = true): PairingOutcome = runBlocking {
         val invitation = a.pairing.createInvitation(listOf("127.0.0.1"), a.port).invitation
-        var codeOnB: String? = null
-        val outcome = async { b.pairingClient.pair(invitation) { codeOnB = it } }
+        val codeOnB = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val outcome = async { b.pairingClient.pair(invitation) { codeOnB.set(it) } }
         val pending = withTimeout(5_000) {
             while (a.pairing.pendingApproval.value == null) delay(10)
             a.pairing.pendingApproval.value!!
         }
+        // A shows its code as soon as it asks for approval; B may set its own a moment later.
+        withTimeout(5_000) { while (codeOnB.get() == null) delay(10) }
         assertEquals(b.id, pending.peerId)
-        assertEquals("both screens show the same code", codeOnB, pending.sas)
+        assertEquals("both screens show the same code", codeOnB.get(), pending.sas)
         a.pairing.respond(approve)
         withTimeout(5_000) { outcome.await() }
     }
