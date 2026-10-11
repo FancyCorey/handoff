@@ -63,7 +63,7 @@ object HandoffTexts {
 
     /** One short reason or next step, for results that need it. */
     fun help(result: HandoffResult): String? = when (result) {
-        is HandoffResult.Failed -> failureHelp(result.reason)
+        is HandoffResult.Failed -> failureHelp(result.reason, result.detail)
         HandoffResult.Cancelled -> "If the other device already let go, tap Move here where you want them."
         else -> null
     }
@@ -117,7 +117,8 @@ object HandoffTexts {
     }
 
     /** The short reason under a failure title, or null when the title says enough. */
-    fun failureHelp(reason: FailureReason): String? = when (reason) {
+    fun failureHelp(reason: FailureReason, detail: String? = null): String? = when (reason) {
+        FailureReason.OWNER_UNREACHABLE -> "They're probably still connected to ${detail ?: "the other device"}."
         FailureReason.OWNER_REFUSED -> "Disconnect them on the other device, then try again."
         FailureReason.HEADSET_NOT_RESPONDING -> "Check they're on, nearby and out of the case."
         FailureReason.PERMISSION_DENIED -> "Allow Nearby devices."
@@ -127,7 +128,10 @@ object HandoffTexts {
 
     /** Longer advice behind "More". */
     fun failureMore(reason: FailureReason, detail: String?): String? = when (reason) {
-        FailureReason.OWNER_UNREACHABLE -> "Open Handoff on ${detail ?: "the other device"}, or put both on the same Wi-Fi."
+        FailureReason.OWNER_UNREACHABLE -> (detail ?: "the other device").let {
+            "Open Handoff on $it, or choose Stay reachable there so it can answer while locked. Both need the same Wi-Fi. " +
+                "Or disconnect them in its Bluetooth settings."
+        }
         FailureReason.PEER_NOT_LINKED ->
             "Unlink ${detail ?: "the other device"}, then link again. Remove any older copy of Handoff first."
         FailureReason.INTERNAL -> "If it keeps happening, share a report from Help and diagnostics."
@@ -194,7 +198,7 @@ object HandoffTexts {
     fun staysConnected(names: List<String>) =
         if (names.size == 1) "${names[0]} stays connected too." else "The others stay connected too."
     fun asksFirst(name: String) = "Handoff asks $name first."
-    const val CONNECTS_DIRECTLY = "Connects directly instead."
+    fun ifStillThere(name: String) = "If they're still on $name, open Handoff there first."
 
     const val MOVE_HERE = "Move here"
     const val USE_ONLY_HERE = "Use only here"

@@ -17,7 +17,6 @@ import dev.handoff.app.ui.toneColor
 import dev.handoff.core.stage.Stage
 import dev.handoff.core.stage.StageRepository
 import dev.handoff.core.text.HandoffTexts
-import dev.handoff.core.handoff.FailureReason
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -53,6 +52,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -142,14 +142,17 @@ fun TransferScreen(
     val context = LocalContext.current
     val t = transfer
     val result = t?.result
-    var more by remember(t?.startedAtMs) { mutableStateOf(false) }
+    var showSteps by remember(t?.startedAtMs) { mutableStateOf(false) }
+    val scroll = rememberScrollState()
+    // When the move ends, its result (and why it failed) is the first thing on screen.
+    LaunchedEffect(result) { if (result != null) scroll.animateScrollTo(0) }
 
     HandoffScaffold(title = name, onBack = onDone) { padding ->
         Column(
             Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -175,11 +178,7 @@ fun TransferScreen(
                     Text(help, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 result?.let(HandoffTexts::more)?.let { detail ->
-                    if (more) {
-                        Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        TextButton(onClick = { more = true }, contentPadding = PaddingValues(0.dp)) { Text("More") }
-                    }
+                    Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (result is HandoffResult.Success) {
@@ -190,8 +189,14 @@ fun TransferScreen(
                 }
             }
 
-            // What happened, step by step: progress is always in words, even without motion.
-            if (t != null && t.steps.isNotEmpty()) {
+            // What happened, step by step: progress is always in words, even without motion. Once
+            // the move has ended, the steps fold away under the result.
+            if (result != null && t.steps.isNotEmpty()) {
+                TextButton(onClick = { showSteps = !showSteps }, contentPadding = PaddingValues(0.dp)) {
+                    Text(if (showSteps) "Hide the steps" else "Show the steps")
+                }
+            }
+            if (t != null && t.steps.isNotEmpty() && (result == null || showSteps)) {
                 Card(
                     Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -243,9 +248,7 @@ fun TransferScreen(
                             }
                         },
                     )
-                    if ((result as? HandoffResult.Failed)?.reason == FailureReason.INTERNAL) {
-                        TextButton(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) { Text("Share a report") }
-                    }
+                    TextButton(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Help and diagnostics") }
                 }
             }
         }

@@ -25,7 +25,7 @@ Every pair gets the same card: headphones icon → name (up to two lines) and, b
 | On two other devices, *Stay connected* off | "On Studio PC and Tab" | "Both let go, then they connect here." (first 3 moves only) | **Move here** |
 | On two other devices, *Stay connected* on | "On Studio PC and Tab" | "The others stay connected too." | **Connect here too** |
 | Not sure where they are | "Last seen on Studio PC" (grey) | "Handoff asks Studio PC first." | **Move here** |
-| Holder offline | "Studio PC is offline" (amber) | "Connects directly instead." | **Move here** |
+| Holder offline | "Studio PC is offline" (amber) | "If they're still on Studio PC, open Handoff there first." | **Move here** |
 | Not connected anywhere | "Not connected" (grey) | none | **Move here** |
 | Not added on this device | "Not added on this phone" (amber) | none | **Add here** |
 | Bluetooth off | no pill: "Last seen on Studio PC" / "Last seen here" as plain text, no battery | none | none (one banner at the top says it) |
@@ -37,7 +37,8 @@ Pill colours mean one thing each: indigo = elsewhere and can come here, green = 
 - **Home:** the gradient header (mark, "Handoff", this device's name, Settings; Refresh too on Windows) → notices (Bluetooth off, an old copy installed, update available) → **Your headphones** with **+ Add** on the right → one card per pair, the Quick Settings (Android) or tray (Windows) headphones first → **Your devices** with **+ Link a device** on the right → one list of every device: this one first with "This phone" in grey, then each linked device with a pill (Online green, Offline grey, Other Wi-Fi amber) → the hotspot tip when no linked device is online.
 - **First run:** an "Add your headphones" card with **Add headphones** (filled), and a "Link your PC or tablet" row at the end of the device list.
 - **Headphones' details:** a header card (icon, name, status pill, battery, the same button as on Home), then options (Quick Settings tile, *Stay connected to other devices*, **Choose different headphones**), then **Remove from this phone** in red.
-- **Move details** (Android, from **Details** on a moving card or a notification): an animated picture of the devices with the headphones travelling along an arc, and every step listed in words. This is the only place the picture appears.
+- **Move details** (Android, from **Details** on a moving card, **What to do** on a failed one, or a notification): an animated picture of the devices with the headphones travelling along an arc, and every step listed in words. When the move ends, the result and its full explanation come first, the steps fold away under **Show the steps**, and **Help and diagnostics** sits under the fix button. This is the only place the picture appears.
+- **Tablets and landscape:** screen content is at most 720 dp wide, centred.
 - **Settings:** identity card at the top (tile, name, key), then grouped cards. Choices with consequences are side-by-side options with one sentence: *When this phone is locked* (Only while open / Stay reachable) and *When something starts playing here* (Off / Ask me / Move here). **Help and diagnostics** lives in Settings.
 - **Device label follows the platform:** "This phone", "This tablet", "This PC". Never "This device".
 

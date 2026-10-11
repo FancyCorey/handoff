@@ -37,7 +37,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 | Stay connected on, one other | {x} stays connected too. | (new) |
 | Stay connected on, two others | The others stay connected too. | This device joins. Studio PC and Tab stay connected. |
 | Unknown | Handoff asks {x} first. | Handoff asks Studio PC, or connects directly if it doesn't answer. |
-| Holder offline | Connects directly instead. | Studio PC can't be reached, so this device connects directly. |
+| Holder offline | If they're still on {x}, open Handoff there first. | Studio PC can't be reached, so this device connects directly. |
 | Bluetooth off | (none) | Turn Bluetooth on to see and move your headphones. |
 
 ## Buttons
@@ -83,7 +83,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 
 | Where | Text | Was |
 |---|---|---|
-| Other device unreachable | {x} didn't answer  +  [Connect directly]  ·  More: "Open Handoff on {x}, or put both on the same Wi-Fi." | Couldn't reach Studio PC  +  "The headset is probably still connected to Studio PC. Open Handoff there (or turn on Stay reachable in the background on it), and make sure both devices are on the same Wi-Fi. Or disconnect the headset there yourself." |
+| Other device unreachable | {x} didn't answer  +  "They're probably still connected to {x}."  +  "Open Handoff on {x}, or choose Stay reachable there so it can answer while locked. Both need the same Wi-Fi. Or disconnect them in its Bluetooth settings."  +  [Try again]  ·  Help and diagnostics | Couldn't reach Studio PC  +  "The headset is probably still connected to Studio PC. Open Handoff there (or turn on Stay reachable in the background on it), and make sure both devices are on the same Wi-Fi. Or disconnect the headset there yourself." |
 | Other device refused | {x} couldn't let go  +  "Disconnect them on {x}, then try again."  +  [Try again] | The other device couldn't let go  +  "Disconnect the headset in that device's Bluetooth settings, then try again." |
 | Link only on one side | {x} doesn't recognize {me}  +  [Link again]  ·  More: "Unlink {x}, then link again. Remove any older copy of Handoff first." | Studio PC doesn't recognise this device  +  "The link between the two devices only exists on this side, so it can't ask Studio PC to let go of the headset. In My devices, unlink it and link the two devices again. If an older copy of Handoff is installed on either device, uninstall it first." |
 | Headphones didn't connect | The headphones didn't connect  +  "Check they're on, nearby and out of the case."  +  [Try again] | The headset didn't connect  +  "Make sure it's switched on and nearby, and not connected to a phone or computer that doesn't run Handoff. Some earbuds only connect when they're out of the case." |

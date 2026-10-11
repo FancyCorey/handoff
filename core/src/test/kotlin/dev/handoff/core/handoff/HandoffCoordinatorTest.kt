@@ -419,6 +419,25 @@ class HandoffCoordinatorTest {
     }
 
     @Test
+    fun `when unsure where they are, the device that had them last is asked first`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet", headset = SimulatedHeadset(acceptsTakeover = false))
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        phone.devices.applyOwnership(HEADSET_ID, tablet.id, 1)
+        // The tablet's status never arrives (so where the headphones are is unknown), but it still
+        // answers a request to let go.
+        phone.transport.script(tablet.id) { msg ->
+            if (msg is ReleaseAudioDevice) CommandResult.Reply(tablet.handler.handle(phone.id, msg)) else CommandResult.Timeout
+        }
+
+        val result = phone.moveHere()
+
+        assertSuccess(result, TransferPath.COORDINATED)
+        assertEquals(listOf("phone"), headset.connectedHosts())
+        assertEquals(StepKind.REQUESTING_RELEASE, phone.coordinator.state.value!!.steps.first().kind)
+    }
+
+    @Test
     fun `unreachable owner plus failed takeover names the owner`() = runTest {
         val (hosts, headset) = TestHost.mesh(this, "phone", "tablet", headset = dev.handoff.core.fakes.SimulatedHeadset(acceptsTakeover = false))
         val (phone, tablet) = hosts

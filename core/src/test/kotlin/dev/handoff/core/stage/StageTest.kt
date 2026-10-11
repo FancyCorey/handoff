@@ -123,7 +123,7 @@ class StageTest {
         val s = build(overview(Ownership.Unknown(pc)), listOf(peer(pc, "Studio PC", online = false)))
         assertEquals("Studio PC is offline", s.status)
         assertEquals(Tone.WARNING, s.statusTone)
-        assertEquals("Connects directly instead.", s.line)
+        assertEquals("If they're still on Studio PC, open Handoff there first.", s.line)
         assertTrue(s.tiles.first().offline)
     }
 

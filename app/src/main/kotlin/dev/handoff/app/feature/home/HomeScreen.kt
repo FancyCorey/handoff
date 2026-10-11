@@ -1,5 +1,8 @@
 package dev.handoff.app.feature.home
 
+import dev.handoff.app.ui.MAX_CONTENT_WIDTH
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -195,7 +198,10 @@ fun HomeScreen(
                 },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp)) {
+                LazyColumn(
+                    Modifier.fillMaxSize().wrapContentWidth().widthIn(max = MAX_CONTENT_WIDTH),
+                    contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp),
+                ) {
                     if (otherCopy) {
                         item {
                             Notice("An old copy of Handoff is installed", "It can confuse your other devices.", "Remove it", warning = true) {
@@ -336,6 +342,7 @@ private fun HeadsetCard(
                     (HandoffTexts.help(failed) ?: HandoffTexts.more(failed))?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    TextButton(onClick = onDetails, contentPadding = PaddingValues(0.dp), modifier = Modifier.height(40.dp)) { Text("What to do") }
                     val fix = HandoffTexts.fix(failed) ?: HandoffTexts.Fix.TRY_AGAIN
                     PrimaryButton(HandoffTexts.label(fix), { onFix(fix) }, Modifier.padding(top = 8.dp))
                 }

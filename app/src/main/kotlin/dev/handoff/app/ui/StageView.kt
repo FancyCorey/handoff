@@ -159,15 +159,18 @@ fun StageView(stage: Stage, modifier: Modifier = Modifier, mini: Boolean = false
             }
 
             stage.tiles.forEachIndexed { i, tile ->
-                val labelWidth = if (n <= 2) 120.dp else (width - pad * 2) / n
-                Column(
-                    Modifier
-                        .offset(x = centers[i] - (if (mini) tileSize else labelWidth) / 2, y = pad + dotArea)
-                        .width(if (mini) tileSize else labelWidth),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Tile(tile, tileSize, mini)
-                    if (!mini) {
+                // The tile sits under its dot; the label below may be wider than the tile, so it is
+                // kept inside the stage and leans towards the edge it is near.
+                Box(Modifier.offset(x = centers[i] - tileSize / 2, y = pad + dotArea)) { Tile(tile, tileSize, mini) }
+                if (!mini) {
+                    val labelWidth = minOf(if (n <= 2) 140.dp else (width - pad) / n, width - 8.dp)
+                    val left = (centers[i] - labelWidth / 2).coerceIn(4.dp, width - labelWidth - 4.dp)
+                    val align = when {
+                        left > centers[i] - labelWidth / 2 -> TextAlign.Start
+                        left < centers[i] - labelWidth / 2 -> TextAlign.End
+                        else -> TextAlign.Center
+                    }
+                    Column(Modifier.offset(x = left, y = pad + dotArea + tileSize + 4.dp).width(labelWidth)) {
                         Text(
                             tile.name,
                             style = MaterialTheme.typography.labelSmall,
@@ -175,11 +178,18 @@ fun StageView(stage: Stage, modifier: Modifier = Modifier, mini: Boolean = false
                             color = if (tile.isThis) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 4.dp),
+                            textAlign = align,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         if (tile.offline) {
-                            Text("Offline", style = MaterialTheme.typography.labelSmall, color = c.warning, maxLines = 1)
+                            Text(
+                                "Offline",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = c.warning,
+                                maxLines = 1,
+                                textAlign = align,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
                 }

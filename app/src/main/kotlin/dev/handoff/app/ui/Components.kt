@@ -1,5 +1,7 @@
 package dev.handoff.app.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Battery5Bar
@@ -82,9 +84,16 @@ fun HandoffScaffold(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
-        content = content,
-    )
+    ) { padding ->
+        // On tablets and in landscape, keep lines and buttons at a readable width.
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.widthIn(max = MAX_CONTENT_WIDTH).fillMaxSize()) { content(padding) }
+        }
+    }
 }
+
+/** Widest a screen's content gets, so it stays readable on tablets. */
+val MAX_CONTENT_WIDTH = 720.dp
 
 @Composable
 fun Logo(size: Dp, onBrand: Boolean = false) {

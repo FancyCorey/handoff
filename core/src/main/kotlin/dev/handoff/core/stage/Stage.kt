@@ -201,7 +201,7 @@ object StageBuilder {
     }
 
     private fun offline(id: PeerId, name: (PeerId) -> String) = Draft(
-        HandoffTexts.isOffline(name(id)), Tone.WARNING, HandoffTexts.CONNECTS_DIRECTLY, Tone.NORMAL, StageAction.MOVE_HERE, Arc.DASHED,
+        HandoffTexts.isOffline(name(id)), Tone.WARNING, HandoffTexts.ifStillThere(name(id)), Tone.NORMAL, StageAction.MOVE_HERE, Arc.DASHED,
         marks = mapOf(id to Mark.MAYBE), arcFrom = setOf(id), target = Mark.TARGET,
     )
 

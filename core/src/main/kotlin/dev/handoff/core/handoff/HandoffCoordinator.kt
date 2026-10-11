@@ -262,9 +262,13 @@ class DefaultHandoffCoordinator(
                 is Ownership.Multipoint ->
                     if (policy.releaseOthersOnMultipoint) (owner.holders - selfId).toList() else emptyList()
                 Ownership.None, Ownership.Local -> emptyList()
+                // No fresh report, but a linked device had them last: ask it first. A headset that
+                // connects to one device at a time refuses everyone else while it's still there, so
+                // connecting directly without asking usually fails. If it doesn't answer, the
+                // release falls back to connecting directly, as before.
                 is Ownership.Unknown -> {
                     ownerPeer = owner.lastKnownOwner
-                    null
+                    owner.lastKnownOwner?.takeIf { it != selfId }?.let(::listOf)
                 }
             }
 

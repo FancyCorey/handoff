@@ -44,8 +44,8 @@ class HandoffTextsTest {
             HandoffTexts.help(failed)?.let { assertTrue("$reason help", it.split(' ').size <= 12) }
         }
         val unreachable = HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "Studio PC")
-        assertNull(HandoffTexts.help(unreachable))
-        assertEquals("Open Handoff on Studio PC, or put both on the same Wi-Fi.", HandoffTexts.more(unreachable))
+        assertEquals("They're probably still connected to Studio PC.", HandoffTexts.help(unreachable))
+        assertTrue(HandoffTexts.more(unreachable)!!.startsWith("Open Handoff on Studio PC, or choose Stay reachable there"))
     }
 
     @Test

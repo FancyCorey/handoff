@@ -90,7 +90,7 @@ class StageGalleryActivity : ComponentActivity() {
         fun peer(id: PeerId, name: String, platform: String, online: Boolean = true) =
             PeerOverview(TrustedPeer(id, name, ByteArray(0), 0), online, null, platform)
 
-        val studio = peer(PC, "Studio PC", Platforms.WINDOWS)
+        val studio = peer(PC, "Living Room Galaxy S22 Ultra", Platforms.ANDROID_PHONE)
         val tab = peer(TAB, "Tab", Platforms.ANDROID_TABLET)
 
         fun o(
