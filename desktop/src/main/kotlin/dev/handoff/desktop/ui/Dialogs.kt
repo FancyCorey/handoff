@@ -1,5 +1,7 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.core.help.HelpAction
+import dev.handoff.core.help.Help
 import dev.handoff.core.stage.Stage
 import dev.handoff.desktop.DesktopUpdates
 import dev.handoff.core.update.UpdateManifest
@@ -431,22 +433,89 @@ fun LicensesDialog(onClose: () -> Unit) {
     )
 }
 
+/**
+ * Help and diagnostics: what happened, what to do, what Handoff checked (docs/DESIGN.md), with
+ * the full text report under Technical details.
+ */
 @Composable
-fun DiagnosticsDialog(report: String, onClose: () -> Unit) {
+fun DiagnosticsDialog(
+    help: Help,
+    report: String,
+    onTryAgain: () -> Unit,
+    onAction: (HelpAction) -> Unit,
+    onClose: () -> Unit,
+) {
+    var showFine by remember { mutableStateOf(false) }
+    var technical by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text("Help and diagnostics") },
         text = {
-            Text(
-                report,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
-            )
+            Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val h = help.headline
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        (if (!h.failed && help.problems.isEmpty()) "✓ " else "") + h.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = when {
+                            h.failed -> MaterialTheme.colorScheme.error
+                            help.problems.isEmpty() -> tokens.online
+                            else -> tokens.warning
+                        },
+                    )
+                    h.reason?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                help.tip?.let { Text("${it.title}. ${it.detail}", style = MaterialTheme.typography.bodySmall, color = tokens.onAccentSoft) }
+                if (help.steps.isNotEmpty() || help.tryAgain) {
+                    Text("WHAT TO DO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    help.steps.forEachIndexed { i, step ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            if (help.steps.size > 1) Text("${i + 1}.", modifier = Modifier.width(22.dp), fontWeight = FontWeight.SemiBold)
+                            Column(Modifier.weight(1f)) {
+                                Text(step.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                step.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            }
+                            step.action?.let { a -> TextButton(onClick = { onAction(a) }) { Text(a.label) } }
+                        }
+                    }
+                    if (help.tryAgain) Button(onClick = onTryAgain, modifier = Modifier.fillMaxWidth()) { Text("Try again") }
+                }
+                Text("WHAT HANDOFF CHECKED", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                help.problems.forEach { CheckLine(it.title, it.detail, ok = false) }
+                if (help.problems.isNotEmpty() && !showFine) {
+                    TextButton(onClick = { showFine = true }, contentPadding = PaddingValues(0.dp)) {
+                        Text(if (help.fine.size == 1) "✓  1 other check is fine" else "✓  ${help.fine.size} other checks are fine", color = tokens.online)
+                    }
+                } else {
+                    help.fine.forEach { CheckLine(it.title, it.detail, ok = true) }
+                }
+                Text(
+                    "The report includes your device names, headphone names and what Handoff tried. Use it when you report a problem.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { technical = !technical }, contentPadding = PaddingValues(0.dp)) {
+                    Text(if (technical) "Hide technical details" else "Technical details")
+                }
+                if (technical) {
+                    Text(report, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                }
+            }
         },
-        confirmButton = { TextButton(onClick = { copyToClipboard(report); onClose() }) { Text("Copy the report") } },
+        confirmButton = { TextButton(onClick = { copyToClipboard(report) }) { Text("Copy the report") } },
         dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
     )
+}
+
+@Composable
+private fun CheckLine(title: String, detail: String?, ok: Boolean) {
+    Row(verticalAlignment = Alignment.Top) {
+        Text(if (ok) "✓" else "!", color = if (ok) tokens.online else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = if (ok) FontWeight.Normal else FontWeight.Medium)
+            detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
 }
 
 /** Windows' own Bluetooth settings page. */

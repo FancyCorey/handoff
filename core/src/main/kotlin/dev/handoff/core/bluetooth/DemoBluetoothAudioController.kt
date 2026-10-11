@@ -24,6 +24,11 @@ class DemoBluetoothAudioController(
     initiallyConnected: Set<String> = emptySet(),
     /** How long a demo connect takes; raise it to try progress, leaving and cancelling a move. */
     private val connectMs: Long = CONNECT_MS,
+    /**
+     * Behave like headphones that connect to one device at a time and are still on another one:
+     * connecting directly is accepted but never completes. For trying a failed move and its help.
+     */
+    private val refuseDirect: Boolean = false,
 ) : BluetoothAudioController {
 
     private val connected = MutableStateFlow(initiallyConnected.map { it.uppercase() }.toSet())
@@ -42,6 +47,7 @@ class DemoBluetoothAudioController(
     override suspend fun connect(deviceId: BluetoothDeviceId, reason: ConnectReason): BluetoothOperationResult {
         if (isConnected(deviceId)) return BluetoothOperationResult.AlreadyInState
         delay(connectMs)
+        if (refuseDirect && reason == ConnectReason.DIRECT_TAKEOVER) return BluetoothOperationResult.Requested(STRATEGY, connectMs)
         connected.value = connected.value + key(deviceId)
         return BluetoothOperationResult.Requested(STRATEGY, connectMs)
     }
@@ -65,7 +71,7 @@ class DemoBluetoothAudioController(
         const val STRATEGY = "Demo"
         const val AURORA = "0A:DE:40:00:00:01"
         const val STUDIO = "0A:DE:40:00:00:02"
-        private const val CONNECT_MS = 1_200L
+        const val CONNECT_MS = 1_200L
         private const val RELEASE_MS = 350L
 
         val DEVICES = listOf(

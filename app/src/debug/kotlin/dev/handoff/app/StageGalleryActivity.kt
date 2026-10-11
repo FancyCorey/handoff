@@ -1,5 +1,20 @@
 package dev.handoff.app
 
+import dev.handoff.core.text.HandoffTexts
+import dev.handoff.core.help.HelpInput
+import dev.handoff.core.help.HelpBuilder
+import dev.handoff.core.help.Help
+import dev.handoff.core.handoff.TransferTimings
+import dev.handoff.core.handoff.TransferRecord
+import dev.handoff.core.handoff.FailureReason
+import dev.handoff.core.bluetooth.CompatibilityLevel
+import dev.handoff.core.bluetooth.AdapterState
+import dev.handoff.app.ui.HandoffScaffold
+import dev.handoff.app.feature.diagnostics.helpItems
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -54,6 +69,21 @@ class StageGalleryActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val start = intent.getIntExtra("from", 0)
+        val helpCase = intent.getIntExtra("help", -1)
+        if (helpCase >= 0) {
+            HandoffTexts.me = "This tablet"
+            setContent {
+                HandoffTheme {
+                    var showFine by remember { mutableStateOf(false) }
+                    HandoffScaffold(title = "Help and diagnostics", onBack = {}) { padding ->
+                        LazyColumn(Modifier.padding(padding).fillMaxSize()) {
+                            helpItems(helpExamples()[helpCase], onAction = {}, onTryAgain = {}, onShare = {}, showFine = showFine, onShowFine = { showFine = true })
+                        }
+                    }
+                }
+            }
+            return
+        }
         setContent {
             HandoffTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -109,6 +139,26 @@ class StageGalleryActivity : ComponentActivity() {
             listOf(TransferStep(StepKind.REQUESTING_RELEASE, "Studio PC"), TransferStep(StepKind.RELEASED, "Studio PC"), TransferStep(StepKind.CONNECTING)),
             1, false, PC, null, 0,
         )
+
+        /** The help screen's cases from docs/DESIGN.md, built by the real [HelpBuilder]. */
+        fun helpExamples(): List<Help> {
+            val now = System.currentTimeMillis()
+            val s22 = PeerId("s22")
+            fun p(id: PeerId, name: String, platform: String, online: Boolean, ago: Long, otherWifi: Boolean = false) =
+                PeerOverview(TrustedPeer(id, name, ByteArray(0), 0), online, now - ago, platform, otherWifi)
+            fun move(failure: FailureReason?, owner: PeerId?, detail: String?) = TransferRecord(
+                LogicalDeviceId("buds"), "Aurora Buds", TransferTrigger.MANUAL, now - 90_000,
+                if (failure == null) "SUCCESS" else "FAILED", null, failure, detail, owner, null, 2, TransferTimings(null, null, 9_000),
+            )
+            fun input(last: TransferRecord?, peers: List<PeerOverview>, adapter: AdapterState = AdapterState.ON, reachable: Boolean = true) =
+                HelpInput(last, adapter, CompatibilityLevel.SUPPORTED, listOf("Aurora Buds" to true), peers, true, reachable, now)
+            return listOf(
+                HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE, s22, "Galaxy S22"), listOf(p(s22, "Galaxy S22", Platforms.ANDROID_PHONE, false, 2 * 3_600_000, otherWifi = true)))),
+                HelpBuilder.build(input(move(FailureReason.BLUETOOTH_OFF, null, null), listOf(p(s22, "Galaxy S22", Platforms.ANDROID_PHONE, true, 0)), adapter = AdapterState.OFF)),
+                HelpBuilder.build(input(move(null, null, null), listOf(p(s22, "Galaxy S22", Platforms.ANDROID_PHONE, true, 0)), reachable = false)),
+                HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE, PC, "Studio PC"), listOf(p(PC, "Studio PC", Platforms.WINDOWS, false, 10 * 60_000)))),
+            )
+        }
 
         fun examples(): List<Triple<String, DeviceOverview, List<PeerOverview>>> = listOf(
             Triple("On another device", o("Aurora Buds", Ownership.Peer(PC)), listOf(studio)),

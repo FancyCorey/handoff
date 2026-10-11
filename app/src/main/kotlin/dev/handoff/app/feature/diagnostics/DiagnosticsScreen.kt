@@ -1,5 +1,53 @@
 package dev.handoff.app.feature.diagnostics
 
+import dev.handoff.app.persistence.AppSettings
+import kotlinx.coroutines.flow.combine
+import dev.handoff.core.help.HelpInput
+import dev.handoff.core.help.HelpBuilder
+import dev.handoff.core.help.HelpAction
+import dev.handoff.core.help.Help
+import dev.handoff.core.handoff.TransferTrigger
+import dev.handoff.core.bluetooth.AdapterState
+import dev.handoff.app.ui.tokens
+import dev.handoff.app.ui.SystemScreens
+import dev.handoff.app.ui.SectionLabel
+import dev.handoff.app.ui.SectionCard
+import dev.handoff.app.ui.PrimaryButton
+import dev.handoff.app.ui.OutlineButton
+import dev.handoff.app.runtime.HandoffActions
+import dev.handoff.app.mesh.NetworkAddresses
+import dev.handoff.app.mesh.NetworkMonitor
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -63,6 +111,7 @@ class DiagnosticsViewModel(
     settings: SettingsRepository,
     private val identity: KeystoreIdentityProvider,
     runtime: HandoffRuntime,
+    private val actions: HandoffActions,
 ) : ViewModel() {
     val bt: StateFlow<BluetoothDiagnostics> = bluetooth.diagnostics
     val events: StateFlow<List<DiagnosticEvent>> = events.events
@@ -73,7 +122,47 @@ class DiagnosticsViewModel(
     val bonded: StateFlow<List<AudioDevice>> =
         bluetooth.bondedAudioDevices().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val settings = settings.settings
+    private val appSettings: StateFlow<AppSettings> = settings.settings
     val running: StateFlow<Boolean> = runtime.running
+
+    private val network: StateFlow<Set<String>> = NetworkMonitor(context).lanAddresses()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NetworkAddresses.lanIpv4(context).toSet())
+
+    /** The plain-words help: what happened, what to do, what Handoff checked. */
+    val help: StateFlow<Help> = combine(
+        combine(transfers, bluetooth.adapterState, bt) { t: List<TransferRecord>, a: AdapterState, d: BluetoothDiagnostics -> Triple(t, a, d) },
+        combine(devices, bonded, peers) { d: List<DeviceOverview>, b: List<AudioDevice>, p: List<PeerOverview> -> Triple(d, b, p) },
+        combine(appSettings, network) { s: AppSettings, n: Set<String> -> s to n },
+    ) { first, second, third ->
+        val (t, adapter, d) = first
+        val (devs, bonds, peerList) = second
+        val (s, net) = third
+        HelpBuilder.build(
+            HelpInput(
+                lastMove = t.firstOrNull(),
+                adapter = adapter,
+                compatibility = d.compatibility,
+                headphones = devs.map { o -> o.device.displayName to (o.device.localDeviceId != null && bonds.any { it.id == o.device.localDeviceId }) },
+                peers = peerList,
+                onNetwork = net.isNotEmpty(),
+                staysReachable = s.backgroundEnabled,
+                nowMs = System.currentTimeMillis(),
+            ),
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        HelpBuilder.build(HelpInput(null, AdapterState.ON, bt.value.compatibility, emptyList(), emptyList(), true, null, System.currentTimeMillis())),
+    )
+
+    /** Starts the last move again; returns its headphones' id so the screen can follow it. */
+    fun tryAgain(): String? {
+        val last = transfers.value.firstOrNull() ?: return null
+        actions.moveHere(last.logicalId, TransferTrigger.MANUAL)
+        return last.logicalId.value
+    }
+
+    fun lastMoveId(): String? = transfers.value.firstOrNull()?.logicalId?.value
 
     init {
         viewModelScope.launch { bluetooth.probe() }
@@ -152,7 +241,15 @@ class DiagnosticsViewModel(
 }
 
 @Composable
-fun DiagnosticsScreen(onBack: () -> Unit, onBluetoothTest: () -> Unit, vm: DiagnosticsViewModel = koinViewModel()) {
+fun DiagnosticsScreen(
+    onBack: () -> Unit,
+    onBluetoothTest: () -> Unit,
+    onMoveStarted: (String) -> Unit,
+    onPeers: () -> Unit,
+    onOpenDevice: (String) -> Unit,
+    onSettings: () -> Unit,
+    vm: DiagnosticsViewModel = koinViewModel(),
+) {
     // Collect everything the sections read so the screen recomposes when any of it changes.
     vm.bt.collectAsStateWithLifecycle()
     vm.transfers.collectAsStateWithLifecycle()
@@ -162,34 +259,66 @@ fun DiagnosticsScreen(onBack: () -> Unit, onBluetoothTest: () -> Unit, vm: Diagn
     vm.settings.collectAsStateWithLifecycle()
     vm.running.collectAsStateWithLifecycle()
     val events by vm.events.collectAsStateWithLifecycle()
+    val help by vm.help.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var showFine by remember { mutableStateOf(false) }
+    var technical by remember { mutableStateOf(false) }
 
-    HandoffScaffold(
-        title = "Diagnostics",
-        onBack = onBack,
-        actions = { IconButton(onClick = vm::export) { Icon(Icons.Default.Share, contentDescription = "Export") } },
-    ) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            item { SectionHeader("Device") }
-            item { KeyValue("Android version", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})") }
-            item { KeyValue("Manufacturer", Build.MANUFACTURER) }
-            item { KeyValue("Device model", Build.MODEL) }
-            vm.sections().forEach { (title, rows) ->
-                item { SectionHeader(title) }
-                items(rows) { (k, v) -> KeyValue(k, v) }
-            }
+    fun act(action: HelpAction) {
+        when (action) {
+            HelpAction.TURN_ON_BLUETOOTH -> SystemScreens.turnOnBluetooth(context)
+            HelpAction.ALLOW_BLUETOOTH -> SystemScreens.appSettings(context)
+            HelpAction.OPEN_BLUETOOTH_SETTINGS -> SystemScreens.bluetoothSettings(context)
+            HelpAction.LINK_AGAIN -> onPeers()
+            HelpAction.ADD_HERE -> vm.lastMoveId()?.let(onOpenDevice)
+            HelpAction.STAY_REACHABLE -> onSettings()
+        }
+    }
+
+    HandoffScaffold(title = "Help and diagnostics", onBack = onBack) { padding ->
+        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            helpItems(
+                help,
+                onAction = ::act,
+                onTryAgain = { vm.tryAgain()?.let(onMoveStarted) },
+                onShare = vm::export,
+                showFine = showFine,
+                onShowFine = { showFine = true },
+            )
+
+            // Everything else, for developers.
             item {
-                OutlinedButton(onClick = onBluetoothTest, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                    Text("Bluetooth test (developer)")
+                SectionCard(Modifier.clickable { technical = !technical }) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Technical details", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Icon(if (technical) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
+                    }
                 }
             }
-            item { SectionHeader("Event log") }
-            items(events.takeLast(150).reversed()) { e ->
-                Text(
-                    "${vm.time(e.atMs)} ${Redaction.scrub(e.format())}",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                )
+            if (technical) {
+                item { SectionHeader("Device") }
+                item { KeyValue("Android version", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})") }
+                item { KeyValue("Manufacturer", Build.MANUFACTURER) }
+                item { KeyValue("Device model", Build.MODEL) }
+                vm.sections().forEach { (title, rows) ->
+                    item { SectionHeader(title) }
+                    items(rows) { (k, v) -> KeyValue(k, v) }
+                }
+                item {
+                    OutlinedButton(onClick = onBluetoothTest, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        Text("Bluetooth test (developer)")
+                    }
+                }
+                item { SectionHeader("Event log") }
+                items(events.takeLast(150).reversed()) { e ->
+                    Text(
+                        "${vm.time(e.atMs)} ${Redaction.scrub(e.format())}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                    )
+                }
             }
         }
     }
 }
+

@@ -218,7 +218,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 
 **Windows won't start Handoff?** If your PC has *Smart App Control* switched on, Windows blocks apps that aren't code-signed yet and offers no "Run anyway" option. Code signing is planned.
 
-**Still stuck?** **Settings → Help and diagnostics** shows what Handoff sees on your device. You can share a report (the share button on Android, **Copy the report** on Windows) when you [open an issue](https://github.com/FancyCorey/handoff/issues). Reports hide most of your headphones' Bluetooth address and never include your keys.
+**Still stuck?** **Help and diagnostics** (under **Try again** after a failed move, or in Settings) says what happened, what to do, and what Handoff checked on your devices. You can share a report from there (**Share a report** on Android, **Copy the report** on Windows) when you [open an issue](https://github.com/FancyCorey/handoff/issues). Reports hide most of your headphones' Bluetooth address and never include your keys.
 
 ## What Handoff is allowed to do on Android
 

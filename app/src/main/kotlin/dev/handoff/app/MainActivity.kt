@@ -138,7 +138,15 @@ class MainActivity : ComponentActivity() {
             }
             composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }, onDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) }) }
             composable(Routes.DIAGNOSTICS) {
-                DiagnosticsScreen(onBack = { nav.popBackStack() }, onBluetoothTest = { nav.navigate(Routes.BT_TEST) })
+                DiagnosticsScreen(
+                    onBack = { nav.popBackStack() },
+                    onBluetoothTest = { nav.navigate(Routes.BT_TEST) },
+                    // Try again follows the move on its progress screen, in place of this one.
+                    onMoveStarted = { id -> nav.navigate(Routes.transfer(id)) { popUpTo(Routes.HOME) } },
+                    onPeers = { nav.navigate(Routes.PEERS) },
+                    onOpenDevice = { nav.navigate(Routes.device(it)) },
+                    onSettings = { nav.navigate(Routes.SETTINGS) },
+                )
             }
             composable(Routes.BT_TEST) { BluetoothTestScreen(onBack = { nav.popBackStack() }) }
         }

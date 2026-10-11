@@ -1,5 +1,9 @@
 package dev.handoff.desktop
 
+import dev.handoff.core.bluetooth.CompatibilityLevel
+import dev.handoff.core.help.HelpInput
+import dev.handoff.core.help.HelpBuilder
+import dev.handoff.core.help.HelpAction
 import dev.handoff.desktop.store.defaultDataDir
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -207,7 +211,38 @@ private fun App(app: DesktopApp) {
             onDiagnostics = { sheet = Sheet.Diagnostics },
             onClose = { sheet = null },
         )
-        Sheet.Diagnostics -> DiagnosticsDialog(report = diagnostics(app, devices)) { sheet = null }
+        Sheet.Diagnostics -> {
+            val records by app.history.records.collectAsState()
+            val help = HelpBuilder.build(
+                HelpInput(
+                    lastMove = records.firstOrNull(),
+                    adapter = adapter,
+                    compatibility = CompatibilityLevel.SUPPORTED,
+                    headphones = devices.map { d ->
+                        d.device.displayName to (d.device.localDeviceId != null && bonded.any { it.id == d.device.localDeviceId })
+                    },
+                    peers = peers,
+                    onNetwork = JmdnsDiscovery.lanAddresses().isNotEmpty(),
+                    staysReachable = null,
+                    nowMs = System.currentTimeMillis(),
+                ),
+            )
+            DiagnosticsDialog(
+                help = help,
+                report = diagnostics(app, devices),
+                onTryAgain = {
+                    records.firstOrNull()?.let { app.moveHere(it.logicalId) }
+                    sheet = null
+                },
+                onAction = { action ->
+                    when (action) {
+                        HelpAction.LINK_AGAIN -> sheet = Sheet.Link
+                        HelpAction.ADD_HERE -> sheet = Sheet.AddHeadset
+                        else -> openBluetoothSettings()
+                    }
+                },
+            ) { sheet = null }
+        }
         is Sheet.Headset -> {
             val d = devices.firstOrNull { it.device.logicalId == s.id }
             if (d == null) {

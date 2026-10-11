@@ -154,6 +154,21 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 | Error, unreachable | Couldn't reach {x}. Are both on the same Wi-Fi?  ·  More: "On a PC, allow Handoff in Windows Firewall." | Couldn't reach the other device. Make sure both are on the same Wi-Fi and the code is still showing. If it's a Windows PC, allow Handoff through Windows Firewall (private networks). |
 | No Wi-Fi | Connect to Wi-Fi first. | Connect to Wi-Fi first. Both devices must be on the same network. |
 
+## Help and diagnostics
+
+| Where | Text | Was |
+|---|---|---|
+| Headline, failed | {headphones} didn't move  +  "{x} didn't answer, so they're probably still connected to it." | (raw diagnostics only) |
+| Headline, fine | ✓ No problems found  +  "Last move: {headphones} moved here." | (none) |
+| Sections | What to do  /  What Handoff checked | Bluetooth / Preferred headset / Peers / Last transfer |
+| Steps, a phone didn't answer | On {x}, open Handoff  +  "So it answers even when locked: Settings → When this phone is locked → Stay reachable."  /  Connect both to the same Wi-Fi (only after a different network was seen) | (none) |
+| Steps, a PC didn't answer | On {x}, start Handoff  +  "It stays running near the clock. To start it with Windows: Settings → Start with Windows."  /  If Windows asks about network access, choose Allow | (none) |
+| Checks | {x} is answering / Handoff on {x} isn't answering  +  "Last answer: 2 hours ago, on a different Wi-Fi."  ·  Bluetooth is on  ·  {headphones} are set up in this tablet's Bluetooth  ·  This tablet can move headphones  ·  This tablet is on Wi-Fi | Online / Offline, BONDED, A2DP… |
+| Folded checks | 4 other checks are fine | (none) |
+| Report | Share a report  +  "Includes your device model, device and headphone names, and what Handoff tried. Use it when you report a problem." | Share (icon) |
+| Developer section | Technical details | (the whole screen) |
+| Tip | Tip: choose Stay reachable  +  "So your other devices can take the headphones while this tablet is locked."  [Change] | (none) |
+
 ## Settings
 
 | Where | Text | Was |
