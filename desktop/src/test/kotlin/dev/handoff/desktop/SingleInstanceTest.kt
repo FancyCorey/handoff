@@ -15,11 +15,17 @@ class SingleInstanceTest {
         assertTrue(first.acquire())
         val shown = CountDownLatch(1)
         first.watch { shown.countDown() }
-        Thread.sleep(300) // let the watcher register
 
         val second = SingleInstance(dir)
         assertFalse(second.acquire())
-        second.requestShow()
-        assertTrue("first copy asked to show its window", shown.await(10, TimeUnit.SECONDS))
+        // The watcher starts on its own thread; on a busy machine it may not be listening yet, so ask
+        // again until it answers (a real second copy starts long after the first one).
+        val deadline = System.currentTimeMillis() + 10_000
+        var answered = false
+        while (!answered && System.currentTimeMillis() < deadline) {
+            second.requestShow()
+            answered = shown.await(500, TimeUnit.MILLISECONDS)
+        }
+        assertTrue("first copy asked to show its window", answered)
     }
 }

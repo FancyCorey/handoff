@@ -178,6 +178,10 @@ object HandoffTexts {
     const val NOT_CONNECTED = "Not connected"
     const val MOVING_HERE = "Moving here"
     const val BLUETOOTH_OFF = "Bluetooth is off"
+    const val BLUETOOTH_OFF_HELP = "Handoff can't see your headphones."
+    const val TURN_ON = "Turn on"
+    const val LAST_SEEN_HERE = "Last seen here"
+    const val MOVED_HERE = "Moved here"
 
     fun lastSeenOn(name: String) = "Last seen on $name"
     fun isOffline(name: String) = "$name is offline"

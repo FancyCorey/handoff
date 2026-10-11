@@ -126,6 +126,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun toneColor(tone: dev.handoff.core.stage.Tone, quiet: Boolean = false): Color = when (tone) {
     dev.handoff.core.stage.Tone.ACCENT -> tokens.accent
+    dev.handoff.core.stage.Tone.POSITIVE -> tokens.online
     dev.handoff.core.stage.Tone.WARNING -> tokens.warning
     dev.handoff.core.stage.Tone.NORMAL -> if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
 }
@@ -165,13 +166,48 @@ fun Hint(text: String, modifier: Modifier = Modifier) {
 
 enum class Tone { POSITIVE, ACTIVE, NEUTRAL, WARNING }
 
+/** The pill for a headphones' status, from its tone. */
+@Composable
+fun StatusPill(text: String, tone: dev.handoff.core.stage.Tone, modifier: Modifier = Modifier) = StatusPill(
+    text,
+    when (tone) {
+        dev.handoff.core.stage.Tone.ACCENT -> Tone.ACTIVE
+        dev.handoff.core.stage.Tone.POSITIVE -> Tone.POSITIVE
+        dev.handoff.core.stage.Tone.WARNING -> Tone.WARNING
+        dev.handoff.core.stage.Tone.NORMAL -> Tone.NEUTRAL
+    },
+    modifier,
+)
+
+/** The branded header on Home: the mark, "Handoff", this device's name, and actions. */
+@Composable
+fun BrandHeader(title: String, subtitle: String, actions: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(Brand.gradient)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Logo(44.dp, onBrand = true)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
+            }
+            actions()
+        }
+    }
+}
+
 /** Small rounded status label with a coloured dot. */
 @Composable
 fun StatusPill(text: String, tone: Tone, modifier: Modifier = Modifier) {
     val (bg, fg) = when (tone) {
         Tone.POSITIVE -> Brand.Success.copy(alpha = 0.16f) to Brand.Success
         Tone.ACTIVE -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-        Tone.WARNING -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onSurface
+        Tone.WARNING -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
         Tone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(

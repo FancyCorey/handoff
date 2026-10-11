@@ -1,5 +1,13 @@
 package dev.handoff.app.feature.device
 
+import dev.handoff.app.ui.StatusPill
+import dev.handoff.app.ui.IconBadge
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +49,6 @@ import dev.handoff.app.ui.OutlineButton
 import dev.handoff.app.ui.SectionCard
 import dev.handoff.app.ui.SectionLabel
 import dev.handoff.app.ui.StageButton
-import dev.handoff.app.ui.StageView
 import dev.handoff.app.ui.SystemScreens
 import dev.handoff.app.ui.Texts
 import dev.handoff.app.ui.toneColor
@@ -109,7 +116,6 @@ class DeviceDetailViewModel(
 fun DeviceDetailScreen(
     logicalId: String,
     onBack: () -> Unit,
-    onMoveStarted: (String) -> Unit,
     onMap: () -> Unit,
     vm: DeviceDetailViewModel = koinViewModel(key = logicalId) { parametersOf(logicalId) },
 ) {
@@ -128,26 +134,41 @@ fun DeviceDetailScreen(
         }
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             SectionCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(s.status, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = toneColor(s.statusTone), modifier = Modifier.weight(1f))
-                        if (!s.dimmed) o.batteryPercent?.let { BatteryChip(it) }
-                    }
-                    StageView(s, Modifier.fillMaxWidth(), steps = o.transfer?.steps.orEmpty().takeIf { o.transferRunning }.orEmpty())
-                    s.line?.let { Text(it, fontSize = 12.sp, color = toneColor(s.lineTone, quiet = true)) }
-                    StageButton(s.action, {
-                        when (s.action) {
-                            StageAction.MOVE_HERE, StageAction.USE_ONLY_HERE, StageAction.CONNECT_HERE_TOO -> {
-                                vm.moveHere()
-                                onMoveStarted(logicalId)
-                            }
-                            StageAction.CANCEL -> vm.cancel()
-                            StageAction.TURN_ON_BLUETOOTH -> SystemScreens.turnOnBluetooth(context)
-                            StageAction.ADD_HERE -> onMap()
-                            StageAction.NONE -> Unit
+                Column(
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    IconBadge(Icons.Filled.Headphones, size = 64.dp)
+                    Text(o.device.displayName, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (s.dimmed) {
+                            Text(s.status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            StatusPill(s.status, s.statusTone)
+                            o.batteryPercent?.let { BatteryChip(it) }
                         }
-                    })
-                    if (o.device.localDeviceId != null) OutlineButton("Choose different headphones", onMap)
+                    }
+                    if (o.transferRunning) {
+                        Text(
+                            o.transfer?.steps?.lastOrNull()?.let(HandoffTexts::step) ?: HandoffTexts.STARTING,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlineButton(HandoffTexts.CANCEL, vm::cancel)
+                    } else {
+                        s.line?.let { Text(it, fontSize = 13.sp, color = toneColor(s.lineTone, quiet = true), textAlign = TextAlign.Center) }
+                        if (s.action != StageAction.NONE && s.action != StageAction.CANCEL) {
+                            StageButton(s.action, {
+                                when (s.action) {
+                                    StageAction.MOVE_HERE, StageAction.USE_ONLY_HERE, StageAction.CONNECT_HERE_TOO -> vm.moveHere()
+                                    StageAction.TURN_ON_BLUETOOTH -> SystemScreens.turnOnBluetooth(context)
+                                    StageAction.ADD_HERE -> onMap()
+                                    else -> Unit
+                                }
+                            })
+                        }
+                    }
                 }
             }
 
@@ -174,6 +195,14 @@ fun DeviceDetailScreen(
                     trailingContent = { Switch(checked = o.device.multipoint, onCheckedChange = { vm.setMultipoint(it) }) },
                     colors = colors,
                 )
+                if (o.device.localDeviceId != null) {
+                    ListItem(
+                        headlineContent = { Text("Choose different headphones") },
+                        trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null) },
+                        colors = colors,
+                        modifier = Modifier.clickable(onClick = onMap),
+                    )
+                }
             }
             Row(Modifier.fillMaxWidth().padding(8.dp)) {
                 Spacer(Modifier.width(4.dp))

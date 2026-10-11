@@ -100,20 +100,20 @@ Add the same headphones on every device you want to use them with.
 
 ## Moving your headphones
 
-Each pair of headphones has a small picture of your devices, with the headphones drawn as a dot above the device that has them. When they can come to the device you're holding, an arrow points to it. Tap **Move here** on the device you want to listen on.
+Each pair of headphones has a card that says where they are ("On Studio PC", "Here") and their battery. Tap **Move here** on the device you want to listen on.
 
 <table>
   <tr>
-    <td align="center"><img src="screenshots/android-before.png" width="190" alt="The headphones are on Studio PC, with an arrow towards this phone and a Move here button"></td>
-    <td align="center"><img src="screenshots/android-moving.png" width="190" alt="Studio PC has let go; the headphones travel along the arrow"></td>
-    <td align="center"><img src="screenshots/android-move.png" width="190" alt="Moved here, with each step ticked off"></td>
-    <td align="center"><img src="screenshots/guide/home-moving.png" width="190" alt="The home screen during a move, with Cancel and Show progress"></td>
+    <td align="center"><img src="screenshots/android-before.png" width="190" alt="Aurora Buds on Studio PC, with a Move here button"></td>
+    <td align="center"><img src="screenshots/android-moving.png" width="190" alt="The card while moving: a step bar, Asking Studio PC to let go, Cancel and Details"></td>
+    <td align="center"><img src="screenshots/android-move.png" width="190" alt="The card says Moved here"></td>
+    <td align="center"><img src="screenshots/guide/home-moving.png" width="190" alt="Details of a move: the headphones travel from Studio PC to the phone, with each step listed"></td>
   </tr>
   <tr>
     <td align="center"><sub>Tap <b>Move here</b></sub></td>
-    <td align="center"><sub>The other device lets go</sub></td>
-    <td align="center"><sub>Connected and checked</sub></td>
-    <td align="center"><sub>Follow or cancel from home</sub></td>
+    <td align="center"><sub>Follow it in the card</sub></td>
+    <td align="center"><sub>Moved here</sub></td>
+    <td align="center"><sub><b>Details</b> shows every step</sub></td>
   </tr>
 </table>
 
@@ -123,15 +123,15 @@ You'll see each step as it happens:
 2. It disconnects them.
 3. Your device connects and checks that sound really comes through.
 
-It usually takes a few seconds. You can leave the screen while it's running: the home screen shows the progress, with **Show progress** to see the details again and **Cancel** to stop.
+It usually takes a few seconds, and you stay on the home screen: the card shows the progress, with **Cancel** to stop and **Details** to see each step. If something goes wrong, the card says what happened and shows one button that fixes it.
 
 You can also move your headphones from:
 - **Android:** the **Move here** tile in Quick Settings. Swipe down twice, tap the pencil (edit) icon and drag the tile into place. If you've added more than one pair of headphones, choose which pair the tile moves in the headphones' details (**Quick Settings tile**).
 - **Windows:** the tray icon's menu (**Move … here**).
 
-<img src="screenshots/guide/windows-home.png" width="260" align="right" alt="Handoff on Windows, with the headphones on My Phone">
+<img src="screenshots/guide/windows-home.png" width="260" align="right" alt="Handoff on Windows: Aurora Buds, with My Phone offline and a hotspot tip">
 
-**On Windows**, the Handoff window shows where your headphones are, their battery level and your linked devices. Closing the window keeps Handoff running in the tray, so your phone can still reach the PC. To quit, choose **Quit** in the tray menu. Opening Handoff again brings the same window back.
+**On Windows**, the Handoff window looks the same: your headphones with their status, battery and **Move here**, then your devices. Closing the window keeps Handoff running in the tray, so your phone can still reach the PC. To quit, choose **Quit** in the tray menu. Opening Handoff again brings the same window back.
 
 <br clear="right">
 

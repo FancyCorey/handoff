@@ -100,15 +100,17 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 
 | Where | Text | Was |
 |---|---|---|
-| Section | (removed) | Your audio |
-| Section | Your devices | Your devices |
-| First run | Two steps to start  +  "Add your headphones, then link your other devices." | No headset yet  +  "Choose headphones that are already paired with this device in Android Bluetooth settings." |
-| First run, no links | (merged into the line above) | Link your other phone, tablet or Windows PC so they can hand the headset to each other. |
-| Chip status | (dot) / Offline / Other Wi-Fi | Online / Offline / On another network |
+| Sections | Your headphones  [+ Add]  /  Your devices  [+ Link a device] | Your audio [Add headset] / Your devices [Manage] |
+| First run | Add your headphones  +  "Choose them from the ones connected to this phone."  +  [Add headphones] | No headset yet  +  "Choose headphones that are already paired with this device in Android Bluetooth settings." |
+| First run, no links | Link your PC or tablet (row in the device list; on Windows: Link your phone or tablet) | Link your other phone, tablet or Windows PC so they can hand the headset to each other. |
+| Device list | This phone (grey, not a pill) / Online / Offline / Other Wi-Fi | This device / Online / Offline / On another network |
+| Moving | Cancel  ·  Details | View progress  ·  Cancel |
+| Just moved | ✓ Moved here | (none) |
+| Failed move | the error title in red, one reason, one fix button | Couldn't reach Studio PC  +  long help  ·  Details |
+| Bluetooth off | Bluetooth is off  +  "Handoff can't see your headphones."  +  [Turn on]; each card: Last seen on {x} / Last seen here | Bluetooth unavailable on every card |
 | Hotspot tip | No shared Wi-Fi?  +  "Turn on the hotspot on one device and join it from the other."  +  [Hotspot settings] | No shared Wi-Fi?  +  "Turn on the hotspot on one device and join it from the other. Handoff finds your devices on that local network by itself; mobile data is not needed and nothing goes over the internet." |
 | Update banner | Update available  +  [Update] | Handoff 0.6.3 is available  +  [Update] |
 | Older copy warning | An old copy of Handoff is installed  +  "It can confuse your other devices."  +  [Remove it] | Another copy of Handoff is installed  +  "An older test version of Handoff is also on this device. Your other devices can end up linked to that copy instead of this one. Uninstall it, then link your devices again here." |
-| Card, move in progress | Starting… / Show progress | Starting… / View progress |
 
 ## Add headphones
 

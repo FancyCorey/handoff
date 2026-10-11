@@ -78,6 +78,7 @@ class StageTest {
     fun `here only is compact with nothing to do`() {
         val s = build(overview(Ownership.Local, AudioConnectionState.CONNECTED))
         assertEquals("Here", s.status)
+        assertEquals(Tone.POSITIVE, s.statusTone)
         assertTrue(s.compact)
         assertEquals(StageAction.NONE, s.action)
         assertEquals(Mark.HOLDS, s.tiles.last().mark)
@@ -127,11 +128,13 @@ class StageTest {
     }
 
     @Test
-    fun `bluetooth off dims the stage`() {
-        val s = build(overview(Ownership.Unknown(null), AudioConnectionState.UNAVAILABLE))
+    fun `bluetooth off says where they were last and offers nothing`() {
+        val s = build(overview(Ownership.Unknown(pc), AudioConnectionState.UNAVAILABLE))
         assertTrue(s.dimmed)
-        assertEquals(StageAction.TURN_ON_BLUETOOTH, s.action)
-        assertEquals("Aurora Buds. Bluetooth is off. Turn on Bluetooth is available.", s.spoken)
+        assertEquals("Last seen on Studio PC", s.status)
+        assertEquals(StageAction.NONE, s.action)
+        assertEquals("Aurora Buds. Last seen on Studio PC.", s.spoken)
+        assertEquals("Bluetooth is off", build(overview(Ownership.Unknown(null), AudioConnectionState.UNAVAILABLE)).status)
     }
 
     @Test

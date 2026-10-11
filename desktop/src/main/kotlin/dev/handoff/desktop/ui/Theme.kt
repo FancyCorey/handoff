@@ -188,7 +188,35 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun toneColor(tone: dev.handoff.core.stage.Tone, quiet: Boolean = false): Color = when (tone) {
     dev.handoff.core.stage.Tone.ACCENT -> tokens.accent
+    dev.handoff.core.stage.Tone.POSITIVE -> tokens.online
     dev.handoff.core.stage.Tone.WARNING -> tokens.warning
     dev.handoff.core.stage.Tone.NORMAL -> if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
 }
 
+
+/** Small rounded status label with a dot, coloured by tone. */
+@Composable
+fun StatusPill(text: String, tone: dev.handoff.core.stage.Tone, modifier: Modifier = Modifier) {
+    val (bg, fg) = when (tone) {
+        dev.handoff.core.stage.Tone.ACCENT -> tokens.accentSoft to tokens.onAccentSoft
+        dev.handoff.core.stage.Tone.POSITIVE -> tokens.online.copy(alpha = 0.16f) to tokens.online
+        dev.handoff.core.stage.Tone.WARNING -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        dev.handoff.core.stage.Tone.NORMAL -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(fg))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = fg, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Round tonal container for an icon. */
+@Composable
+fun IconBadge(icon: androidx.compose.ui.graphics.vector.ImageVector, size: Dp = 44.dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(tokens.accentSoft), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(icon, contentDescription = null, tint = tokens.onAccentSoft, modifier = Modifier.size(size * 0.5f))
+    }
+}

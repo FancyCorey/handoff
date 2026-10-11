@@ -254,8 +254,11 @@ fun HeadsetDialog(
         text = {
             Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 stage?.let {
-                    Text(it.status, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = toneColor(it.statusTone))
-                    StageView(it, Modifier.fillMaxWidth())
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatusPill(it.status, it.statusTone)
+                        overview.batteryPercent?.let { level -> BatteryChip(level) }
+                    }
+                    it.line?.let { line -> Text(line, style = MaterialTheme.typography.bodySmall, color = toneColor(it.lineTone, quiet = true)) }
                 }
                 if (released) {
                     Text(

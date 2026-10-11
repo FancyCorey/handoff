@@ -19,7 +19,7 @@ data class Stage(
     val arc: Arc,
     /** Nothing to do: a short row with no arc, line or button. */
     val compact: Boolean,
-    /** Bluetooth is off here: the whole stage is faded. */
+    /** Bluetooth is off here: the status says where the headphones were last, and there is no action. */
     val dimmed: Boolean,
     val status: String,
     val statusTone: Tone,
@@ -64,7 +64,16 @@ enum class Mark {
 
 enum class Arc { NONE, DASHED, SOLID }
 
-enum class Tone { NORMAL, ACCENT, WARNING }
+enum class Tone {
+    NORMAL,
+
+    /** Elsewhere, and can move here. */
+    ACCENT,
+
+    /** Here. */
+    POSITIVE,
+    WARNING,
+}
 
 enum class StageAction(val label: String?) {
     NONE(null),
@@ -126,15 +135,22 @@ object StageBuilder {
                 HandoffTexts.notAddedHere(), Tone.WARNING, null, Tone.NORMAL, StageAction.ADD_HERE, Arc.NONE,
                 marks = holders.associateWith { Mark.HOLDS },
             )
-            o.localState == AudioConnectionState.UNAVAILABLE -> Draft(
-                HandoffTexts.BLUETOOTH_OFF, Tone.WARNING, null, Tone.NORMAL, StageAction.TURN_ON_BLUETOOTH, Arc.NONE, dimmed = true,
-            )
-            hereToo && holders.isEmpty() -> Draft(HandoffTexts.HERE, Tone.NORMAL, null, Tone.NORMAL, StageAction.NONE, Arc.NONE, here = Mark.HOLDS, compact = true)
+            // Bluetooth is off here: one banner says so for all headphones; each says where it was last.
+            o.localState == AudioConnectionState.UNAVAILABLE -> {
+                val last = o.device.lastKnownOwner ?: (owner as? Ownership.Unknown)?.lastKnownOwner
+                val status = when {
+                    last == null -> HandoffTexts.BLUETOOTH_OFF
+                    last == self -> HandoffTexts.LAST_SEEN_HERE
+                    else -> HandoffTexts.lastSeenOn(name(last))
+                }
+                Draft(status, Tone.NORMAL, null, Tone.NORMAL, StageAction.NONE, Arc.NONE, dimmed = true)
+            }
+            hereToo && holders.isEmpty() -> Draft(HandoffTexts.HERE, Tone.POSITIVE, null, Tone.NORMAL, StageAction.NONE, Arc.NONE, here = Mark.HOLDS, compact = true)
             hereToo -> {
                 val names = holders.map(name)
                 val status = "Here and on ${HandoffTexts.names(names)}"
                 if (o.device.multipoint) {
-                    Draft(status, Tone.NORMAL, null, Tone.NORMAL, StageAction.NONE, Arc.NONE, marks = holders.associateWith { Mark.HOLDS }, here = Mark.HOLDS)
+                    Draft(status, Tone.POSITIVE, null, Tone.NORMAL, StageAction.NONE, Arc.NONE, marks = holders.associateWith { Mark.HOLDS }, here = Mark.HOLDS)
                 } else {
                     Draft(
                         status, Tone.WARNING, HandoffTexts.interrupts(names), Tone.WARNING, StageAction.USE_ONLY_HERE, Arc.NONE,

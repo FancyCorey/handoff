@@ -24,9 +24,9 @@ One tap moves your headphones between your Android phone, tablet and Windows PC.
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="The phone shows the headphones on Studio PC, with an arrow towards the phone and a Move here button"></td>
-    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="Studio PC has let go; the headphones travel along the arrow"></td>
-    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="Moved here, with each step ticked off"></td>
+    <td align="center"><img src="docs/screenshots/android-before.png" width="230" alt="The phone shows Aurora Buds on Studio PC, with a Move here button"></td>
+    <td align="center"><img src="docs/screenshots/android-moving.png" width="230" alt="The card while the headphones move: Asking Studio PC to let go, with Cancel"></td>
+    <td align="center"><img src="docs/screenshots/android-move.png" width="230" alt="The card says Moved here"></td>
   </tr>
   <tr>
     <td align="center"><sub>Your headphones are on the PC</sub></td>

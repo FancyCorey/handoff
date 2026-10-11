@@ -94,7 +94,6 @@ class MainActivity : ComponentActivity() {
             composable(Routes.HOME) {
                 HomeScreen(
                     onOpenDevice = { nav.navigate(Routes.device(it)) },
-                    onMoveStarted = { nav.navigate(Routes.transfer(it)) },
                     onOpenTransfer = { nav.navigate(Routes.transferProgress(it)) },
                     onMapDevice = { nav.navigate(Routes.MAP) },
                     onPeers = { nav.navigate(Routes.PEERS) },
@@ -108,7 +107,6 @@ class MainActivity : ComponentActivity() {
                 DeviceDetailScreen(
                     logicalId = entry.arguments?.getString("id").orEmpty(),
                     onBack = { nav.popBackStack() },
-                    onMoveStarted = { nav.navigate(Routes.transfer(it)) },
                     onMap = { nav.navigate(Routes.MAP) },
                 )
             }
