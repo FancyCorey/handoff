@@ -165,7 +165,7 @@ fun PeersScreen(onBack: () -> Unit, onAdd: () -> Unit, onScan: () -> Unit, vm: P
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(p.peer.displayName, style = MaterialTheme.typography.bodyLarge)
                                     if (p.online) {
-                                        StatusPill("Online", Tone.POSITIVE)
+                                        StatusPill(if (p.nearby) HandoffTexts.NEARBY else "Online", Tone.POSITIVE)
                                     } else {
                                         StatusPill(Texts.offline(p.probablyOtherNetwork), if (p.probablyOtherNetwork) Tone.WARNING else Tone.NEUTRAL)
                                     }

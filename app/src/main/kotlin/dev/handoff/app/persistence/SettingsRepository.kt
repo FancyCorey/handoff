@@ -30,6 +30,8 @@ data class AppSettings(
     val lastUpdateCheckMs: Long = 0,
     /** Successful moves so far, counted up to the point where the stage stops explaining them. */
     val movesDone: Int = 0,
+    /** Reach linked devices over Bluetooth when they aren't on the same network. On by default. */
+    val nearbyEnabled: Boolean = true,
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -56,6 +58,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         autoUpdateCheck = p[AUTO_UPDATE] ?: false,
         lastUpdateCheckMs = p[LAST_UPDATE_CHECK] ?: 0,
         movesDone = p[MOVES_DONE] ?: 0,
+        nearbyEnabled = p[NEARBY] ?: true,
         autoSwitchMode = p[AUTO_MODE]?.let { runCatching { AutoSwitchMode.valueOf(it) }.getOrNull() } ?: AutoSwitchMode.OFF,
     )
 
@@ -65,6 +68,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
     suspend fun setAutoSwitchMode(value: AutoSwitchMode) = store.edit { it[AUTO_MODE] = value.name }
     suspend fun setAutoUpdateCheck(value: Boolean) = store.edit { it[AUTO_UPDATE] = value }
     suspend fun setLastUpdateCheck(atMs: Long) = store.edit { it[LAST_UPDATE_CHECK] = atMs }
+    suspend fun setNearbyEnabled(value: Boolean) = store.edit { it[NEARBY] = value }
     suspend fun setMovesDone(value: Int) {
         store.edit { it[MOVES_DONE] = value }
     }
@@ -81,5 +85,6 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val AUTO_UPDATE = booleanPreferencesKey("auto_update_check")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
         val MOVES_DONE = intPreferencesKey("moves_done")
+        val NEARBY = booleanPreferencesKey("nearby_enabled")
     }
 }

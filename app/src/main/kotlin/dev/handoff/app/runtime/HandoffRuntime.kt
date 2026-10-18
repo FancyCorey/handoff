@@ -8,10 +8,12 @@ import dev.handoff.app.persistence.RoomLogicalDeviceRepository
 import dev.handoff.app.persistence.RoomTrustedPeerRepository
 import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.bluetooth.AndroidBluetoothAudioController
+import dev.handoff.bluetooth.BleNearbyChannel
 import dev.handoff.core.diagnostics.EventLog
 import dev.handoff.core.diagnostics.EventType
 import dev.handoff.core.handoff.HandoffCoordinator
 import dev.handoff.core.handoff.MeshSync
+import dev.handoff.core.handoff.Platforms
 import dev.handoff.core.handoff.OwnershipBroadcaster
 import dev.handoff.core.mesh.transport.PeerDirectory
 import dev.handoff.core.mesh.transport.PeerServer
@@ -58,6 +60,7 @@ class HandoffRuntime(
     private val events: EventLog,
     private val settings: SettingsRepository,
     private val network: NetworkMonitor,
+    private val nearby: BleNearbyChannel,
 ) {
     private val lock = Mutex()
     private val holders = mutableSetOf<String>()
@@ -101,7 +104,10 @@ class HandoffRuntime(
             null
         } else {
             appScope.launch {
+                var tick = 0
                 while (isActive) {
+                    // Every 30 s, a short look for linked devices the network can't reach, to show them as Nearby.
+                    if (tick++ % LOOK_AROUND_EVERY == 0 && _running.value && someoneOffNetwork()) nearby.lookAround()
                     refreshNow()
                     delay(UI_REFRESH_MS)
                 }
@@ -114,6 +120,21 @@ class HandoffRuntime(
         runCatching { ownership.refresh(STATUS_TIMEOUT_MS) }
         directory.refreshOnlineFlags()
         bluetooth.refresh()
+        nearby.reconcile(appScope)
+    }
+
+    /** After the setting changed or Nearby devices was allowed. */
+    fun reconcileNearby() {
+        if (_running.value) nearby.reconcile(appScope)
+    }
+
+    /** A linked Android device (Windows has no Bluetooth nearby yet) that the network doesn't reach. */
+    private fun someoneOffNetwork(): Boolean {
+        val presence = directory.presence.value
+        val info = ownership.peerInfo.value
+        return trust.peers.value
+            .filter { info[it.peerId]?.platform?.startsWith(Platforms.WINDOWS) != true }
+            .any { presence[it.peerId]?.let { p -> !p.online || p.nearby } ?: true }
     }
 
     private suspend fun startLocked() {
@@ -128,6 +149,9 @@ class HandoffRuntime(
         jobs += sync.launchIn(appScope)
         jobs += appScope.launch { followNetworkChanges(port) }
         jobs += appScope.launch { refreshNow() }
+        jobs += appScope.launch { settings.settings.map { it.nearbyEnabled }.drop(1).collect { nearby.reconcile(appScope) } }
+        // Bluetooth turned off closes the channel; turned on again, it opens a new one.
+        jobs += appScope.launch { bluetooth.adapterState.drop(1).collect { nearby.reconcile(appScope) } }
     }
 
     /**
@@ -147,6 +171,7 @@ class HandoffRuntime(
         jobs.forEach { it.cancel() }
         jobs.clear()
         discovery.stop()
+        nearby.stop()
         server.stop()
         _running.value = false
         events.record(EventType.SERVICE_STATE, details = mapOf("state" to "stopped"))
@@ -154,6 +179,7 @@ class HandoffRuntime(
 
     private companion object {
         const val UI_REFRESH_MS = 10_000L
+        const val LOOK_AROUND_EVERY = 3
         const val STATUS_TIMEOUT_MS = 2_500L
     }
 }

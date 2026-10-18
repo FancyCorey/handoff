@@ -103,7 +103,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 | Sections | Your headphones  [+ Add]  /  Your devices  [+ Link a device] | Your audio [Add headset] / Your devices [Manage] |
 | First run | Add your headphones  +  "Choose them from the ones connected to this phone."  +  [Add headphones] | No headset yet  +  "Choose headphones that are already paired with this device in Android Bluetooth settings." |
 | First run, no links | Link your PC or tablet (row in the device list; on Windows: Link your phone or tablet) | Link your other phone, tablet or Windows PC so they can hand the headset to each other. |
-| Device list | This phone (grey, not a pill) / Online / Offline / Other Wi-Fi | This device / Online / Offline / On another network |
+| Device list | This phone (grey, not a pill) / Online / Nearby (Android, reached over Bluetooth) / Offline / Other Wi-Fi | This device / Online / Offline / On another network |
 | Moving | Cancel  ·  Details | View progress  ·  Cancel |
 | Just moved | ✓ Moved here | (none) |
 | Failed move | the error title in red, one reason, one fix button | Couldn't reach Studio PC  +  long help  ·  Details |
@@ -203,7 +203,7 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 |---|---|---|
 | Welcome | Your headphones, on whichever device you pick up  +  "Tap Move here. Your other device lets go and this one connects." | Move your headphones between your devices  +  "Handoff coordinates which of your devices is connected to an already-paired Bluetooth headset. Press Move here and the other device lets go, then this one connects." |
 | Before you start | 2 bullets: "Connect your headphones to each device once." / "Install Handoff on each device." | 5 bullets (pair, install and link, no real multipoint, non-public Android functions, privacy line) |
-| Permission | Allow Bluetooth access  +  "So Handoff can see and move your headphones. Android calls this Nearby devices." | Nearby devices (Bluetooth) — required  +  "To see your paired headphones, their connection state, and to connect or release them."  +  "Handoff does not ask for location or notifications, and does not scan for new Bluetooth devices." |
+| Permission | Allow Bluetooth access  +  "So Handoff can see and move your headphones. Android calls this Nearby devices." | Nearby devices (Bluetooth) — required  +  "To see your paired headphones, their connection state, and to connect or release them."  +  "Handoff does not ask for location or notifications, and does not search for new Bluetooth devices." |
 | Name | Name this phone  +  "Your other devices see this name." | Name this device  +  "Your other devices will show this name." |
 | Check title | Can this phone move headphones? | Can this device switch headphones? |
 | Check result | Yes, it works / Should work. Try your first move. / No. Your other devices can still take them from here. | Supported: "Handoff has already moved headphones on this device." / Experimental: "Everything Handoff needs is available. It will show “Supported” after your first successful move." / Not supported: "This device doesn't let apps connect headphones, so Handoff can't move them here. Your other devices can still take the headphones from it." |

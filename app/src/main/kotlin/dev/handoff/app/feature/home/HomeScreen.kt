@@ -72,6 +72,10 @@ import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.app.runtime.HandoffActions
 import dev.handoff.app.runtime.HandoffRuntime
 import dev.handoff.app.ui.BatteryChip
+import dev.handoff.app.ui.NearbyPermissions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.saveable.rememberSaveable
 import dev.handoff.app.ui.BrandHeader
 import dev.handoff.app.ui.IconBadge
 import dev.handoff.app.ui.OtherCopies
@@ -125,6 +129,10 @@ class HomeViewModel(
     val onNetwork: StateFlow<Boolean> = stages.onNetwork.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val preferred: StateFlow<LogicalDeviceId?> = settings.settings.map { it.preferredDevice }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val nearbyEnabled: StateFlow<Boolean> = settings.settings.map { it.nearbyEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun onNearbyAllowed() = runtime.reconcileNearby()
 
     fun cancel(id: LogicalDeviceId) {
         actions.cancel(id)
@@ -155,9 +163,20 @@ fun HomeScreen(
     val onNetwork by vm.onNetwork.collectAsStateWithLifecycle()
     // Devices on two networks can't reach each other: the most common reason a move fails.
     // A card that already names it doesn't need the notice too.
-    val networkProblem = NetworkCheck.anyProblem(onNetwork, peers)?.takeIf { p -> stages.values.none { it.status == p.title } }
+    val nearbyOn by vm.nearbyEnabled.collectAsStateWithLifecycle()
+    val networkProblem = NetworkCheck.anyProblem(onNetwork, peers, nearbyOn)?.takeIf { p -> stages.values.none { it.status == p.title } }
     val preferred by vm.preferred.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // Installed before Bluetooth nearby existed: ask once for its part of Nearby devices, which
+    // Android grants without a prompt when Bluetooth access is already allowed.
+    val nearbyPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.onNearbyAllowed() }
+    var askedNearby by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(nearbyOn) {
+        if (nearbyOn && !askedNearby && NearbyPermissions.missingNearby(context)) {
+            askedNearby = true
+            nearbyPermissions.launch(NearbyPermissions.ALL)
+        }
+    }
     var otherCopy by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { otherCopy = OtherCopies.testBuildInstalled(context) }
     val scope = rememberCoroutineScope()
@@ -251,7 +270,7 @@ fun HomeScreen(
                         stages[o.device.logicalId]?.let { stage ->
                             HeadsetCard(
                                 explain = { failed ->
-                                    NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == o.transfer?.ownerPeer }, onNetwork)
+                                    NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == o.transfer?.ownerPeer }, onNetwork, nearbyOn)
                                 },
                                 o, stage,
                                 onAct = { act(o, it) },
@@ -427,6 +446,7 @@ private fun DeviceList(selfName: String, selfPlatform: String, peers: List<PeerO
             HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             DeviceRow(platformIcon(p.platform), p.peer.displayName, onClick = onPeers) {
                 when {
+                    p.online && p.nearby -> StatusPill(HandoffTexts.NEARBY, Tone.POSITIVE)
                     p.online -> StatusPill("Online", Tone.POSITIVE)
                     p.probablyOtherNetwork -> StatusPill(HandoffTexts.offline(true), Tone.WARNING)
                     else -> StatusPill(HandoffTexts.offline(false), Tone.NEUTRAL)

@@ -37,7 +37,7 @@ Handoff keeps the following in its private app storage. It is not included in An
 
 ### Bluetooth
 
-Handoff reads the list of Bluetooth devices already paired with this device, their connection state and, when the headset reports it, its battery level. It connects or disconnects only the headphones you added, and only when you (or a linked device, on your behalf) ask it to move them. It doesn't scan for nearby devices and doesn't use your location.
+Handoff reads the list of Bluetooth devices already paired with this device, their connection state and, when the headset reports it, its battery level. It connects or disconnects only the headphones you added, and only when you (or a linked device, on your behalf) ask it to move them. It never looks for new Bluetooth devices and doesn't use your location.
 
 ### Your linked devices
 
@@ -49,6 +49,8 @@ Linking is always approved by you on screen, with a code that expires after five
 - requests to let go of a headset, and their results.
 
 Every message is encrypted and authenticated (AES-GCM, with keys agreed per connection). Handoff only accepts connections from local-network addresses, and only from devices you linked. To find each other, devices announce themselves on the local network (mDNS) under a name that changes every day and doesn't contain your device name or identity.
+
+**Bluetooth nearby (Android).** When two linked Android devices aren't on the same network, they can exchange the same encrypted messages over Bluetooth Low Energy instead (**Settings → Reach devices over Bluetooth too**, on by default). While Handoff runs, each device sends out a short Bluetooth signal containing only a code that changes every 15 minutes, which only your linked devices can recognize, and the number of the channel to connect to: no name, no fixed identifier. Handoff listens for these signals only from your own linked devices: when a move can't reach the other device over the network, and briefly while the app is open. It never looks for other Bluetooth devices, and doesn't use your location. Connections over Bluetooth are only accepted from devices you linked; linking itself still needs the code on screen.
 
 ### Camera
 

@@ -4,9 +4,18 @@
     <!-- Android 12+ runtime permission: bonded-device list, A2DP state, connect/disconnect. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- Handoff never scans for new devices, so BLUETOOTH_SCAN and location are not requested. -->
+    <!-- Reaching linked Handoff devices nearby when the network can't (BleNearbyChannel): looking
+         only for Handoff's own beacon, never for new devices or for location, and advertising
+         that beacon. Same "Nearby devices" permission group as BLUETOOTH_CONNECT. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
     <uses-feature
         android:name="android.hardware.bluetooth"
         android:required="true" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
 </manifest>

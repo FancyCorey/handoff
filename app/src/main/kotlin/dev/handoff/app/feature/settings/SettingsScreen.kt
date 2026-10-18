@@ -68,6 +68,7 @@ import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.app.service.HandoffService
 import dev.handoff.app.service.Notifications
 import dev.handoff.app.ui.HandoffScaffold
+import dev.handoff.app.ui.NearbyPermissions
 import dev.handoff.app.ui.SectionCard
 import dev.handoff.app.ui.SectionLabel
 import dev.handoff.app.ui.SystemScreens
@@ -105,6 +106,7 @@ class SettingsViewModel(
     }
 
     fun setRestoreOnBoot(value: Boolean) = viewModelScope.launch { settings.setRestoreOnBoot(value) }
+    fun setNearby(value: Boolean) = viewModelScope.launch { settings.setNearbyEnabled(value) }
     fun setAutoMode(mode: AutoSwitchMode) = viewModelScope.launch { settings.setAutoSwitchMode(mode) }
     fun setPreferred(id: LogicalDeviceId?) = viewModelScope.launch { settings.setPreferredDevice(id) }
 }
@@ -128,6 +130,8 @@ fun SettingsScreen(onBack: () -> Unit, onDiagnostics: () -> Unit, vm: SettingsVi
         }
     }
     fun open(intent: Intent) = context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    // Part of "Nearby devices", which Handoff already has: Android grants these without asking again.
+    val nearbyPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 
     HandoffScaffold(title = "Settings", onBack = onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -170,6 +174,24 @@ fun SettingsScreen(onBack: () -> Unit, onDiagnostics: () -> Unit, vm: SettingsVi
                         modifier = Modifier.clickable { SystemScreens.appSettings(context) },
                     )
                 }
+            }
+
+            SectionLabel("When not on the same Wi-Fi")
+            SectionCard {
+                ListItem(
+                    headlineContent = { Text("Reach devices over Bluetooth too") },
+                    supportingContent = { Text("When they're not on the same Wi-Fi but near each other. Android devices only. Uses a little more battery.") },
+                    trailingContent = {
+                        Switch(
+                            checked = s.nearbyEnabled,
+                            onCheckedChange = {
+                                if (it) nearbyPermissions.launch(NearbyPermissions.ALL)
+                                vm.setNearby(it)
+                            },
+                        )
+                    },
+                    colors = listColors,
+                )
             }
 
             SectionLabel("When something starts playing here")

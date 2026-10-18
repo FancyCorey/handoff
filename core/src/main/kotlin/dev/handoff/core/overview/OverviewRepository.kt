@@ -49,6 +49,8 @@ data class PeerOverview(
     val platform: String?,
     /** Offline and last seen on a different network than this device is on now. */
     val probablyOtherNetwork: Boolean = false,
+    /** Reachable over Bluetooth nearby, but not over the network. */
+    val nearby: Boolean = false,
 )
 
 /** A peer-announced headset, used by the mapping screen to link the same headset. */
@@ -129,6 +131,7 @@ class OverviewRepository(
                 lastContactMs = p?.lastContactMs,
                 platform = info[it.peerId]?.platform,
                 probablyOtherNetwork = !online && p?.lastNetwork != null && here.isNotEmpty() && p.lastNetwork !in here,
+                nearby = p?.nearby == true,
             )
         }
     }.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), emptyList())

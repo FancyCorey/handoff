@@ -59,6 +59,10 @@ import dev.handoff.core.mesh.pairing.PairingManager
 import dev.handoff.core.mesh.security.CommandGuard
 import dev.handoff.core.mesh.security.IdentityProvider
 import dev.handoff.core.mesh.transport.LanPeerTransport
+import dev.handoff.core.mesh.transport.FallbackPeerTransport
+import dev.handoff.core.mesh.transport.NearbyPeerTransport
+import dev.handoff.core.mesh.transport.NearbyTags
+import dev.handoff.bluetooth.BleNearbyChannel
 import dev.handoff.core.mesh.transport.PeerDirectory
 import dev.handoff.core.mesh.transport.PeerServer
 import dev.handoff.core.mesh.transport.PeerTransport
@@ -112,6 +116,29 @@ val appModule = module {
     single {
         val koin = getKoin()
         LanPeerTransport(get(), get(), get(), get(), listenPort = { koin.get<PeerServer>().port.value })
+    }
+    // Bluetooth nearby, for linked Android devices the network can't reach.
+    single { NearbyTags(get()) }
+    single {
+        val koin = getKoin()
+        val identity = get<IdentityProvider>()
+        val settings = get<SettingsRepository>()
+        val bluetooth = get<AndroidBluetoothAudioController>()
+        BleNearbyChannel(
+            androidContext(), get(), { identity.identity().publicKey }, get(),
+            enabled = { settings.settings.value.nearbyEnabled },
+            serve = { input, output, key -> koin.get<PeerServer>().serveNearby(input, output, key) },
+            log = bluetooth.linkLog::note,
+        )
+    }
+    single {
+        val koin = getKoin()
+        val nearby = NearbyPeerTransport(get(), get(), get(), get(), get<BleNearbyChannel>())
+        FallbackPeerTransport(
+            get<LanPeerTransport>(), nearby, get(),
+            // Windows can't be reached over Bluetooth (yet); a device not heard from yet might be Android.
+            canBeNearby = { peer -> koin.get<MeshOwnershipRepository>().peerInfo.value[peer]?.platform?.startsWith("windows") != true },
+        )
     } binds arrayOf(PeerTransport::class)
     single { PairingManager(get(), get(), get()) }
     single {
@@ -188,6 +215,7 @@ val appModule = module {
             events = get(),
             settings = get(),
             network = NetworkMonitor(androidContext()),
+            nearby = get(),
         )
     }
     single { HandoffActions(get(APP_SCOPE), get(), get(), get()) }
@@ -237,7 +265,7 @@ val appModule = module {
     viewModel { PeersViewModel(get(), get(), get(), get(), get()) }
     viewModel { AddPeerViewModel(androidContext(), get(), get(), get(), get(), get(APP_SCOPE)) }
     viewModel { ScanPeerViewModel(get()) }
-    viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get(), get()) }
+    viewModel { params -> TransferViewModel(params.get(), params.get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(androidContext(), get(), get(), get()) }
     viewModel { DiagnosticsViewModel(androidContext(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { BluetoothTestViewModel(get()) }

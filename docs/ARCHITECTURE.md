@@ -119,8 +119,9 @@ flowchart LR
   4. the source address of authenticated inbound sessions
   5. an address remembered from an earlier run on another network (`EndpointMemory`)
 
-  Online status comes from mDNS plus recent authenticated contact.
+  Online status comes from mDNS plus recent authenticated contact, or a recent Bluetooth sighting (`nearby`: reachable over Bluetooth but not the network).
 * **Transport:** one short-lived TCP connection per request. Each one does a handshake, one encrypted request and one encrypted reply. `PeerTransport` is an interface, so a relay can implement it later.
+* **Bluetooth nearby (Android):** `FallbackPeerTransport` tries `LanPeerTransport` first and, when nothing was delivered, `NearbyPeerTransport`, which runs the same exchange (`StreamExchange`) over a `NearbyChannel`. On Android that is `BleNearbyChannel`: a rotating beacon (`NearbyTags`) and an L2CAP channel served by `PeerServer.serveNearby`. Moves (ping and release) look for the device if needed; other requests go only to a device already seen nearby, at most every 30 s, since Bluetooth shares the radio with the headphones. Windows has no `NearbyChannel` yet.
 
 ## Logical devices
 

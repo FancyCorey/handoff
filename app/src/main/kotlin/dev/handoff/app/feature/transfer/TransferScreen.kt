@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.transfer
 
+import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.core.help.NetworkCheck
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,6 +97,7 @@ class TransferViewModel(
     private val actions: HandoffActions,
     overview: OverviewRepository,
     stages: StageRepository,
+    settings: SettingsRepository,
 ) : ViewModel() {
     private val id = LogicalDeviceId(logicalId)
 
@@ -118,8 +120,10 @@ class TransferViewModel(
     val stage: StateFlow<Stage?> = stages.stages.map { it[id] }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** A failed move's title and reason, naming the network problem when that is why. */
-    val explained: StateFlow<Pair<String, String?>?> = combine(transfer, overview.peers, stages.onNetwork) { t, peers, net ->
-        (t?.result as? HandoffResult.Failed)?.let { failed -> NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == t.ownerPeer }, net) }
+    val explained: StateFlow<Pair<String, String?>?> = combine(transfer, overview.peers, stages.onNetwork, settings.settings) { t, peers, net, s ->
+        (t?.result as? HandoffResult.Failed)?.let { failed ->
+            NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == t.ownerPeer }, net, s.nearbyEnabled)
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun retry() {

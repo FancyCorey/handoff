@@ -92,6 +92,36 @@ class HelpTest {
     }
 
     @Test
+    fun `with Bluetooth nearby on, a phone on other Wi-Fi was also out of range`() {
+        val other = peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false, otherWifi = true)
+        val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE), listOf(other)).copy(nearbyOn = true))
+        assertEquals("Galaxy S22 is on a different Wi-Fi and isn't nearby.", help.headline.reason)
+        assertEquals(
+            listOf("Bring the devices close together", "Or connect both to the same Wi-Fi", "On Galaxy S22, open Handoff"),
+            help.steps.map { it.title },
+        )
+        assertTrue(help.steps[0].detail!!.contains("10 meters (30 feet)"))
+
+        val failed = dev.handoff.core.handoff.HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "Galaxy S22")
+        assertEquals(HandoffTexts.NEAR_OR_SAME_WIFI, NetworkCheck.explain(failed, other, onNetwork = true, nearbyOn = true).second)
+    }
+
+    @Test
+    fun `Bluetooth nearby isn't offered for a PC`() {
+        val other = peer(pc, "Studio PC", Platforms.WINDOWS, online = false, otherWifi = true)
+        val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE, owner = pc, detail = "Studio PC"), listOf(other)).copy(nearbyOn = true))
+        assertEquals("Studio PC is on a different Wi-Fi.", help.headline.reason)
+        assertFalse(help.steps.any { it.title.contains("close together") })
+        assertEquals(HandoffTexts.SAME_WIFI, NetworkCheck.problem(true, other, nearbyOn = true)!!.help)
+    }
+
+    @Test
+    fun `a device nearby has no network problem`() {
+        val nearby = PeerOverview(TrustedPeer(s22, "Galaxy S22", ByteArray(0), 0), true, now, Platforms.ANDROID_PHONE, nearby = true)
+        assertNull(NetworkCheck.anyProblem(true, listOf(nearby), nearbyOn = true))
+    }
+
+    @Test
     fun `a PC gets PC advice`() {
         val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE, owner = pc, detail = "Studio PC"), listOf(peer(pc, "Studio PC", Platforms.WINDOWS, online = false))))
         assertEquals("On Studio PC, start Handoff", help.steps[0].title)

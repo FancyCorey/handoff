@@ -40,6 +40,10 @@ data class PeerPresence(
     val lastNetwork: String? = null,
     /** Last working address per network prefix, restored when this host returns to that network. */
     val knownNetworks: Map<String, PeerEndpoint> = emptyMap(),
+    /** Last time this peer was seen or answered over Bluetooth, nearby (Android only). */
+    val nearbySeenMs: Long? = null,
+    /** Reachable over Bluetooth nearby right now, but not over the network. */
+    val nearby: Boolean = false,
 )
 
 /** "192.168.1.23" -> "192.168.1"; null for anything that isn't an IPv4 address. */
@@ -58,6 +62,7 @@ fun networkPrefix(host: String): String? {
 class PeerDirectory(
     private val clock: () -> Long = System::currentTimeMillis,
     private val onlineTtlMs: Long = 90_000,
+    private val nearbyTtlMs: Long = 90_000,
 ) {
     private val state = MutableStateFlow<Map<PeerId, PeerPresence>>(emptyMap())
     val presence: StateFlow<Map<PeerId, PeerPresence>> = state.asStateFlow()
@@ -108,6 +113,14 @@ class PeerDirectory(
         )
     }
 
+    /** The peer's Bluetooth beacon was seen nearby. */
+    fun onNearbySeen(peerId: PeerId) = mutate(peerId) { it.copy(nearbySeenMs = clock()) }
+
+    /** The peer answered over Bluetooth, nearby. */
+    fun onNearbyContact(peerId: PeerId) = mutate(peerId) { it.copy(nearbySeenMs = clock()) }
+
+    fun isNearby(peerId: PeerId): Boolean = state.value[peerId]?.let(::nearbyRecently) ?: false
+
     fun onContactFailed(peerId: PeerId) = mutate(peerId) { it.copy(lastFailureMs = clock(), failing = true) }
 
     fun forget(peerId: PeerId) = state.update { it - peerId }
@@ -124,8 +137,7 @@ class PeerDirectory(
     fun onNetworkChanged(localNetworks: Set<String> = emptySet()) = state.update { all ->
         all.mapValues { (_, p) ->
             val restored = p.knownNetworks.filterKeys { it in localNetworks }.values.toList()
-            val next = p.copy(discovered = false, failing = false, lastContactMs = null, endpoints = restored)
-            next.copy(online = computeOnline(next))
+            p.copy(discovered = false, failing = false, lastContactMs = null, endpoints = restored).withFlags()
         }
     }
 
@@ -149,7 +161,7 @@ class PeerDirectory(
                 endpoints = (current.endpoints + local + listOfNotNull(fallback)).distinctBy { it.source to "${it.host}:${it.port}" },
                 lastNetwork = current.lastNetwork ?: networks.values.maxByOrNull { it.updatedAtMs }?.host?.let(::networkPrefix),
             )
-            acc + (peerId to restored.copy(online = computeOnline(restored)))
+            acc + (peerId to restored.withFlags())
         }
     }
 
@@ -166,19 +178,24 @@ class PeerDirectory(
     fun onlinePeers(): Set<PeerId> = state.value.values.filter(::computeOnline).map { it.peerId }.toSet()
 
     /** Recompute time-based online flags (call periodically while the UI is visible). */
-    fun refreshOnlineFlags() = state.update { all -> all.mapValues { (_, p) -> p.copy(online = computeOnline(p)) } }
+    fun refreshOnlineFlags() = state.update { all -> all.mapValues { (_, p) -> p.withFlags() } }
 
-    private fun computeOnline(p: PeerPresence): Boolean {
-        val now = clock()
-        val recentContact = p.lastContactMs != null && now - p.lastContactMs <= onlineTtlMs
+    /** Online over the network, or over Bluetooth nearby. */
+    private fun computeOnline(p: PeerPresence): Boolean = onNetwork(p) || nearbyRecently(p)
+
+    private fun onNetwork(p: PeerPresence): Boolean {
+        val recentContact = p.lastContactMs != null && clock() - p.lastContactMs <= onlineTtlMs
         return !p.failing && (recentContact || p.discovered)
     }
+
+    private fun nearbyRecently(p: PeerPresence): Boolean = p.nearbySeenMs != null && clock() - p.nearbySeenMs <= nearbyTtlMs
+
+    private fun PeerPresence.withFlags(): PeerPresence = copy(online = computeOnline(this), nearby = !onNetwork(this) && nearbyRecently(this))
 
     private fun mutate(peerId: PeerId, change: (PeerPresence) -> PeerPresence) {
         state.update { all ->
             val current = all[peerId] ?: PeerPresence(peerId, false, false, null, null, emptyList())
-            val next = change(current)
-            all + (peerId to next.copy(online = computeOnline(next)))
+            all + (peerId to change(current).withFlags())
         }
     }
 

@@ -23,12 +23,17 @@ class ConnectionPolicy(
 
     private val budgets = HashMap<String, Budget>()
 
-    @Synchronized
     fun admit(address: InetAddress?): Boolean {
         if (address == null || !isLocal(address)) return false
+        return admit(address.hostAddress)
+    }
+
+    /** The same budget for a connection identified by [key] (a Bluetooth address, for example). */
+    @Synchronized
+    fun admit(key: String): Boolean {
         val now = clock()
         prune(now)
-        val b = budgets.getOrPut(address.hostAddress) { Budget(now, 0, now, 0, 0) }
+        val b = budgets.getOrPut(key) { Budget(now, 0, now, 0, 0) }
         if (now < b.blockedUntil) return false
         if (now - b.windowStart >= windowMs) {
             b.windowStart = now
@@ -39,9 +44,12 @@ class ConnectionPolicy(
     }
 
     /** A connection from [address] failed the handshake (unknown peer, bad signature, garbage). */
-    @Synchronized
     fun onHandshakeFailed(address: InetAddress?) {
-        val key = address?.hostAddress ?: return
+        onHandshakeFailed(address?.hostAddress ?: return)
+    }
+
+    @Synchronized
+    fun onHandshakeFailed(key: String) {
         val now = clock()
         val b = budgets.getOrPut(key) { Budget(now, 0, now, 0, 0) }
         if (now - b.failureStart >= failureWindowMs) {

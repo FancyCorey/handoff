@@ -148,6 +148,7 @@ class DiagnosticsViewModel(
                 onNetwork = net.isNotEmpty(),
                 staysReachable = s.backgroundEnabled,
                 nowMs = System.currentTimeMillis(),
+                nearbyOn = s.nearbyEnabled,
             ),
         )
     }.stateIn(

@@ -2,32 +2,18 @@ package dev.handoff.core.mesh.transport
 
 import dev.handoff.core.diagnostics.EventLog
 import dev.handoff.core.diagnostics.EventType
-import dev.handoff.core.mesh.protocol.ErrorReply
-import dev.handoff.core.mesh.protocol.MalformedMessageException
 import dev.handoff.core.mesh.protocol.PeerMessage
-import dev.handoff.core.mesh.protocol.PeerReply
 import dev.handoff.core.mesh.protocol.Ping
 import dev.handoff.core.mesh.protocol.Pong
-import dev.handoff.core.mesh.protocol.ProtocolCodec
-import dev.handoff.core.mesh.security.Crypto
-import dev.handoff.core.mesh.security.Handshake
-import dev.handoff.core.mesh.security.HandshakeFailure
-import dev.handoff.core.mesh.security.HandshakeMode
 import dev.handoff.core.mesh.security.IdentityProvider
-import dev.handoff.core.mesh.security.ProtocolViolation
 import dev.handoff.core.model.PeerId
 import dev.handoff.core.store.TrustedPeerRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.net.SocketTimeoutException
 
 /**
  * Client side of the LAN transport. One short-lived TCP connection per request:
@@ -102,43 +88,12 @@ class LanPeerTransport(
                 return CommandResult.Unreachable
             }
             socket.tcpNoDelay = true
-            val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
-            val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
-
-            socket.soTimeout = remaining(deadline)
-            val session = Handshake.client(
-                input, output, identity, HandshakeMode.SESSION, peerId, { Crypto.constantTimeEquals(it, pinnedKey) },
-                listenPort = listenPort(),
+            val outcome = StreamExchange.run(
+                socket.getInputStream(), socket.getOutputStream(), identity, peerId, pinnedKey, message, listenPort(),
+                beforeRead = { socket.soTimeout = remaining(deadline) },
             )
-            socket.soTimeout = remaining(deadline)
-            val finish = Handshake.awaitServerFinish(session)
-            if (!finish.accepted) return CommandResult.Rejected(finish.reason ?: "session refused")
-
-            session.channel.send(ProtocolCodec.encode(message))
-            socket.soTimeout = remaining(deadline)
-            val replyBytes = session.channel.receive() ?: return CommandResult.Timeout
-            val reply = ProtocolCodec.decode(replyBytes)
-
-            if (reply.senderPeerId != peerId.value) return CommandResult.Rejected("reply sender mismatch")
-            if (reply !is PeerReply || reply.inReplyTo != message.commandId) {
-                return CommandResult.Rejected("uncorrelated reply")
-            }
-            directory.onContactSucceeded(peerId, endpoint.host, endpoint.port)
-            if (reply is ErrorReply) return CommandResult.Rejected("${reply.code}: ${reply.message}")
-            return CommandResult.Reply(reply)
-        } catch (e: SocketTimeoutException) {
-            return CommandResult.Timeout
-        } catch (e: HandshakeFailure) {
-            return CommandResult.Rejected("handshake: ${e.message}")
-        } catch (e: ProtocolViolation) {
-            return CommandResult.Rejected("protocol: ${e.message}")
-        } catch (e: MalformedMessageException) {
-            return CommandResult.Rejected("malformed reply")
-        } catch (e: SecurityException) {
-            return CommandResult.Rejected("security: ${e.message}")
-        } catch (e: java.security.GeneralSecurityException) {
-            // e.g. the local Keystore refused to sign.
-            return CommandResult.Rejected("crypto: ${e.javaClass.simpleName}")
+            if (outcome.answered) directory.onContactSucceeded(peerId, endpoint.host, endpoint.port)
+            return outcome.result
         } catch (e: IOException) {
             return CommandResult.Unreachable
         } finally {
@@ -150,5 +105,5 @@ class LanPeerTransport(
 }
 
 /** The handshake failed or the session was refused: nothing was delivered to the right peer. */
-private fun CommandResult.Rejected.isWrongEndpoint(): Boolean =
+internal fun CommandResult.Rejected.isWrongEndpoint(): Boolean =
     reason.startsWith("handshake:") || reason == "session refused" || reason.startsWith("not trusted")

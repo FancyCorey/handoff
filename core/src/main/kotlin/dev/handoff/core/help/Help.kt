@@ -59,6 +59,8 @@ data class HelpInput(
     /** Android: this device answers while locked. Null where that isn't a choice (Windows). */
     val staysReachable: Boolean?,
     val nowMs: Long,
+    /** This device reaches Android devices nearby over Bluetooth (the setting is on). */
+    val nearbyOn: Boolean = false,
 )
 
 object HelpBuilder {
@@ -105,17 +107,28 @@ object HelpBuilder {
         }
 
         // A network problem explains an unanswered request better than anything else.
-        val network = NetworkCheck.problem(input.onNetwork, peerOfFailure).takeIf { failure == FailureReason.OWNER_UNREACHABLE || !input.onNetwork }
+        val network = NetworkCheck.problem(input.onNetwork, peerOfFailure, input.nearbyOn)
+            .takeIf { failure == FailureReason.OWNER_UNREACHABLE || !input.onNetwork }
+        // Bluetooth nearby was tried too, and the other device wasn't in range.
+        val alsoNearby = input.nearbyOn && failure == FailureReason.OWNER_UNREACHABLE && peerOfFailure?.let(NetworkCheck::reachableNearby) == true
+        val nearSteps = if (alsoNearby) listOf(Step("Bring the devices close together", HandoffTexts.BLUETOOTH_RANGE)) else emptyList()
         val headline = Headline(
             "${move.deviceName} didn't move",
-            network?.let { "${it.title}." } ?: headlineReason(failure, peerOfFailure?.peer?.displayName ?: move.detail),
+            network?.let { if (it is NetworkProblem.OtherWifi && it.nearbyOn) "${it.title} and isn't nearby." else "${it.title}." }
+                ?: headlineReason(failure, peerOfFailure?.peer?.displayName ?: move.detail),
             failed = true,
             atMs = move.startedAtMs,
         )
         val steps = when (network) {
-            NetworkProblem.NotOnWifi -> listOf(Step("Connect ${HandoffTexts.meInSentence} to Wi-Fi", action = HelpAction.OPEN_WIFI_SETTINGS))
-            is NetworkProblem.OtherWifi -> listOf(
-                Step("Connect both to the same Wi-Fi", "Or turn on the hotspot on one and join it from the other.", HelpAction.HOTSPOT_SETTINGS),
+            NetworkProblem.NotOnWifi -> nearSteps + Step(
+                (if (alsoNearby) "Or connect " else "Connect ") + "${HandoffTexts.meInSentence} to Wi-Fi",
+                action = HelpAction.OPEN_WIFI_SETTINGS,
+            )
+            is NetworkProblem.OtherWifi -> nearSteps + listOf(
+                Step(
+                    if (alsoNearby) "Or connect both to the same Wi-Fi" else "Connect both to the same Wi-Fi",
+                    "Or turn on the hotspot on one and join it from the other.", HelpAction.HOTSPOT_SETTINGS,
+                ),
             ) + steps(failure, peerOfFailure, move.detail).filterNot { it.title == "Connect both to the same Wi-Fi" }
             null -> steps(failure, peerOfFailure, move.detail)
         }

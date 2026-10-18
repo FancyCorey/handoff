@@ -137,11 +137,13 @@ You can also move your headphones from:
 
 ## Wi-Fi, travel and hotspots
 
-Links belong to your devices, not to a network, so they keep working wherever you are. To move your headphones, your devices just need to be on the same network at that moment. They find each other again by themselves after you change networks or restart.
+Links belong to your devices, not to a network, so they keep working wherever you are. To move your headphones, your devices just need to be on the same network at that moment (or, for two Android devices, close together). They find each other again by themselves after you change networks or restart.
 
 **No Wi-Fi, or a network that blocks devices from seeing each other** (common in hotels, offices and campuses)? Turn on the hotspot on one device and connect the other to it. Handoff works over it without using mobile data. When Handoff can't find your other devices, it shows a shortcut to the hotspot settings.
 
 <img src="screenshots/windows-no-shared-wifi.png" width="260" alt="Windows suggesting a hotspot when no other device is on the same network">
+
+**Two Android devices close together** don't need the same network at all: when Wi-Fi can't reach the other device, Handoff reaches it over Bluetooth instead, within about 10 meters (30 feet). The other device then shows as **Nearby** in Your devices. Moves take a few seconds longer this way. It's on by default; **Settings → Reach devices over Bluetooth too** turns it off. Windows PCs still need the same network.
 
 ## Running in the background (Android)
 
@@ -224,7 +226,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 
 | Permission | Why Handoff needs it |
 |---|---|
-| Nearby devices | See your paired headphones, and connect or disconnect them. |
+| Nearby devices | See your paired headphones, and connect or disconnect them. Reach your linked Android devices over Bluetooth when they aren't on the same Wi-Fi. |
 | Network access | Talk to your other devices on your network, and check for updates when you ask. |
 | Install apps | GitHub edition only: install an update you've downloaded. Android asks you to confirm each time. The Google Play edition doesn't have this permission. |
 | Run in the background | Only if you choose **Stay reachable**. |
@@ -232,7 +234,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 | Start at boot | Only to restart background mode after a reboot, if it's on. |
 | Camera | Only when you scan a link code. You can paste the code instead. |
 
-Handoff never asks for your location and never searches for new Bluetooth devices. The Google Play edition also includes permissions that Google's ad library adds (the advertising ID and basic phone state, which don't ask you anything). The [privacy policy](../PRIVACY.md) covers what each edition does.
+Handoff never asks for your location and never searches for new Bluetooth devices: over Bluetooth, it only looks for your own linked devices. The Google Play edition also includes permissions that Google's ad library adds (the advertising ID and basic phone state, which don't ask you anything). The [privacy policy](../PRIVACY.md) covers what each edition does.
 
 ## Uninstalling
 

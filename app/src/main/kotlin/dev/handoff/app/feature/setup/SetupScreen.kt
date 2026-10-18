@@ -61,6 +61,7 @@ import dev.handoff.app.identity.KeystoreIdentityProvider
 import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.app.service.HandoffService
 import dev.handoff.app.ui.HandoffScaffold
+import dev.handoff.app.ui.NearbyPermissions
 import dev.handoff.app.ui.Texts
 import dev.handoff.bluetooth.AndroidBluetoothAudioController
 import dev.handoff.core.bluetooth.BluetoothDiagnostics
@@ -174,7 +175,7 @@ fun SetupScreen(onDone: () -> Unit, vm: SetupViewModel = koinViewModel()) {
                     PermissionRow(
                         why = "So Handoff can see and move your headphones. Android calls this Nearby devices.",
                         granted = state.bluetoothGranted,
-                        onRequest = { launcher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT)) },
+                        onRequest = { launcher.launch(NearbyPermissions.ALL) },
                     )
                     PrimaryButton("Continue", vm::next, enabled = state.bluetoothGranted)
                 }

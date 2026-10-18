@@ -158,6 +158,35 @@ class PeerServer(
         }
     }
 
+    /**
+     * Serves one connection from a device nearby (a Bluetooth channel), identified by [key] for
+     * the connection budget. Same handshake and requests as over the network, but never pairing:
+     * linking still needs the QR code.
+     */
+    suspend fun serveNearby(input: java.io.InputStream, output: java.io.OutputStream, key: String) {
+        if (!policy.admit(key) || !permits.tryAcquire()) return
+        try {
+            val din = DataInputStream(BufferedInputStream(input))
+            val dout = DataOutputStream(BufferedOutputStream(output))
+            val session = try {
+                Handshake.server(din, dout, identity, sessionsOnly)
+            } catch (e: Exception) {
+                policy.onHandshakeFailed(key)
+                events.record(EventType.PEER_AUTH_FAILED, details = mapOf("reason" to (e.message ?: e.javaClass.simpleName), "via" to "bluetooth"))
+                return
+            }
+            if (session.mode != HandshakeMode.SESSION) return
+            serveSession(session, remoteHost = null, nearby = true)
+        } finally {
+            permits.release()
+        }
+    }
+
+    private val sessionsOnly = object : HandshakeAuthority by authority {
+        override fun pairingOpen(): Boolean = false
+        override fun consumePairingProof(proof: ByteArray, transcript: ByteArray): Boolean = false
+    }
+
     private suspend fun servePairing(socket: Socket, session: ServerSession, remoteHost: String?) {
         socket.soTimeout = (PairingManager.APPROVAL_TIMEOUT_MS + 5_000).toInt()
         val approved = pairing.awaitApproval(session)
@@ -172,10 +201,10 @@ class PeerServer(
         }
     }
 
-    private suspend fun serveSession(session: ServerSession, remoteHost: String?) {
+    private suspend fun serveSession(session: ServerSession, remoteHost: String?, nearby: Boolean = false) {
         val peer = session.clientPeerId
         Handshake.sendServerFinish(session, ServerFinish(accepted = true, displayName = identity.identity().displayName))
-        directory.onInboundContact(peer, remoteHost, session.clientListenPort ?: DEFAULT_PORT)
+        if (nearby) directory.onNearbyContact(peer) else directory.onInboundContact(peer, remoteHost, session.clientListenPort ?: DEFAULT_PORT)
         while (true) {
             val bytes = try {
                 session.channel.receive() ?: return
