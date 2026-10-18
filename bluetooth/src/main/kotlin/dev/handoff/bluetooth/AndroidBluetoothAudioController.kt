@@ -115,6 +115,9 @@ class AndroidBluetoothAudioController(
 
     @Volatile private var lastConnectStrategy: Pair<String, Long>? = null
 
+    /** What the Bluetooth stack reported about audio devices, next to what Handoff did. */
+    val linkLog = BluetoothLinkLog(clock)
+
     private val backgroundScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
     private val batteryInvoker = HiddenMethodInvoker(callTimeoutMs = 2_000)
     private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
@@ -149,6 +152,13 @@ class AndroidBluetoothAudioController(
     }
 
     private fun onSystemEvent(action: String, intent: Intent) {
+        val device = deviceExtra(intent)
+        linkLog.onBroadcast(action, intent, device, device != null && isAudio(device))
+        if (action == BluetoothLinkLog.ACTION_CODEC_CONFIG_CHANGED || action == android.bluetooth.BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED ||
+            action == BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED
+        ) {
+            return
+        }
         if (action == ACTION_BATTERY_LEVEL_CHANGED) {
             val device = deviceExtra(intent) ?: return
             setBattery(device.address, intent.getIntExtra(EXTRA_BATTERY_LEVEL, -1))
@@ -233,6 +243,7 @@ class AndroidBluetoothAudioController(
     override suspend fun verifyConnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean {
         demo?.let { return it.verifyConnected(deviceId, timeoutMs) }
         val ok = awaitState(deviceId, AudioConnectionState.CONNECTED, timeoutMs)
+        if (ok) noteSnapshot("After connecting", deviceId)
         if (ok) {
             lastConnectStrategy?.let { (strategy, at) ->
                 if (clock() - at <= timeoutMs + VERIFY_ATTRIBUTION_SLACK_MS) {
@@ -303,6 +314,8 @@ class AndroidBluetoothAudioController(
             if (a2dp is BluetoothOperationResult.Failed && a2dp.error in FATAL_ERRORS) return@withContext a2dp
             val device = adapter?.let { bondedDevice(it, deviceId) } ?: return@withContext a2dp
             val outcomes = companions.releaseAll(device)
+            if (outcomes.isNotEmpty()) linkLog.note("Handoff released other profiles: ${outcomes.joinToString("; ")}")
+            watchLinkAfterRelease(deviceId)
             if (outcomes.isEmpty()) return@withContext a2dp
             record("disconnect", (a2dp as? BluetoothOperationResult.Requested)?.strategy, "A2DP=${describe(a2dp)}; ${outcomes.joinToString("; ")}", started)
             if (a2dp is BluetoothOperationResult.AlreadyInState) {
@@ -382,6 +395,7 @@ class AndroidBluetoothAudioController(
 
     private fun record(operation: String, strategy: String?, outcome: String, started: Long) {
         val entry = OperationRecord(operation, strategy, outcome, clock() - started, clock())
+        linkLog.note("Handoff $operation: $outcome${strategy?.let { " ($it)" } ?: ""}")
         _diagnostics.update {
             if (operation == "connect") {
                 it.copy(lastConnect = entry, lastStrategyUsed = strategy ?: it.lastStrategyUsed)
@@ -410,6 +424,81 @@ class AndroidBluetoothAudioController(
                 companionDisconnect = companions.availability(),
                 compatibility = level,
             )
+        }
+    }
+
+    // ---- Bluetooth log -------------------------------------------------------------------
+
+    private fun isAudio(device: BluetoothDevice): Boolean = try {
+        DeviceClassifier.isAudio(device.bluetoothClass?.majorDeviceClass, device.uuids.orEmpty().map { it.uuid.toString() })
+    } catch (_: SecurityException) {
+        false
+    }
+
+    /** "After connecting: media, calls · link open · codec AAC 44.1 kHz 16-bit". */
+    private fun noteSnapshot(moment: String, deviceId: BluetoothDeviceId) {
+        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return
+        val profiles = buildList {
+            if (stateNow(deviceId) == AudioConnectionState.CONNECTED) add("media (A2DP)")
+            companions.connected(device).forEach { add(if (it == "HFP") "calls (HFP)" else it) }
+        }.ifEmpty { listOf("none") }
+        val link = when (linkOpen(device)) {
+            true -> "link open"
+            false -> "link closed"
+            null -> "link state unknown"
+        }
+        linkLog.note("$moment: ${profiles.joinToString()} · $link · codec ${codecNow(device)}")
+    }
+
+    /**
+     * After letting go, the headphones should drop this device completely. A link left open
+     * (for remote control, contacts or messages) keeps them partly here while another device
+     * streams, which is worth seeing in the log.
+     */
+    private fun watchLinkAfterRelease(deviceId: BluetoothDeviceId) {
+        backgroundScope.launch {
+            delay(RELEASE_LINK_CHECK_MS)
+            noteSnapshot("${RELEASE_LINK_CHECK_MS / 1000} s after letting go", deviceId)
+        }
+    }
+
+    /** The hidden BluetoothDevice.isConnected() (link level), else the last broadcast, else unknown. */
+    private fun linkOpen(device: BluetoothDevice): Boolean? = try {
+        BluetoothDevice::class.java.getMethod("isConnected").invoke(device) as? Boolean
+    } catch (_: Exception) {
+        null
+    } ?: linkLog.isLinked(device.address)
+
+    /** The codec in use, from the hidden BluetoothA2dp.getCodecStatus() where the system allows it. */
+    private fun codecNow(device: BluetoothDevice): String {
+        if (Build.VERSION.SDK_INT < 33) return "unknown (Android 12)"
+        val proxy = proxies.current ?: return "unknown"
+        return try {
+            val status = proxy.javaClass.getMethod("getCodecStatus", BluetoothDevice::class.java).invoke(proxy, device)
+            BluetoothLinkLog.describe((status as? android.bluetooth.BluetoothCodecStatus)?.codecConfig) ?: "unknown"
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            "not shared (${e.targetException?.javaClass?.simpleName})"
+        } catch (e: Exception) {
+            "not shared (${e.javaClass.simpleName})"
+        }
+    }
+
+    /** A snapshot of every connected audio device, for opening Help and diagnostics. */
+    fun noteCurrentState() {
+        val adapter = adapter ?: return
+        if (!hasConnectPermission()) return
+        backgroundScope.launch {
+            val bonded = try {
+                adapter.bondedDevices.orEmpty()
+            } catch (_: SecurityException) {
+                return@launch
+            }
+            bonded.filter { isAudio(it) }.forEach { d ->
+                val id = BluetoothDeviceId(d.address)
+                if (stateNow(id) == AudioConnectionState.CONNECTED || companions.connected(d).isNotEmpty() || linkOpen(d) == true) {
+                    noteSnapshot("Now", id)
+                }
+            }
         }
     }
 
@@ -496,5 +585,6 @@ class AndroidBluetoothAudioController(
         const val PROXY_WAIT_MS = 2_000L
         const val VERIFY_POLL_MS = 400L
         const val VERIFY_ATTRIBUTION_SLACK_MS = 5_000L
+        const val RELEASE_LINK_CHECK_MS = 10_000L
     }
 }

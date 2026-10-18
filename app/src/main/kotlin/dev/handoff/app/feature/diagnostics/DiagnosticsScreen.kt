@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.diagnostics
 
+import dev.handoff.bluetooth.BluetoothLinkLog
 import dev.handoff.app.persistence.AppSettings
 import kotlinx.coroutines.flow.combine
 import dev.handoff.core.help.HelpInput
@@ -164,8 +165,12 @@ class DiagnosticsViewModel(
 
     fun lastMoveId(): String? = transfers.value.firstOrNull()?.logicalId?.value
 
+    val linkLog: StateFlow<List<BluetoothLinkLog.Entry>> = bluetooth.linkLog.entries
+
     init {
         viewModelScope.launch { bluetooth.probe() }
+        // What each audio device is connected with right now, at the top of the Bluetooth log.
+        bluetooth.noteCurrentState()
     }
 
     fun sections(): List<Pair<String, List<Pair<String, String>>>> {
@@ -213,6 +218,10 @@ class DiagnosticsViewModel(
                     "Detail" to (last.detail ?: "—"),
                 )
             },
+            // Newest last, like the event log: link, profiles, streaming and codec around each move.
+            "Bluetooth log" to linkLog.value.ifEmpty { listOf(BluetoothLinkLog.Entry(0, "nothing yet")) }.map { e ->
+                (if (e.atMs == 0L) "—" else time(e.atMs)) to e.text
+            },
             "Recent transfers" to transfers.value.map { r ->
                 time(r.startedAtMs) to "${r.deviceName}: ${r.outcome} ${r.path ?: r.failure ?: ""} ${"%.1f".format(r.timings.totalMs / 1000.0)} s"
             },
@@ -258,6 +267,7 @@ fun DiagnosticsScreen(
     vm.bonded.collectAsStateWithLifecycle()
     vm.settings.collectAsStateWithLifecycle()
     vm.running.collectAsStateWithLifecycle()
+    vm.linkLog.collectAsStateWithLifecycle()
     val events by vm.events.collectAsStateWithLifecycle()
     val help by vm.help.collectAsStateWithLifecycle()
     val context = LocalContext.current

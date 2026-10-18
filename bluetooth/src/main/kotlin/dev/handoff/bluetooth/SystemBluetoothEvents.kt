@@ -42,6 +42,12 @@ internal class SystemBluetoothEvents(
             // Hidden (@SystemApi) constant, stable string since Android 8.1; delivered to holders of
             // BLUETOOTH_CONNECT. Used only for the battery read-out.
             addAction(ACTION_BATTERY_LEVEL_CHANGED)
+            // For the Bluetooth log in diagnostics (see BluetoothLinkLog).
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
+            addAction(android.bluetooth.BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
+            addAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED)
+            addAction(BluetoothLinkLog.ACTION_CODEC_CONFIG_CHANGED)
+            addAction(BluetoothLinkLog.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED)
         }
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
         registered = true

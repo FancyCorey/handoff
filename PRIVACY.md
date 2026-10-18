@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated: 10 October 2026. Applies to Handoff 0.6.0 and later, on Android and Windows.*
+*Last updated: 17 October 2026. Applies to Handoff 0.6.0 and later, on Android and Windows.*
 
 Handoff moves your Bluetooth headphones between your own phones, tablets and PCs. It works on your local network: your devices talk directly to each other, and Handoff has no servers, accounts or cloud service of its own.
 
@@ -60,7 +60,7 @@ Background mode (**Stay reachable**, under "When this phone is locked") is off u
 
 ### Diagnostics
 
-The diagnostics screen (**Settings → Help and diagnostics**) shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains your phone's make, model and Android version, device and headset names, and recent events; Bluetooth addresses are shortened and link codes and keys are removed.
+The diagnostics screen (**Settings → Help and diagnostics**) shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains your phone's make, model and Android version, device and headset names, recent events, and a Bluetooth log of the audio devices around each move (when their connection opened and closed, which audio profiles were connected, when audio streamed, and the codec in use); Bluetooth addresses are shortened and link codes and keys are removed.
 
 ### Update checks
 
