@@ -17,7 +17,7 @@ zxing-embedded = "4.3.0"
 junit = "4.13.2"
 compose-multiplatform = "1.12.1"
 jna = "5.19.1"
-jmdns = "3.6.3"
+jmdns = "3.6.4"
 gma-nextgen = "1.5.0"
 ump = "4.0.0"
 
