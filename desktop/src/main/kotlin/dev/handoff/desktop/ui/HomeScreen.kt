@@ -1,5 +1,7 @@
 package dev.handoff.desktop.ui
 
+import dev.handoff.core.help.NetworkProblem
+import dev.handoff.core.help.NetworkCheck
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -90,6 +92,7 @@ class HomeActions(
     val refresh: () -> Unit,
     val openHotspot: () -> Unit,
     val openBluetooth: () -> Unit,
+    val openWifi: () -> Unit,
 )
 
 @Composable
@@ -100,9 +103,13 @@ fun HomeScreen(
     stages: Map<LogicalDeviceId, Stage>,
     preferred: String?,
     peers: List<PeerOverview>,
+    onNetwork: Boolean,
     update: DesktopUpdates.State,
     actions: HomeActions,
 ) {
+    // Devices on two networks can't reach each other: the most common reason a move fails.
+    // A card that already names it doesn't need the notice too.
+    val networkProblem = NetworkCheck.anyProblem(onNetwork, peers)?.takeIf { p -> stages.values.none { it.status == p.title } }
     // The tray headphones come first; every pair gets the same card.
     val ordered = devices.sortedByDescending { it.device.logicalId.value == preferred }
 
@@ -141,6 +148,14 @@ fun HomeScreen(
                         )
                     }
                 }
+                networkProblem?.let { problem ->
+                    item {
+                        when (problem) {
+                            NetworkProblem.NotOnWifi -> Notice(problem.title, problem.help, HandoffTexts.WIFI_SETTINGS, warning = true, onClick = actions.openWifi)
+                            is NetworkProblem.OtherWifi -> Notice(problem.title, problem.help, "Hotspot settings", warning = true, onClick = actions.openHotspot)
+                        }
+                    }
+                }
                 if (update is DesktopUpdates.State.Available) {
                     item { Notice("Update available", null, "Update", onClick = actions.settings) }
                 }
@@ -148,12 +163,14 @@ fun HomeScreen(
                 if (devices.isEmpty()) item { AddHeadphones(actions.addHeadset) }
                 items(ordered, key = { it.device.logicalId.value }) { d ->
                     stages[d.device.logicalId]?.let { stage ->
-                        HeadsetCard(d, stage, { a -> act(d, a) }, { f -> fix(d, f) }, { actions.openHeadset(d) })
+                        HeadsetCard(d, stage, { a -> act(d, a) }, { f -> fix(d, f) }, { actions.openHeadset(d) }) { failed ->
+                            NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == d.transfer?.ownerPeer }, onNetwork)
+                        }
                     }
                 }
                 item { Section("Your devices", if (peers.isNotEmpty()) "Link a phone" else null, actions.linkPhone) }
                 item { DeviceList(pcName, peers, actions.linkPhone) }
-                if (peers.isNotEmpty() && peers.none { it.online }) {
+                if (networkProblem == null && peers.isNotEmpty() && peers.none { it.online }) {
                     item { Notice(HandoffTexts.DIRECT_TITLE, HandoffTexts.DIRECT_HELP, "Hotspot settings", onClick = actions.openHotspot) }
                 }
             }
@@ -206,7 +223,14 @@ private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit
  * in progress, the result of the last move, or one line and the button.
  */
 @Composable
-private fun HeadsetCard(d: DeviceOverview, stage: Stage, onAct: (StageAction) -> Unit, onFix: (HandoffTexts.Fix) -> Unit, onOpen: () -> Unit) {
+private fun HeadsetCard(
+    d: DeviceOverview,
+    stage: Stage,
+    onAct: (StageAction) -> Unit,
+    onFix: (HandoffTexts.Fix) -> Unit,
+    onOpen: () -> Unit,
+    explain: (HandoffResult.Failed) -> Pair<String, String?>,
+) {
     val transfer = d.transfer
     val result = transfer?.result
     var watched by remember(d.device.logicalId) { mutableStateOf(false) }
@@ -262,8 +286,9 @@ private fun HeadsetCard(d: DeviceOverview, stage: Stage, onAct: (StageAction) ->
                     }
                 }
                 failed != null -> Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(HandoffTexts.result(failed), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
-                    (HandoffTexts.help(failed) ?: HandoffTexts.more(failed))?.let {
+                    val (title, reason) = explain(failed)
+                    Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                    (reason ?: HandoffTexts.more(failed))?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (showSteps) Steps(transfer?.steps.orEmpty())

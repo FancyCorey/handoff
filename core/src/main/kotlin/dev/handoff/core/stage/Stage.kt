@@ -5,6 +5,7 @@ import dev.handoff.core.model.PeerId
 import dev.handoff.core.overview.DeviceOverview
 import dev.handoff.core.overview.PeerOverview
 import dev.handoff.core.ownership.Ownership
+import dev.handoff.core.help.NetworkCheck
 import dev.handoff.core.text.HandoffTexts
 
 /**
@@ -102,6 +103,7 @@ object StageBuilder {
         self: PeerId,
         thisPlatform: String,
         movesDone: Int,
+        onNetwork: Boolean = true,
     ): Stage {
         val learning = movesDone < LEARNING_MOVES
         val byId = peers.associateBy { it.peer.peerId }
@@ -158,7 +160,7 @@ object StageBuilder {
                     )
                 }
             }
-            holders.size == 1 && !online(holders.first()) -> offline(holders.first(), name)
+            holders.size == 1 && !online(holders.first()) -> offline(holders.first(), name, byId[holders.first()], onNetwork)
             holders.isNotEmpty() -> {
                 val names = holders.map(name)
                 val status = "On ${HandoffTexts.names(names)}"
@@ -175,7 +177,7 @@ object StageBuilder {
                     )
                 }
             }
-            lastSeen != null && !online(lastSeen) -> offline(lastSeen, name)
+            lastSeen != null && !online(lastSeen) -> offline(lastSeen, name, byId[lastSeen], onNetwork)
             lastSeen != null -> Draft(
                 HandoffTexts.lastSeenOn(name(lastSeen)), Tone.NORMAL, HandoffTexts.asksFirst(name(lastSeen)), Tone.NORMAL,
                 StageAction.MOVE_HERE, Arc.DASHED, marks = mapOf(lastSeen to Mark.MAYBE), arcFrom = setOf(lastSeen), target = Mark.TARGET,
@@ -200,10 +202,18 @@ object StageBuilder {
         )
     }
 
-    private fun offline(id: PeerId, name: (PeerId) -> String) = Draft(
-        HandoffTexts.isOffline(name(id)), Tone.WARNING, HandoffTexts.ifStillThere(name(id)), Tone.NORMAL, StageAction.MOVE_HERE, Arc.DASHED,
-        marks = mapOf(id to Mark.MAYBE), arcFrom = setOf(id), target = Mark.TARGET,
-    )
+    /** The device that had them can't be reached; when a network problem explains why, say that instead. */
+    private fun offline(id: PeerId, name: (PeerId) -> String, peer: PeerOverview?, onNetwork: Boolean): Draft {
+        val network = NetworkCheck.problem(onNetwork, peer)
+        val (status, line) = when (network) {
+            null -> HandoffTexts.isOffline(name(id)) to HandoffTexts.ifStillThere(name(id))
+            else -> network.title to network.help
+        }
+        return Draft(
+            status, Tone.WARNING, line, if (network != null) Tone.WARNING else Tone.NORMAL, StageAction.MOVE_HERE, Arc.DASHED,
+            marks = mapOf(id to Mark.MAYBE), arcFrom = setOf(id), target = Mark.TARGET,
+        )
+    }
 
     /** Other devices first (those with a part to play, then the rest), this device last. */
     private fun tiles(peers: List<PeerOverview>, d: Draft, self: String, thisPlatform: String): List<StageTile> {

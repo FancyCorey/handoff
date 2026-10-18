@@ -189,6 +189,11 @@ object HandoffTexts {
 
     fun lastSeenOn(name: String) = "Last seen on $name"
     fun isOffline(name: String) = "$name is offline"
+    fun differentWifi(name: String) = "$name is on a different Wi-Fi"
+    const val SAME_WIFI = "Connect both to the same Wi-Fi, or use a hotspot."
+    fun notOnWifi() = "$me isn't on Wi-Fi"
+    const val NOT_ON_WIFI_HELP = "Your devices find each other over Wi-Fi."
+    const val WIFI_SETTINGS = "Wi-Fi settings"
     fun notAddedHere() = "Not added on $meInSentence"
 
     /** Lines under the stage. The routine ones are shown only for the first few moves. */

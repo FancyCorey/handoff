@@ -1,5 +1,8 @@
 package dev.handoff.desktop
 
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import dev.handoff.core.stage.MoveCount
 import dev.handoff.core.stage.StageRepository
 import dev.handoff.core.text.HandoffTexts
@@ -120,7 +123,14 @@ class DesktopApp(dataDir: File = defaultDataDir()) {
         load = { settings.settings.value.movesDone },
         save = { done -> settings.update { it.copy(movesDone = done) } },
     )
-    val stages = StageRepository(scope, overview, selfId, Platforms.WINDOWS, moveCount.count)
+    /** On a network other devices could share; checked every few seconds (Windows has no cheap change callback here). */
+    private val onNetwork = flow {
+        while (true) {
+            emit(JmdnsDiscovery.lanAddresses().isNotEmpty())
+            delay(5_000)
+        }
+    }.distinctUntilChanged().flowOn(Dispatchers.IO)
+    val stages = StageRepository(scope, overview, selfId, Platforms.WINDOWS, moveCount.count, onNetwork)
 
     private val sync = MeshSync(
         selfId, devices, bluetooth, ownership, reconciler, broadcaster, coordinator, directory, trust,

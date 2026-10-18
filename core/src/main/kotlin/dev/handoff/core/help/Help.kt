@@ -43,6 +43,8 @@ enum class HelpAction(val label: String) {
     LINK_AGAIN("Link again"),
     ADD_HERE(HandoffTexts.ADD_HERE),
     STAY_REACHABLE("Change"),
+    OPEN_WIFI_SETTINGS("Open"),
+    HOTSPOT_SETTINGS("Hotspot"),
 }
 
 data class HelpInput(
@@ -75,7 +77,8 @@ object HelpBuilder {
         // The device the last move depended on comes first.
         val peers = input.peers.sortedByDescending { it == peerOfFailure }
         peers.forEach { p ->
-            check(p.online, "${p.peer.displayName} is answering", "Handoff on ${p.peer.displayName} isn't answering", lastAnswer(p, input.nowMs))
+            val bad = if (p.probablyOtherNetwork) HandoffTexts.differentWifi(p.peer.displayName) else "Handoff on ${p.peer.displayName} isn't answering"
+            check(p.online, "${p.peer.displayName} is answering", bad, lastAnswer(p, input.nowMs))
         }
         check(
             input.adapter == AdapterState.ON,
@@ -101,13 +104,22 @@ object HelpBuilder {
             return Help(headline, steps = emptyList(), tryAgain = false, problems = problems, fine = fine, tip = tip)
         }
 
+        // A network problem explains an unanswered request better than anything else.
+        val network = NetworkCheck.problem(input.onNetwork, peerOfFailure).takeIf { failure == FailureReason.OWNER_UNREACHABLE || !input.onNetwork }
         val headline = Headline(
             "${move.deviceName} didn't move",
-            headlineReason(failure, peerOfFailure?.peer?.displayName ?: move.detail),
+            network?.let { "${it.title}." } ?: headlineReason(failure, peerOfFailure?.peer?.displayName ?: move.detail),
             failed = true,
             atMs = move.startedAtMs,
         )
-        return Help(headline, steps(failure, peerOfFailure, move.detail), tryAgain = true, problems = problems, fine = fine, tip = null)
+        val steps = when (network) {
+            NetworkProblem.NotOnWifi -> listOf(Step("Connect ${HandoffTexts.meInSentence} to Wi-Fi", action = HelpAction.OPEN_WIFI_SETTINGS))
+            is NetworkProblem.OtherWifi -> listOf(
+                Step("Connect both to the same Wi-Fi", "Or turn on the hotspot on one and join it from the other.", HelpAction.HOTSPOT_SETTINGS),
+            ) + steps(failure, peerOfFailure, move.detail).filterNot { it.title == "Connect both to the same Wi-Fi" }
+            null -> steps(failure, peerOfFailure, move.detail)
+        }
+        return Help(headline, steps, tryAgain = true, problems = problems, fine = fine, tip = null)
     }
 
     /** Why, in one sentence. The steps say what to do. */

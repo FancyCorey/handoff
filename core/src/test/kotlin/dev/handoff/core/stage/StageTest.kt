@@ -128,6 +128,20 @@ class StageTest {
     }
 
     @Test
+    fun `a holder on another network says so`() {
+        val s = build(overview(Ownership.Unknown(pc)), listOf(PeerOverview(TrustedPeer(pc, "Studio PC", ByteArray(0), 0), false, 0, Platforms.WINDOWS, probablyOtherNetwork = true)))
+        assertEquals("Studio PC is on a different Wi-Fi", s.status)
+        assertEquals("Connect both to the same Wi-Fi, or use a hotspot.", s.line)
+        assertEquals(Tone.WARNING, s.lineTone)
+    }
+
+    @Test
+    fun `no Wi-Fi here is named on the card`() {
+        val s = StageBuilder.build(overview(Ownership.Unknown(pc)), listOf(peer(pc, "Studio PC", online = false)), self, Platforms.ANDROID_PHONE, 0, onNetwork = false)
+        assertEquals("This phone isn't on Wi-Fi", s.status)
+    }
+
+    @Test
     fun `bluetooth off says where they were last and offers nothing`() {
         val s = build(overview(Ownership.Unknown(pc), AudioConnectionState.UNAVAILABLE))
         assertTrue(s.dimmed)

@@ -1,5 +1,7 @@
 package dev.handoff.app.feature.home
 
+import dev.handoff.core.help.NetworkProblem
+import dev.handoff.core.help.NetworkCheck
 import dev.handoff.app.ui.MAX_CONTENT_WIDTH
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
@@ -120,6 +122,7 @@ class HomeViewModel(
     val peers: StateFlow<List<PeerOverview>> = overview.peers
     val selfName: StateFlow<String> = identity.displayName
     val stages: StateFlow<Map<LogicalDeviceId, Stage>> = stages.stages
+    val onNetwork: StateFlow<Boolean> = stages.onNetwork.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val preferred: StateFlow<LogicalDeviceId?> = settings.settings.map { it.preferredDevice }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -149,6 +152,10 @@ fun HomeScreen(
     val selfName by vm.selfName.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
     val stages by vm.stages.collectAsStateWithLifecycle()
+    val onNetwork by vm.onNetwork.collectAsStateWithLifecycle()
+    // Devices on two networks can't reach each other: the most common reason a move fails.
+    // A card that already names it doesn't need the notice too.
+    val networkProblem = NetworkCheck.anyProblem(onNetwork, peers)?.takeIf { p -> stages.values.none { it.status == p.title } }
     val preferred by vm.preferred.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var otherCopy by remember { mutableStateOf(false) }
@@ -216,6 +223,18 @@ fun HomeScreen(
                             }
                         }
                     }
+                    networkProblem?.let { problem ->
+                        item {
+                            when (problem) {
+                                NetworkProblem.NotOnWifi -> Notice(problem.title, problem.help, HandoffTexts.WIFI_SETTINGS, warning = true) {
+                                    SystemScreens.wifiSettings(context)
+                                }
+                                is NetworkProblem.OtherWifi -> Notice(problem.title, problem.help, "Hotspot settings", warning = true) {
+                                    SystemScreens.hotspot(context)
+                                }
+                            }
+                        }
+                    }
                     update?.let {
                         item { Notice("Update available", null, "Update", onClick = onSettings) }
                     }
@@ -231,6 +250,9 @@ fun HomeScreen(
                     items(ordered, key = { it.device.logicalId.value }) { o ->
                         stages[o.device.logicalId]?.let { stage ->
                             HeadsetCard(
+                                explain = { failed ->
+                                    NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == o.transfer?.ownerPeer }, onNetwork)
+                                },
                                 o, stage,
                                 onAct = { act(o, it) },
                                 onFix = { fix(o, it) },
@@ -246,7 +268,7 @@ fun HomeScreen(
                         }
                     }
                     item { DeviceList(selfName, ThisDevice.platform(context), peers, onPeers) }
-                    if (peers.isNotEmpty() && peers.none { it.online }) {
+                    if (networkProblem == null && peers.isNotEmpty() && peers.none { it.online }) {
                         item {
                             Notice(HandoffTexts.DIRECT_TITLE, HandoffTexts.DIRECT_HELP, "Hotspot settings") { SystemScreens.hotspot(context) }
                         }
@@ -275,6 +297,7 @@ private fun SectionAction(text: String, onClick: () -> Unit) {
  */
 @Composable
 private fun HeadsetCard(
+    explain: (HandoffResult.Failed) -> Pair<String, String?>,
     o: DeviceOverview,
     stage: Stage,
     onAct: (StageAction) -> Unit,
@@ -338,8 +361,9 @@ private fun HeadsetCard(
                     }
                 }
                 failed != null -> Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(HandoffTexts.result(failed), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
-                    (HandoffTexts.help(failed) ?: HandoffTexts.more(failed))?.let {
+                    val (title, reason) = explain(failed)
+                    Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                    (reason ?: HandoffTexts.more(failed))?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     TextButton(onClick = onDetails, contentPadding = PaddingValues(0.dp), modifier = Modifier.height(40.dp)) { Text("What to do") }

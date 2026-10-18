@@ -1,5 +1,6 @@
 package dev.handoff.app.di
 
+import kotlinx.coroutines.flow.map
 import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.bluetooth.DemoBluetoothAudioController
 import dev.handoff.core.mesh.transport.DiscoveryTags
@@ -194,7 +195,12 @@ val appModule = module {
         val settings = get<SettingsRepository>()
         MoveCount(get(APP_SCOPE), get(), load = { settings.current().movesDone }, save = settings::setMovesDone)
     }
-    single { StageRepository(get(APP_SCOPE), get(), get(), ThisDevice.platform(androidContext()), get<MoveCount>().count) }
+    single {
+        StageRepository(
+            get(APP_SCOPE), get(), get(), ThisDevice.platform(androidContext()), get<MoveCount>().count,
+            onNetwork = NetworkMonitor(androidContext()).lanAddresses().map { it.isNotEmpty() },
+        )
+    }
     single {
         val context = androidContext()
         OverviewRepository(

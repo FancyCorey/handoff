@@ -24,6 +24,8 @@ object SystemScreens {
 
     fun bluetoothSettings(context: Context) = open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
 
+    fun wifiSettings(context: Context) = open(context, Intent(Settings.ACTION_WIFI_SETTINGS), Intent(Settings.ACTION_WIRELESS_SETTINGS))
+
     fun appSettings(context: Context) =
         open(context, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
 

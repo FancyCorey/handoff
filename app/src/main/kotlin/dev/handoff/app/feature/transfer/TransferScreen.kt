@@ -1,5 +1,6 @@
 package dev.handoff.app.feature.transfer
 
+import dev.handoff.core.help.NetworkCheck
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.foundation.layout.PaddingValues
@@ -116,6 +117,11 @@ class TransferViewModel(
 
     val stage: StateFlow<Stage?> = stages.stages.map { it[id] }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** A failed move's title and reason, naming the network problem when that is why. */
+    val explained: StateFlow<Pair<String, String?>?> = combine(transfer, overview.peers, stages.onNetwork) { t, peers, net ->
+        (t?.result as? HandoffResult.Failed)?.let { failed -> NetworkCheck.explain(failed, peers.firstOrNull { it.peer.peerId == t.ownerPeer }, net) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun retry() {
         since.value = System.currentTimeMillis() - STALE_SLACK_MS
         actions.moveHere(id, TransferTrigger.MANUAL)
@@ -142,6 +148,7 @@ fun TransferScreen(
     val context = LocalContext.current
     val t = transfer
     val result = t?.result
+    val explained by vm.explained.collectAsStateWithLifecycle()
     var showSteps by remember(t?.startedAtMs) { mutableStateOf(false) }
     val scroll = rememberScrollState()
     // When the move ends, its result (and why it failed) is the first thing on screen.
@@ -166,6 +173,7 @@ fun TransferScreen(
                 val failed = result != null && !result.isGood() && result != HandoffResult.Cancelled && result != HandoffResult.InProgress
                 Text(
                     when {
+                        result is HandoffResult.Failed -> explained?.first ?: Texts.result(result)
                         result != null -> Texts.result(result)
                         t == null -> HandoffTexts.STARTING
                         else -> t.steps.lastOrNull()?.let(Texts::step) ?: HandoffTexts.STARTING
@@ -174,7 +182,7 @@ fun TransferScreen(
                     fontWeight = FontWeight.SemiBold,
                     color = if (failed) MaterialTheme.colorScheme.error else Color.Unspecified,
                 )
-                result?.let(Texts::help)?.let { help ->
+                (if (result is HandoffResult.Failed) explained?.second else result?.let(Texts::help))?.let { help ->
                     Text(help, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 result?.let(HandoffTexts::more)?.let { detail ->

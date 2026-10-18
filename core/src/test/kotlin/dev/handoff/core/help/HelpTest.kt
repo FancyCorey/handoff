@@ -48,10 +48,12 @@ class HelpTest {
     fun `a phone that didn't answer gets the open Handoff and Stay reachable advice`() {
         val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE), listOf(peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false, otherWifi = true))))
         assertEquals("Aurora Buds didn't move", help.headline.title)
-        assertEquals("Galaxy S22 didn't answer, so they're probably still connected to it.", help.headline.reason)
-        assertEquals(listOf("On Galaxy S22, open Handoff", "Connect both to the same Wi-Fi"), help.steps.map { it.title })
-        assertTrue(help.steps[0].detail!!.contains("Stay reachable"))
-        assertEquals("Handoff on Galaxy S22 isn't answering", help.problems.first().title)
+        // Last heard on another network: that is the reason, and joining one network the first step.
+        assertEquals("Galaxy S22 is on a different Wi-Fi.", help.headline.reason)
+        assertEquals(listOf("Connect both to the same Wi-Fi", "On Galaxy S22, open Handoff"), help.steps.map { it.title })
+        assertEquals(HelpAction.HOTSPOT_SETTINGS, help.steps[0].action)
+        assertTrue(help.steps[1].detail!!.contains("Stay reachable"))
+        assertEquals("Galaxy S22 is on a different Wi-Fi", help.problems.first().title)
         assertEquals("Last answer: 2 hours ago, on a different Wi-Fi.", help.problems.first().detail)
         assertTrue(help.tryAgain)
         assertNull(help.tip)
@@ -61,6 +63,32 @@ class HelpTest {
     fun `the Wi-Fi step only appears when the other device was on another network`() {
         val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE), listOf(peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false))))
         assertEquals(listOf("On Galaxy S22, open Handoff"), help.steps.map { it.title })
+    }
+
+    @Test
+    fun `same network but no answer keeps the open Handoff advice`() {
+        val help = HelpBuilder.build(input(move(FailureReason.OWNER_UNREACHABLE), listOf(peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false))))
+        assertEquals("Galaxy S22 didn't answer, so they're probably still connected to it.", help.headline.reason)
+        assertEquals("Handoff on Galaxy S22 isn't answering", help.problems.first().title)
+    }
+
+    @Test
+    fun `no Wi-Fi here is the first thing to fix`() {
+        val help = HelpBuilder.build(
+            input(move(FailureReason.OWNER_UNREACHABLE), listOf(peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false))).copy(onNetwork = false),
+        )
+        assertEquals("This tablet isn't on Wi-Fi.", help.headline.reason)
+        assertEquals(HelpAction.OPEN_WIFI_SETTINGS, help.steps.single().action)
+        assertTrue("This tablet isn't on Wi-Fi" in help.problems.map { it.title })
+    }
+
+    @Test
+    fun `failed moves name the network problem`() {
+        val failed = dev.handoff.core.handoff.HandoffResult.Failed(FailureReason.OWNER_UNREACHABLE, "Galaxy S22")
+        val other = peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false, otherWifi = true)
+        assertEquals("Galaxy S22 is on a different Wi-Fi" to "Connect both to the same Wi-Fi, or use a hotspot.", NetworkCheck.explain(failed, other, onNetwork = true))
+        assertEquals("This tablet isn't on Wi-Fi", NetworkCheck.explain(failed, other, onNetwork = false).first)
+        assertEquals("Galaxy S22 didn't answer", NetworkCheck.explain(failed, peer(s22, "Galaxy S22", Platforms.ANDROID_PHONE, online = false), true).first)
     }
 
     @Test

@@ -272,6 +272,8 @@ fun DiagnosticsScreen(
             HelpAction.LINK_AGAIN -> onPeers()
             HelpAction.ADD_HERE -> vm.lastMoveId()?.let(onOpenDevice)
             HelpAction.STAY_REACHABLE -> onSettings()
+            HelpAction.OPEN_WIFI_SETTINGS -> SystemScreens.wifiSettings(context)
+            HelpAction.HOTSPOT_SETTINGS -> SystemScreens.hotspot(context)
         }
     }
 

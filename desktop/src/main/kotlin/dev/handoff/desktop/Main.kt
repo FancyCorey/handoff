@@ -135,6 +135,7 @@ private fun App(app: DesktopApp) {
     val scope = rememberCoroutineScope()
     val devices by app.overview.devices.collectAsState()
     val stages by app.stages.stages.collectAsState()
+    val onNetwork by app.stages.onNetwork.collectAsState(true)
     val peers by app.overview.peers.collectAsState()
     val announced by app.overview.announced.collectAsState()
     val adapter by app.bluetooth.adapterState.collectAsState()
@@ -156,6 +157,7 @@ private fun App(app: DesktopApp) {
         stages = stages,
         preferred = settings.preferredDevice,
         peers = peers,
+        onNetwork = onNetwork,
         update = update,
         actions = HomeActions(
             moveHere = { app.moveHere(it.device.logicalId) },
@@ -167,6 +169,7 @@ private fun App(app: DesktopApp) {
             refresh = { scope.launch { app.refreshNow() } },
             openHotspot = { runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-mobilehotspot").start() } },
             openBluetooth = ::openBluetoothSettings,
+            openWifi = { runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-wifi").start() } },
         ),
     )
 
@@ -222,7 +225,7 @@ private fun App(app: DesktopApp) {
                         d.device.displayName to (d.device.localDeviceId != null && bonded.any { it.id == d.device.localDeviceId })
                     },
                     peers = peers,
-                    onNetwork = JmdnsDiscovery.lanAddresses().isNotEmpty(),
+                    onNetwork = onNetwork,
                     staysReachable = null,
                     nowMs = System.currentTimeMillis(),
                 ),
@@ -238,6 +241,8 @@ private fun App(app: DesktopApp) {
                     when (action) {
                         HelpAction.LINK_AGAIN -> sheet = Sheet.Link
                         HelpAction.ADD_HERE -> sheet = Sheet.AddHeadset
+                        HelpAction.OPEN_WIFI_SETTINGS -> runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-wifi").start() }
+                        HelpAction.HOTSPOT_SETTINGS -> runCatching { ProcessBuilder("explorer.exe", "ms-settings:network-mobilehotspot").start() }
                         else -> openBluetoothSettings()
                     }
                 },
