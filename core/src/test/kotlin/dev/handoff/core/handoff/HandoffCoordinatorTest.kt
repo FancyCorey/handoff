@@ -56,6 +56,51 @@ class HandoffCoordinatorTest {
     }
 
     @Test
+    fun `a closed link at release needs no follow-up`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+
+        assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
+        testScheduler.advanceTimeBy(30_000); testScheduler.runCurrent()
+
+        assertEquals(1, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(0, phone.bluetooth.restartMediaCalls)
+    }
+
+    @Test
+    fun `an old link still open is checked again, then media restarts here once it closes`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        // Still open when it let go, and at the first check; closed at the second.
+        tablet.bluetooth.linkClosedAnswers.addAll(listOf(false, false, true))
+
+        assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
+        assertEquals(0, phone.bluetooth.restartMediaCalls)
+        testScheduler.advanceTimeBy(30_000); testScheduler.runCurrent()
+
+        assertEquals(3, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(1, phone.bluetooth.restartMediaCalls)
+        assertEquals(listOf("phone"), headset.connectedHosts())
+    }
+
+    @Test
+    fun `an old link that never closes is noted, and media isn't restarted`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        tablet.bluetooth.linkClosedAnswers.addAll(List(10) { false })
+
+        assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
+        testScheduler.advanceTimeBy(60_000); testScheduler.runCurrent()
+
+        assertEquals(1 + phone.policy.linkChecks, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(0, phone.bluetooth.restartMediaCalls)
+        assertTrue(phone.events.events.value.any { it.details["stillOpenOn"] == "tablet" })
+    }
+
+    @Test
     fun `ownership change is announced to the previous owner`() = runTest {
         val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
         val (phone, tablet) = hosts

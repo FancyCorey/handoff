@@ -78,6 +78,7 @@ class HandoffRequestHandler(
                     status = outcome.status,
                     detail = outcome.detail,
                     releaseDurationMs = outcome.durationMs,
+                    linkClosed = outcome.linkClosed,
                 )
             }
             is OwnershipChanged -> {

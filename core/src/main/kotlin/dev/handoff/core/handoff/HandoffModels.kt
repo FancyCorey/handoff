@@ -140,10 +140,12 @@ data class TransferRecord(
 data class HandoffPolicy(
     val statusRefreshTimeoutMs: Long = 1_500,
     val reachabilityTimeoutMs: Long = 1_500,
-    /** Must exceed the remote side's disconnect + verify budget. */
-    val releaseTimeoutMs: Long = 9_000,
-    /** Pause after a confirmed release so the headset is connectable again before we page it. */
+    /** Must exceed the remote side's disconnect + verify + link-close budget. */
+    val releaseTimeoutMs: Long = 14_000,
+    /** Pause after a release so the headset is connectable again before we page it. */
     val releaseSettleDelayMs: Long = 1_500,
+    /** The same pause when the other device confirmed its Bluetooth link is closed. */
+    val releaseSettleAfterLinkClosedMs: Long = 300,
     val verifyTimeoutMs: Long = 8_000,
     val retryDelayMs: Long = 1_500,
     val maxConnectAttempts: Int = 2,
@@ -162,6 +164,16 @@ data class HandoffPolicy(
     val remoteDisconnectVerifyMs: Long = 5_000,
     /** Remote side: after releasing to peer X, refuse other peers for this long (BUSY). */
     val releaseGraceMs: Long = 8_000,
+    /**
+     * Remote side: after the audio profiles are released, how long to wait for the Bluetooth
+     * link itself to close before answering. Connecting while the old link is still open leaves
+     * a one-device-at-a-time headset briefly held by two devices, and the audio stream set up in
+     * that state can keep cutting out with AAC.
+     */
+    val linkCloseWaitMs: Long = 5_000,
+    /** After a move where the old link was still open: how often, and how many times, to check it again. */
+    val linkCheckIntervalMs: Long = 4_000,
+    val linkChecks: Int = 4,
 )
 
 /** One mutex per logical headset, shared by outgoing transfers and incoming release requests. */

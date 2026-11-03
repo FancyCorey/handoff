@@ -31,7 +31,7 @@ class AudioReleaseHandler(
     private val policy: HandoffPolicy = HandoffPolicy(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    data class Outcome(val status: ReleaseStatus, val detail: String?, val durationMs: Long)
+    data class Outcome(val status: ReleaseStatus, val detail: String?, val durationMs: Long, val linkClosed: Boolean? = null)
 
     private data class RecentRelease(val to: PeerId, val atMs: Long)
 
@@ -53,7 +53,7 @@ class AudioReleaseHandler(
     }
 
     private suspend fun releaseInternal(logicalId: LogicalDeviceId, requester: PeerId, started: Long): Outcome {
-        fun done(status: ReleaseStatus, detail: String? = null) = Outcome(status, detail, clock() - started)
+        fun done(status: ReleaseStatus, detail: String? = null, linkClosed: Boolean? = null) = Outcome(status, detail, clock() - started, linkClosed)
 
         val device = devices.find(logicalId) ?: return done(ReleaseStatus.DEVICE_UNKNOWN, "not mapped on this host")
         val local = device.localBluetoothMapping() ?: return done(ReleaseStatus.DEVICE_UNKNOWN, "not mapped on this host")
@@ -73,7 +73,11 @@ class AudioReleaseHandler(
                 else -> return done(ReleaseStatus.NOT_CONNECTED, "Bluetooth is off")
             }
             // Holding the headset means *any* audio profile: a call-only (HFP) link still blocks it.
-            if (bluetooth.connectedProfiles(local).isEmpty()) return done(ReleaseStatus.NOT_CONNECTED)
+            // Nothing held, but say whether the link has closed too: the requester checks again
+            // this way after a move where it hadn't yet.
+            if (bluetooth.connectedProfiles(local).isEmpty()) {
+                return done(ReleaseStatus.NOT_CONNECTED, linkClosed = bluetooth.awaitLinkClosed(local, policy.linkCloseWaitMs))
+            }
 
             when (val op = bluetooth.disconnect(local, DisconnectReason.PEER_RELEASE_REQUEST)) {
                 is BluetoothOperationResult.Failed -> return when (op.error) {
@@ -94,7 +98,8 @@ class AudioReleaseHandler(
             }
             recentReleases[logicalId] = RecentRelease(requester, clock())
             devices.applyOwnership(logicalId, requester, device.ownershipGeneration)
-            return done(ReleaseStatus.RELEASED)
+            // Free means the Bluetooth link is gone too, not only the audio profiles.
+            return done(ReleaseStatus.RELEASED, linkClosed = bluetooth.awaitLinkClosed(local, policy.linkCloseWaitMs))
         } finally {
             mutex.unlock()
         }

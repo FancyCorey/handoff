@@ -222,8 +222,8 @@ RESOLVING_OWNER
   refresh peer status (≤1.5 s), resolve ownership
 PEER / CONFLICT (/ MULTIPOINT if exclusive):
   REQUESTING_RELEASE: PING (≤1.5 s)   unreachable -> DIRECT_TAKEOVER
-  WAITING_RELEASE: RELEASE_AUDIO_DEVICE (≤9 s)
-    RELEASED | NOT_CONNECTED -> settle 600 ms -> CONNECTING
+  WAITING_RELEASE: RELEASE_AUDIO_DEVICE (≤14 s)
+    RELEASED | NOT_CONNECTED -> settle (300 ms if the peer's link closed, else 1.5 s) -> CONNECTING
     BUSY                     -> FAILED(CONTENTION)   (never steal mid-transfer)
     TIMEOUT / refused / error -> DIRECT_TAKEOVER
 UNKNOWN -> DIRECT_TAKEOVER;  NONE -> CONNECTING;  MULTIPOINT -> CONNECTING (join)
@@ -231,7 +231,11 @@ CONNECTING -> VERIFYING (A2DP CONNECTED within 8 s) -> COMPLETE
             \-> RETRYING (1.5 s; abort with CONTENTION if another host connected meanwhile)
                 -> CONNECTING (attempt 2) -> VERIFYING -> COMPLETE | FAILED
 COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
+  peer's link was still open -> background: ask it again every 4 s (≤4 times) until linkClosed,
+                                then restart media here once (A2DP drop + reconnect)
 ```
+
+**Why the link matters (AAC cut-outs).** Releasing the audio profiles doesn't close the Bluetooth link (ACL) at once; Android closes it a few seconds later, or keeps it while anything else uses it. Connecting from the new host before that leaves a one-device-at-a-time headset briefly held by two hosts, and the audio stream set up in that state can keep cutting out with AAC, which has a fixed bitrate (SBC lowers its bitrate when the link is busy, so it copes). So the releasing host waits up to 5 s for its link to close and reports `linkClosed` in `RELEASE_RESULT`; the new host connects as soon as it's closed. If it didn't close in time, the move still goes ahead, then the new host checks again and restarts its media connection once the old link is gone, so the stream is set up with the headset on one host only. Hosts that can't tell (`linkClosed` null: Windows, Handoff 0.8.0 and earlier) keep the 1.5 s settle and no follow-up.
 
 `UNSUPPORTED`, `PERMISSION_DENIED`, `BLUETOOTH_OFF`, `DEVICE_NOT_BONDED` and `RATE_LIMITED` are never retried.
 
@@ -279,9 +283,9 @@ flowchart TD
 1. Look up the local mapping. If there is none, reply `DEVICE_UNKNOWN`.
 2. Take the same per-device mutex without waiting. If it's held, reply `BUSY`.
 3. If the headset was released to *another* peer within 8 s, reply `BUSY` (anti-ping-pong).
-4. If it isn't connected, reply `NOT_CONNECTED`.
+4. If it isn't connected, reply `NOT_CONNECTED`, with `linkClosed` after waiting up to 5 s (how the new host checks again after a move).
 5. Disconnect A2DP **and every other audio profile the headset holds (HFP calls, LE Audio)**, then verify that all of them are down within 5 s.
-   * If they are, reply `RELEASED`.
+   * If they are, wait up to 5 s for the Bluetooth link itself to close, then reply `RELEASED` with `linkClosed` (true, false, or absent if this host can't tell).
    * If only a call profile is stuck, reply `FAILED` with a detail naming it.
    * Otherwise, reply `TIMEOUT`.
 

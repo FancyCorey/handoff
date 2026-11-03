@@ -483,6 +483,36 @@ class AndroidBluetoothAudioController(
         }
     }
 
+    override suspend fun awaitLinkClosed(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean? {
+        if (demo != null) return null
+        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return null
+        if (linkOpen(device) == null) return null
+        if (linkOpen(device) == false) return true
+        val closed = awaitCondition(timeoutMs) { linkOpen(device) == false }
+        linkLog.note(if (closed) "Link closed after letting go" else "Link still open ${timeoutMs / 1000} s after letting go")
+        return closed
+    }
+
+    /**
+     * Media (A2DP) only: calls and LE Audio stay as they are. The system sets up the audio
+     * stream again, codec included, when media reconnects.
+     */
+    override suspend fun restartMedia(deviceId: BluetoothDeviceId): Boolean = withContext(Dispatchers.IO) {
+        if (demo != null) return@withContext false
+        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return@withContext false
+        if (stateNow(deviceId) != AudioConnectionState.CONNECTED) return@withContext false
+        linkLog.note("Restarting media now that the other device has let go completely")
+        if (reflection.disconnect(device) != StrategyResult.Accepted) return@withContext false
+        awaitState(deviceId, AudioConnectionState.DISCONNECTED, RESTART_STEP_MS)
+        delay(RESTART_PAUSE_MS)
+        // Twice at most: a headset that was busy a moment ago usually takes the second one.
+        val ok = (1..2).any {
+            reflection.connect(device) == StrategyResult.Accepted && awaitState(deviceId, AudioConnectionState.CONNECTED, RESTART_STEP_MS)
+        }
+        noteSnapshot(if (ok) "After restarting media" else "Restarting media failed", deviceId)
+        ok
+    }
+
     /** A snapshot of every connected audio device, for opening Help and diagnostics. */
     fun noteCurrentState() {
         val adapter = adapter ?: return
@@ -586,5 +616,7 @@ class AndroidBluetoothAudioController(
         const val VERIFY_POLL_MS = 400L
         const val VERIFY_ATTRIBUTION_SLACK_MS = 5_000L
         const val RELEASE_LINK_CHECK_MS = 10_000L
+        const val RESTART_STEP_MS = 6_000L
+        const val RESTART_PAUSE_MS = 500L
     }
 }

@@ -29,6 +29,22 @@ class AudioReleaseHandlerTest {
     }
 
     @Test
+    fun `the release says whether the Bluetooth link has closed too`() = runTest {
+        val host = TestHost("tablet", this).apply { mapHeadset(listOf(this)) }
+        host.bluetooth.setConnected(host.localBt, true)
+        host.bluetooth.linkClosedAnswers.add(false)
+
+        val open = host.releaseHandler.release(HEADSET_ID, phone)
+        assertEquals(ReleaseStatus.RELEASED, open.status)
+        assertEquals(false, open.linkClosed)
+
+        // Asked again: nothing held any more, and now the link is closed.
+        val again = host.releaseHandler.release(HEADSET_ID, phone)
+        assertEquals(ReleaseStatus.NOT_CONNECTED, again.status)
+        assertEquals(true, again.linkClosed)
+    }
+
+    @Test
     fun `not connected is reported without touching Bluetooth`() = runTest {
         val host = TestHost("tablet", this).apply { mapHeadset(listOf(this)) }
 

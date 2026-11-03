@@ -152,6 +152,43 @@ class DefaultHandoffCoordinator(
         const val NOT_TRUSTED = "not trusted"
     }
 
+    /**
+     * After a move where a device that let go still had its Bluetooth link to the headset open,
+     * the headset was briefly held by two devices while the audio stream here was set up. With
+     * AAC that stream can keep cutting out (SBC copes). So: ask that device again until its link
+     * has closed (letting go of anything that reconnected meanwhile), then restart the media
+     * connection here once, so the stream is set up with the headset on this device alone.
+     */
+    private fun settleOpenLinks(id: LogicalDeviceId, local: BluetoothDeviceId, peers: Set<PeerId>) = backgroundScope.launch {
+        val pending = peers.toMutableSet()
+        for (check in 1..policy.linkChecks) {
+            delay(policy.linkCheckIntervalMs)
+            for (peer in pending.toList()) {
+                val ask = ReleaseAudioDevice(PeerMessage.newCommandId(), clock(), selfId.value, id.value, selfId.value)
+                val reply = (transport.request(peer, ask, policy.releaseTimeoutMs) as? CommandResult.Reply)?.message as? ReleaseResult
+                if (reply?.linkClosed == true) pending -= peer
+            }
+            if (pending.isEmpty()) break
+        }
+        if (pending.isNotEmpty()) {
+            events.record(
+                EventType.BLUETOOTH_OPERATION, id,
+                details = mapOf("check" to "old link", "stillOpenOn" to pending.joinToString(transform = peerName)),
+            )
+            return@launch
+        }
+        // Not if another move started meanwhile, or the headset already left.
+        val mutex = locks.forDevice(id)
+        if (!mutex.tryLock()) return@launch
+        try {
+            if (!bluetooth.isConnected(local)) return@launch
+            val ok = bluetooth.restartMedia(local)
+            events.record(EventType.BLUETOOTH_OPERATION, id, details = mapOf("restartMedia" to if (ok) "done" else "not possible"))
+        } finally {
+            mutex.unlock()
+        }
+    }
+
     /** Both connect attempts of a round failed. */
     private class RoundExhausted(val detail: String?) : Exception()
 
@@ -175,6 +212,12 @@ class DefaultHandoffCoordinator(
         var takeoverCause: TakeoverCause? = null
         var refusal: String? = null
         var round = 1
+
+        /** Devices that let go but still had their Bluetooth link to the headset open. */
+        val linkStillOpen = mutableSetOf<PeerId>()
+
+        /** Every device that let go confirmed its link closed, so connecting can start at once. */
+        var linksConfirmedClosed = true
 
         suspend fun execute(): HandoffResult {
             move(TransferPhase.RESOLVING_OWNER)
@@ -283,7 +326,7 @@ class DefaultHandoffCoordinator(
                         is ReleaseOutcome.Released -> {
                             path = TransferPath.COORDINATED
                             releaseMs = outcome.durationMs
-                            delay(policy.releaseSettleDelayMs)
+                            delay(if (linksConfirmedClosed) policy.releaseSettleAfterLinkClosedMs else policy.releaseSettleDelayMs)
                         }
                         is ReleaseOutcome.Contention -> return fail(
                             FailureReason.CONTENTION,
@@ -325,7 +368,12 @@ class DefaultHandoffCoordinator(
                     reply != null && reply.logicalDeviceId == id.value -> when (reply.status) {
                         ReleaseStatus.RELEASED, ReleaseStatus.NOT_CONNECTED -> {
                             step(if (reply.status == ReleaseStatus.RELEASED) StepKind.RELEASED else StepKind.PEER_NOT_CONNECTED, name)
-                            events.record(EventType.RELEASE_ACK, id, peer, mapOf("status" to reply.status.name))
+                            events.record(
+                                EventType.RELEASE_ACK, id, peer,
+                                mapOf("status" to reply.status.name, "linkClosed" to (reply.linkClosed?.toString() ?: "unknown")),
+                            )
+                            if (reply.linkClosed != true) linksConfirmedClosed = false
+                            if (reply.linkClosed == false) linkStillOpen += peer
                             // The peer no longer holds it; do not wait for its own broadcast.
                             ownership.record(
                                 PeerReport(peer, id, connected = false, generation = device.ownershipGeneration, receivedAtMs = clock()),
@@ -483,6 +531,9 @@ class DefaultHandoffCoordinator(
             )
             announce(generation)
             record("SUCCESS", result.path, null, null, timings)
+            device.localBluetoothMapping()?.let { local ->
+                if (linkStillOpen.isNotEmpty()) settleOpenLinks(id, local, linkStillOpen.toSet())
+            }
             return result
         }
 

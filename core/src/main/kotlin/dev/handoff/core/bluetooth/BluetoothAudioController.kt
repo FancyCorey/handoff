@@ -49,6 +49,19 @@ interface BluetoothAudioController {
     /** Audio profiles ("A2DP", "HFP", "LE_AUDIO") currently connected to [deviceId]. */
     suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> =
         if (isConnected(deviceId)) setOf("A2DP") else emptySet()
+
+    /**
+     * Wait until this host's Bluetooth link to [deviceId] is closed, not just its audio profiles:
+     * a headset that connects to one device at a time is only really free then. True when
+     * closed, false if still open after [timeoutMs], null where the platform can't tell.
+     */
+    suspend fun awaitLinkClosed(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean? = null
+
+    /**
+     * Drop and reconnect the media connection here, so the audio stream is set up again from
+     * scratch. False if it isn't connected here or the platform can't.
+     */
+    suspend fun restartMedia(deviceId: BluetoothDeviceId): Boolean = false
 }
 
 private object NoBattery {

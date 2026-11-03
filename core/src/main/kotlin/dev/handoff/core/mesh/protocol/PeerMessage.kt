@@ -124,6 +124,11 @@ data class ReleaseResult(
     val detail: String? = null,
     /** Time the releasing host spent disconnecting and verifying. */
     val releaseDurationMs: Long? = null,
+    /**
+     * Whether the releasing host's Bluetooth link to the headset has closed (not just its audio
+     * profiles). Null from hosts that can't tell, and from Handoff 0.8 and earlier.
+     */
+    val linkClosed: Boolean? = null,
     override val protocolVersion: Int = PROTOCOL_VERSION,
 ) : PeerMessage(), PeerReply
 
