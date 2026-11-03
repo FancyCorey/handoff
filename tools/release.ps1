@@ -71,7 +71,12 @@ if (-not $Publish) {
 
 $gh = if ($env:HANDOFF_GH) { $env:HANDOFF_GH } else { 'gh' }
 git -C $root tag -a "v$version" -m "Handoff $version"
-git -C $root push origin "v$version"
+# git reports progress ("To https://...") on stderr, which 'Stop' would treat as a failure: check the exit code instead.
+$ErrorActionPreference = 'Continue'
+git -C $root push origin "v$version" 2>&1 | Out-Host
+$pushed = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($pushed -ne 0) { throw "Pushing tag v$version failed" }
 & $gh release create "v$version" (Get-ChildItem $out).FullName --repo FancyCorey/handoff --title "Handoff $version" --notes-file $notes
 if ($LASTEXITCODE -ne 0) { throw 'Publishing failed' }
 Write-Host "Published https://github.com/FancyCorey/handoff/releases/tag/v$version"
