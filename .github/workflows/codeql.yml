@@ -30,6 +30,6 @@ jobs:
           build-mode: manual
       - name: Compile
         run: ./gradlew --no-build-cache --no-configuration-cache :core:compileKotlin :bluetooth:compileDebugKotlin :app:compileGithubDebugKotlin :app:compilePlayDebugKotlin :desktop:compileKotlin --console=plain
-      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           category: "/language:java-kotlin"
