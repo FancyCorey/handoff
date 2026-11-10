@@ -1,5 +1,9 @@
 package dev.handoff.core.handoff
 
+import dev.handoff.core.model.AudioConnectionState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.bluetooth.BluetoothError
 import dev.handoff.core.bluetooth.BluetoothOperationResult
@@ -43,7 +47,8 @@ class HandoffCoordinatorTest {
 
         assertSuccess(result, TransferPath.COORDINATED)
         assertEquals(listOf("phone"), headset.connectedHosts())
-        assertEquals(1, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        // The release, then the tablet confirming it let go while the phone settles.
+        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
         assertEquals(1, tablet.bluetooth.disconnectCalls)
         assertEquals(listOf(ConnectReason.USER_MOVE_HERE), phone.bluetooth.connectReasons)
         val state = phone.coordinator.state.value!!
@@ -64,7 +69,8 @@ class HandoffCoordinatorTest {
         assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
         testScheduler.advanceTimeBy(30_000); testScheduler.runCurrent()
 
-        assertEquals(1, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        // The release and the confirmation while settling; nothing after.
+        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
         assertEquals(0, phone.bluetooth.restartMediaCalls)
     }
 
@@ -73,14 +79,14 @@ class HandoffCoordinatorTest {
         val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
         val (phone, tablet) = hosts
         headset.connect(tablet.bluetooth, tablet.localBt)
-        // Still open when it let go, and at the first check; closed at the second.
-        tablet.bluetooth.linkClosedAnswers.addAll(listOf(false, false, true))
+        // Still open when it let go, while settling and at the first check; closed at the second.
+        tablet.bluetooth.linkClosedAnswers.addAll(listOf(false, false, false, true))
 
         assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
         assertEquals(0, phone.bluetooth.restartMediaCalls)
         testScheduler.advanceTimeBy(30_000); testScheduler.runCurrent()
 
-        assertEquals(3, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(4, phone.transport.sentOfType<ReleaseAudioDevice>().size)
         assertEquals(1, phone.bluetooth.restartMediaCalls)
         assertEquals(listOf("phone"), headset.connectedHosts())
     }
@@ -95,9 +101,43 @@ class HandoffCoordinatorTest {
         assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
         testScheduler.advanceTimeBy(60_000); testScheduler.runCurrent()
 
-        assertEquals(1 + phone.policy.linkChecks, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(2 + phone.policy.linkChecks, phone.transport.sentOfType<ReleaseAudioDevice>().size)
         assertEquals(0, phone.bluetooth.restartMediaCalls)
         assertTrue(phone.events.events.value.any { it.details["stillOpenOn"] == "tablet" })
+    }
+
+    @Test
+    fun `something that reconnected on the old device is let go again while settling`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        // As soon as the phone connects, the tablet's system picks up the call profile again.
+        launch {
+            phone.bluetooth.state(phone.localBt).first { it == AudioConnectionState.CONNECTED }
+            tablet.bluetooth.companions.getOrPut(tablet.localBt) { mutableSetOf() } += "HFP"
+        }
+
+        assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
+
+        assertEquals(2, tablet.bluetooth.disconnectCalls)
+        assertFalse(tablet.bluetooth.holdsAnything(tablet.localBt))
+        assertTrue(phone.events.events.value.any { it.details["status"] == "RELEASED again while settling" })
+    }
+
+    @Test
+    fun `a headset that drops right after connecting is connected again`() = runTest {
+        val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
+        val (phone, tablet) = hosts
+        headset.connect(tablet.bluetooth, tablet.localBt)
+        // Drops once, a second after the first connect.
+        launch {
+            phone.bluetooth.state(phone.localBt).first { it == AudioConnectionState.CONNECTED }
+            delay(1_000)
+            phone.bluetooth.setConnected(phone.localBt, false)
+        }
+
+        assertSuccess(phone.moveHere(), TransferPath.COORDINATED, attempts = 2)
+        assertTrue(phone.bluetooth.isConnectedNow(phone.localBt))
     }
 
     @Test
@@ -320,7 +360,8 @@ class HandoffCoordinatorTest {
         assertEquals(HandoffResult.InProgress, second)
         assertEquals(HandoffResult.InProgress, third)
         assertSuccess(first.await(), TransferPath.COORDINATED)
-        assertEquals(1, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        // One release (plus its confirmation while settling), not one per press.
+        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
     }
 
     @Test
@@ -384,7 +425,8 @@ class HandoffCoordinatorTest {
         val result = phone.moveHere()
 
         assertSuccess(result, TransferPath.COORDINATED)
-        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        // Each holder: released, then confirmed while settling.
+        assertEquals(4, phone.transport.sentOfType<ReleaseAudioDevice>().size)
         assertEquals(listOf("phone"), headset.connectedHosts())
     }
 

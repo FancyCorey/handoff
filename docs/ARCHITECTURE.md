@@ -227,7 +227,8 @@ PEER / CONFLICT (/ MULTIPOINT if exclusive):
     BUSY                     -> FAILED(CONTENTION)   (never steal mid-transfer)
     TIMEOUT / refused / error -> DIRECT_TAKEOVER
 UNKNOWN -> DIRECT_TAKEOVER;  NONE -> CONNECTING;  MULTIPOINT -> CONNECTING (join)
-CONNECTING -> VERIFYING (A2DP CONNECTED within 8 s) -> COMPLETE
+CONNECTING -> VERIFYING (A2DP CONNECTED within 8 s) -> settle 2.5 s (still connected here; each peer that let go
+              confirms again via RELEASE_AUDIO_DEVICE, releasing anything that reconnected) -> COMPLETE
             \-> RETRYING (1.5 s; abort with CONTENTION if another host connected meanwhile)
                 -> CONNECTING (attempt 2) -> VERIFYING -> COMPLETE | FAILED
 COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
@@ -291,6 +292,8 @@ flowchart TD
 
    A single-point headset stays attached to a host while *any* profile is connected, so releasing A2DP alone is not enough: the headset would keep refusing the new host.
 6. If the disconnect call itself failed, reply `UNSUPPORTED`, `PERMISSION_DENIED` or `FAILED`.
+
+After `RELEASED`, the releasing host guards the headset for 60 s: if any audio profile comes back by itself (its system or another app reconnecting it), it waits 3 s, looks again, and releases again (at most 3 times, recorded) only if the new holder has confirmed it has the headset since the release and still does. So a cancelled or failed move (never confirmed) and switching back from Bluetooth settings (the new holder reports losing it) are left alone. A move back here ends the guard (this host owns it again); the host it moves away from starts its own. While a move or release holds the device lock, the guard waits instead of acting. Each release restarts the guard for the new holder.
 
 Duplicate command ids get the cached reply (`CommandGuard`), which makes release idempotent.
 

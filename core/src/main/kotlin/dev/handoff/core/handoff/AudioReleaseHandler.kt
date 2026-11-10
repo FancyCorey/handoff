@@ -1,5 +1,10 @@
 package dev.handoff.core.handoff
 
+import dev.handoff.core.model.BluetoothDeviceId
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
 import dev.handoff.core.bluetooth.AdapterState
 import dev.handoff.core.bluetooth.BluetoothAudioController
 import dev.handoff.core.bluetooth.BluetoothError
@@ -30,12 +35,20 @@ class AudioReleaseHandler(
     private val events: EventLog,
     private val policy: HandoffPolicy = HandoffPolicy(),
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Where the guard after a release runs; none, no guard. */
+    private val guardScope: CoroutineScope? = null,
+    /**
+     * Whether [PeerId] has confirmed, since the given time, that it has the headset (and hasn't
+     * reported losing it since). The guard only acts for a holder that really has it.
+     */
+    private val holderHasIt: (PeerId, LogicalDeviceId, Long) -> Boolean = { _, _, _ -> true },
 ) {
     data class Outcome(val status: ReleaseStatus, val detail: String?, val durationMs: Long, val linkClosed: Boolean? = null)
 
     private data class RecentRelease(val to: PeerId, val atMs: Long)
 
     private val recentReleases = ConcurrentHashMap<LogicalDeviceId, RecentRelease>()
+    private val guards = ConcurrentHashMap<LogicalDeviceId, Job>()
 
     /** When this host last released [logicalId] to a peer, if ever (this process). */
     fun lastReleaseAtMs(logicalId: LogicalDeviceId): Long? = recentReleases[logicalId]?.atMs
@@ -50,6 +63,52 @@ class AudioReleaseHandler(
                 (outcome.detail?.let { mapOf("detail" to it) } ?: emptyMap()),
         )
         return outcome
+    }
+
+    /**
+     * For a while after letting go, keep the headset from coming back here by itself (this
+     * device's system reconnecting it, or another app): a single-point headset pulled at by this
+     * device while the new one streams breaks up the audio there.
+     *
+     * It only steps in while it is clear the headset belongs on the new holder:
+     * - the new holder has confirmed it has the headset (a cancelled or failed move never does);
+     * - this device doesn't own it again (a move back here with Handoff ends the guard; the
+     *   device it moves away from then starts its own);
+     * - after a short grace the new holder still has it (switching back from Bluetooth settings
+     *   takes it from the new holder, which reports that, so the guard leaves it alone);
+     * - nothing else is moving or releasing it here at that moment.
+     */
+    private fun guard(logicalId: LogicalDeviceId, local: BluetoothDeviceId, holder: PeerId) {
+        val scope = guardScope ?: return
+        val since = clock()
+        guards.remove(logicalId)?.cancel()
+        guards[logicalId] = scope.launch {
+            var actions = 0
+            fun stillTheirs() = devices.find(logicalId)?.lastKnownOwner == holder
+            while (clock() - since < policy.releaseGuardMs && actions < policy.releaseGuardActions) {
+                delay(policy.releaseGuardPollMs)
+                if (!stillTheirs()) return@launch
+                if (bluetooth.connectedProfiles(local).isEmpty()) continue
+                delay(policy.releaseGuardGraceMs)
+                if (!stillTheirs()) return@launch
+                if (!holderHasIt(holder, logicalId, since) || bluetooth.connectedProfiles(local).isEmpty()) continue
+                // A move here or another release is running: let it finish, and look again.
+                val mutex = locks.forDevice(logicalId)
+                if (!mutex.tryLock()) continue
+                try {
+                    if (!stillTheirs()) return@launch
+                    actions++
+                    val came = bluetooth.connectedProfiles(local)
+                    bluetooth.disconnect(local, DisconnectReason.PEER_RELEASE_REQUEST)
+                    events.record(
+                        EventType.RELEASE_PERFORMED, logicalId, holder,
+                        mapOf("status" to "came back by itself; released again", "profiles" to came.joinToString(), "afterMs" to "${clock() - since}"),
+                    )
+                } finally {
+                    mutex.unlock()
+                }
+            }
+        }
     }
 
     private suspend fun releaseInternal(logicalId: LogicalDeviceId, requester: PeerId, started: Long): Outcome {
@@ -98,6 +157,7 @@ class AudioReleaseHandler(
             }
             recentReleases[logicalId] = RecentRelease(requester, clock())
             devices.applyOwnership(logicalId, requester, device.ownershipGeneration)
+            guard(logicalId, local, requester)
             // Free means the Bluetooth link is gone too, not only the audio profiles.
             return done(ReleaseStatus.RELEASED, linkClosed = bluetooth.awaitLinkClosed(local, policy.linkCloseWaitMs))
         } finally {

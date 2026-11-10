@@ -1,5 +1,6 @@
 package dev.handoff.core.handoff
 
+import kotlinx.coroutines.awaitAll
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.coroutineScope
@@ -216,6 +217,9 @@ class DefaultHandoffCoordinator(
         /** Devices that let go but still had their Bluetooth link to the headset open. */
         val linkStillOpen = mutableSetOf<PeerId>()
 
+        /** Devices that let go during this move (asked to confirm again while settling). */
+        val letGo = mutableSetOf<PeerId>()
+
         /** Every device that let go confirmed its link closed, so connecting can start at once. */
         var linksConfirmedClosed = true
 
@@ -372,6 +376,7 @@ class DefaultHandoffCoordinator(
                                 EventType.RELEASE_ACK, id, peer,
                                 mapOf("status" to reply.status.name, "linkClosed" to (reply.linkClosed?.toString() ?: "unknown")),
                             )
+                            letGo += peer
                             if (reply.linkClosed != true) linksConfirmedClosed = false
                             if (reply.linkClosed == false) linkStillOpen += peer
                             // The peer no longer holds it; do not wait for its own broadcast.
@@ -489,12 +494,46 @@ class DefaultHandoffCoordinator(
                 move(TransferPhase.VERIFYING)
                 step(StepKind.VERIFYING)
                 if (bluetooth.verifyConnected(local, policy.verifyTimeoutMs)) {
-                    return succeed()
+                    if (settle(local)) return succeed()
+                    events.record(EventType.CONNECT_FAILED, id, details = mapOf("attempt" to "$n", "error" to "DROPPED_WHILE_SETTLING"))
+                    lastDetail = "the headset disconnected again right after connecting"
+                    continue
                 }
                 events.record(EventType.CONNECT_FAILED, id, details = mapOf("attempt" to "$n", "error" to "VERIFY_TIMEOUT"))
                 lastDetail = "the headset did not connect within ${policy.verifyTimeoutMs / 1000} s"
             }
             throw RoundExhausted(refusal ?: finalDetail(lastDetail))
+        }
+
+        /**
+         * The headset must stay connected here for a moment, while each device that let go
+         * confirms again that it has: anything that reconnected there in the meantime (its
+         * system, another app) would pull at the headset and break up the audio here.
+         */
+        private suspend fun settle(local: BluetoothDeviceId): Boolean = coroutineScope {
+            val confirmations = letGo.map { peer -> async { peer to confirmLetGo(peer) } }
+            delay(policy.settleMs)
+            val stillHere = bluetooth.isConnected(local)
+            for ((peer, closed) in confirmations.awaitAll()) {
+                if (closed == false) linkStillOpen += peer else if (closed == true) linkStillOpen -= peer
+            }
+            events.record(
+                EventType.CONNECT_VERIFIED, id,
+                details = mapOf("settled" to stillHere.toString(), "othersLetGo" to (letGo - linkStillOpen).joinToString(transform = peerName)),
+            )
+            stillHere
+        }
+
+        /** True when [peer] confirms its link to the headset is closed, false if still open, null if it can't say. */
+        private suspend fun confirmLetGo(peer: PeerId): Boolean? {
+            val ask = ReleaseAudioDevice(PeerMessage.newCommandId(), clock(), selfId.value, id.value, selfId.value)
+            val reply = (transport.request(peer, ask, policy.settleConfirmTimeoutMs) as? CommandResult.Reply)?.message as? ReleaseResult
+                ?: return null
+            if (reply.status == ReleaseStatus.RELEASED) {
+                // It had picked the headset up again by itself, and let go once more.
+                events.record(EventType.RELEASE_ACK, id, peer, mapOf("status" to "RELEASED again while settling", "linkClosed" to "${reply.linkClosed}"))
+            }
+            return reply.linkClosed
         }
 
         /** Detail for the final error: who we couldn't reach, or what the stack said. */

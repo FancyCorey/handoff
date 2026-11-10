@@ -174,6 +174,27 @@ data class HandoffPolicy(
     /** After a move where the old link was still open: how often, and how many times, to check it again. */
     val linkCheckIntervalMs: Long = 4_000,
     val linkChecks: Int = 4,
+    /**
+     * After connecting: how long the headset must stay connected here, while every device that
+     * let go confirms again that it has (and lets go once more of anything that reconnected),
+     * before the move counts as done.
+     */
+    val settleMs: Long = 2_500,
+    /** The confirmation during settling; the other device waits up to [linkCloseWaitMs] for its link. */
+    val settleConfirmTimeoutMs: Long = 7_000,
+    /**
+     * Remote side: after letting go, how long to keep the headset from coming back by itself
+     * (the system reconnecting it), and how often to look.
+     */
+    val releaseGuardMs: Long = 60_000,
+    val releaseGuardPollMs: Long = 2_000,
+    /**
+     * When the headset shows up here again, wait this long and look once more before letting go:
+     * if you switched it back yourself, the new holder reports losing it in the meantime.
+     */
+    val releaseGuardGraceMs: Long = 3_000,
+    /** At most this many times per release, so the guard can never fight the system for long. */
+    val releaseGuardActions: Int = 3,
 )
 
 /** One mutex per logical headset, shared by outgoing transfers and incoming release requests. */

@@ -163,7 +163,14 @@ val appModule = module {
         val trust = get<TrustedPeerRepository>()
         OwnershipBroadcaster(get(), get(), { trust.peers.value.map { it.peerId } })
     }
-    single { AudioReleaseHandler(get(), get(), get(), get(), get()) }
+    single {
+        val ownership = getKoin().get<OwnershipRepository>()
+        AudioReleaseHandler(
+            get(), get(), get(), get(), get(),
+            guardScope = get(APP_SCOPE),
+            holderHasIt = { peer, id, since -> ownership.reportsFor(id).any { it.peerId == peer && it.connected && it.receivedAtMs >= since } },
+        )
+    }
     single {
         HandoffRequestHandler(
             get(), get(), get(), get(), get(), get(), BuildConfig.VERSION_NAME,
