@@ -8,8 +8,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.handoff.core.handoff.AutoSwitchMode
+import dev.handoff.core.model.BluetoothDeviceId
 import dev.handoff.core.model.LogicalDeviceId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +34,8 @@ data class AppSettings(
     val movesDone: Int = 0,
     /** Reach linked devices over Bluetooth when they aren't on the same network. On by default. */
     val nearbyEnabled: Boolean = true,
+    /** Local Bluetooth bonds for which the user chose Prefer SBC. Never shared with peers. */
+    val preferSbc: Set<BluetoothDeviceId> = emptySet(),
 )
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -59,6 +63,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         lastUpdateCheckMs = p[LAST_UPDATE_CHECK] ?: 0,
         movesDone = p[MOVES_DONE] ?: 0,
         nearbyEnabled = p[NEARBY] ?: true,
+        preferSbc = p[PREFER_SBC].orEmpty().mapTo(mutableSetOf(), ::BluetoothDeviceId),
         autoSwitchMode = p[AUTO_MODE]?.let { runCatching { AutoSwitchMode.valueOf(it) }.getOrNull() } ?: AutoSwitchMode.OFF,
     )
 
@@ -69,6 +74,11 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
     suspend fun setAutoUpdateCheck(value: Boolean) = store.edit { it[AUTO_UPDATE] = value }
     suspend fun setLastUpdateCheck(atMs: Long) = store.edit { it[LAST_UPDATE_CHECK] = atMs }
     suspend fun setNearbyEnabled(value: Boolean) = store.edit { it[NEARBY] = value }
+    suspend fun setPreferSbc(device: BluetoothDeviceId, value: Boolean) = store.edit {
+        val address = device.address.uppercase()
+        val current = it[PREFER_SBC].orEmpty()
+        it[PREFER_SBC] = if (value) current + address else current - address
+    }
     suspend fun setMovesDone(value: Int) {
         store.edit { it[MOVES_DONE] = value }
     }
@@ -86,5 +96,6 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
         val MOVES_DONE = intPreferencesKey("moves_done")
         val NEARBY = booleanPreferencesKey("nearby_enabled")
+        val PREFER_SBC = stringSetPreferencesKey("prefer_sbc_addresses")
     }
 }

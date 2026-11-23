@@ -86,12 +86,15 @@ import dev.handoff.app.ui.KeyValue
 import dev.handoff.app.ui.SectionHeader
 import dev.handoff.app.ui.Texts
 import dev.handoff.bluetooth.AndroidBluetoothAudioController
+import dev.handoff.bluetooth.CodecPreferenceStatus
 import dev.handoff.core.bluetooth.BluetoothDiagnostics
 import dev.handoff.core.diagnostics.DiagnosticEvent
 import dev.handoff.core.diagnostics.EventLog
 import dev.handoff.core.handoff.TransferRecord
 import dev.handoff.core.model.AudioDevice
+import dev.handoff.core.model.BluetoothDeviceId
 import dev.handoff.core.model.Redaction
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -167,17 +170,34 @@ class DiagnosticsViewModel(
     fun lastMoveId(): String? = transfers.value.firstOrNull()?.logicalId?.value
 
     val linkLog: StateFlow<List<BluetoothLinkLog.Entry>> = bluetooth.linkLog.entries
+    val codecStates = bluetooth.codecPreferences.states
+    private val _codecSnapshots = MutableStateFlow<Map<BluetoothDeviceId, String>>(emptyMap())
+    val codecSnapshots: StateFlow<Map<BluetoothDeviceId, String>> = _codecSnapshots
 
     init {
         viewModelScope.launch { bluetooth.probe() }
-        // What each audio device is connected with right now, at the top of the Bluetooth log.
-        bluetooth.noteCurrentState()
+        viewModelScope.launch { refreshCodecSnapshots() }
     }
 
     fun sections(): List<Pair<String, List<Pair<String, String>>>> {
         val d = bt.value
         val preferred = settings.value.preferredDevice?.let { id -> devices.value.firstOrNull { it.device.logicalId == id } }
         val last = transfers.value.firstOrNull()
+        val playbackChoices = devices.value.mapNotNull { headset ->
+            val local = headset.device.localDeviceId ?: return@mapNotNull null
+            val address = local.normalized()
+            val preferSbc = address in settings.value.preferSbc
+            val codec = codecSnapshots.value[address]
+            if (!preferSbc && codec == null) return@mapNotNull null
+            val choice = if (preferSbc) "Prefer SBC" else "Automatic"
+            val status = codecStates.value[address]
+            val waiting = if (preferSbc && (codec == null || status != CodecPreferenceStatus.SBC_CONFIRMED)) {
+                status?.name?.replace('_', ' ')?.lowercase() ?: "waiting"
+            } else {
+                null
+            }
+            headset.device.displayName to listOfNotNull(choice, waiting, codec).joinToString(" · ")
+        }
         return listOf(
             "Bluetooth" to listOf(
                 "Bluetooth adapter" to d.adapterState.name,
@@ -201,6 +221,7 @@ class DiagnosticsViewModel(
                 "A2DP" to (preferred?.localState?.name ?: "—"),
                 "Ownership" to (preferred?.let { Texts.ownership(it) } ?: "—"),
             ),
+            "Bluetooth audio" to playbackChoices.ifEmpty { listOf("Preference" to "Automatic") },
             "Peers" to listOf("Service" to if (running.value) "running" else "stopped") +
                 peers.value.map { it.peer.displayName to if (it.online) "Online" else "Offline" },
             "Last transfer" to if (last == null) {
@@ -230,6 +251,18 @@ class DiagnosticsViewModel(
     }
 
     fun export() {
+        viewModelScope.launch {
+            refreshCodecSnapshots()
+            shareReport()
+        }
+    }
+
+    private suspend fun refreshCodecSnapshots() {
+        val mapped = devices.value.mapNotNullTo(mutableSetOf()) { it.device.localDeviceId?.normalized() }
+        _codecSnapshots.value = bluetooth.noteCurrentState(mapped)
+    }
+
+    private fun shareReport() {
         val report = DiagnosticsReport.build(
             ReportInput(
                 appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.EDITION})",
@@ -248,6 +281,8 @@ class DiagnosticsViewModel(
     }
 
     fun time(ms: Long): String = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date(ms))
+
+    private fun BluetoothDeviceId.normalized(): BluetoothDeviceId = BluetoothDeviceId(address.uppercase())
 }
 
 @Composable
@@ -269,6 +304,8 @@ fun DiagnosticsScreen(
     vm.settings.collectAsStateWithLifecycle()
     vm.running.collectAsStateWithLifecycle()
     vm.linkLog.collectAsStateWithLifecycle()
+    vm.codecStates.collectAsStateWithLifecycle()
+    vm.codecSnapshots.collectAsStateWithLifecycle()
     val events by vm.events.collectAsStateWithLifecycle()
     val help by vm.help.collectAsStateWithLifecycle()
     val context = LocalContext.current

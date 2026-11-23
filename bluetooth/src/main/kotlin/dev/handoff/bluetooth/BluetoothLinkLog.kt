@@ -29,10 +29,12 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
     private val _entries = MutableStateFlow<List<Entry>>(emptyList())
     val entries: StateFlow<List<Entry>> = _entries.asStateFlow()
 
-    /** Bluetooth link (ACL) state per address, as last broadcast. */
-    private val links = mutableMapOf<String, Boolean>()
+    private val links = AclObservations()
 
-    fun isLinked(address: String): Boolean? = synchronized(links) { links[address.uppercase()] }
+    /** Whether a Bluetooth link (ACL) has been observed open for the address. */
+    fun isLinked(address: String): Boolean? = links.isLinked(address)
+
+    internal fun clearAclObservations() = links.clear()
 
     fun note(text: String) {
         _entries.update { (it + Entry(clock(), text)).takeLast(CAPACITY) }
@@ -44,13 +46,15 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
         val who = label(device)
         val text = when (action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                synchronized(links) { links[device.address.uppercase()] = true }
-                "Link opened · $who"
+                val transport = aclTransport(intent)
+                links.record(device.address, transport, open = true)
+                "Link opened (${transport.label}) · $who"
             }
-            BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> "Link closing · $who"
+            BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> "Link closing (${aclTransport(intent).label}) · $who"
             BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                synchronized(links) { links[device.address.uppercase()] = false }
-                "Link closed · $who"
+                val transport = aclTransport(intent)
+                links.record(device.address, transport, open = false)
+                "Link closed (${transport.label}) · $who"
             }
             BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> "Media (A2DP) ${state(intent)} · $who"
             BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> "Calls (HFP) ${state(intent)} · $who"
@@ -59,11 +63,20 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
                 val playing = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1) == BluetoothA2dp.STATE_PLAYING
                 (if (playing) "Audio streaming" else "Audio stopped") + " · $who"
             }
-            ACTION_CODEC_CONFIG_CHANGED -> "Codec ${codec(intent) ?: "changed (details not shared by the system)"} · $who"
+            ACTION_CODEC_CONFIG_CHANGED -> "Codec ${codecFromBroadcast(intent) ?: "changed (details not shared by the system)"} · $who"
             else -> return false
         }
         note(text)
         return true
+    }
+
+    private fun aclTransport(intent: Intent): AclTransport {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return AclTransport.UNSPECIFIED
+        return when (intent.getIntExtra(BluetoothDevice.EXTRA_TRANSPORT, -1)) {
+            BluetoothDevice.TRANSPORT_BREDR -> AclTransport.CLASSIC
+            BluetoothDevice.TRANSPORT_LE -> AclTransport.LE
+            else -> AclTransport.UNSPECIFIED
+        }
     }
 
     private fun state(intent: Intent): String = when (intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)) {
@@ -72,17 +85,6 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
         BluetoothProfile.STATE_DISCONNECTING -> "disconnecting"
         BluetoothProfile.STATE_DISCONNECTED -> "disconnected"
         else -> "state ${intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)}"
-    }
-
-    @Suppress("DEPRECATION")
-    private fun codec(intent: Intent): String? {
-        if (Build.VERSION.SDK_INT < 33) return null
-        val status = try {
-            intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS, BluetoothCodecStatus::class.java)
-        } catch (_: RuntimeException) {
-            null
-        } ?: return null
-        return describe(status.codecConfig)
     }
 
     private fun label(device: BluetoothDevice): String {
@@ -101,7 +103,18 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
         const val ACTION_CODEC_CONFIG_CHANGED = "android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"
         const val ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED = "android.bluetooth.action.LE_AUDIO_CONNECTION_STATE_CHANGED"
 
+        internal fun codecFromBroadcast(intent: Intent): String? {
+            if (Build.VERSION.SDK_INT < 33) return null
+            val status = try {
+                intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS, BluetoothCodecStatus::class.java)
+            } catch (_: RuntimeException) {
+                null
+            } ?: return null
+            return describe(status.codecConfig)
+        }
+
         /** "AAC 44.1 kHz 16-bit stereo", from a codec configuration. */
+        @Suppress("DEPRECATION")
         fun describe(config: BluetoothCodecConfig?): String? {
             if (config == null || Build.VERSION.SDK_INT < 33) return null
             val type = when (config.codecType) {
@@ -125,7 +138,12 @@ class BluetoothLinkLog(private val clock: () -> Long = System::currentTimeMillis
                 BluetoothCodecConfig.BITS_PER_SAMPLE_32 -> "32-bit"
                 else -> null
             }
-            return listOfNotNull(type, rate, bits).joinToString(" ")
+            val channels = when (config.channelMode) {
+                BluetoothCodecConfig.CHANNEL_MODE_MONO -> "mono"
+                BluetoothCodecConfig.CHANNEL_MODE_STEREO -> "stereo"
+                else -> null
+            }
+            return listOfNotNull(type, rate, bits, channels).joinToString(" ")
         }
     }
 }

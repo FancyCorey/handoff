@@ -166,14 +166,9 @@ data class HandoffPolicy(
     val releaseGraceMs: Long = 8_000,
     /**
      * Remote side: after the audio profiles are released, how long to wait for the Bluetooth
-     * link itself to close before answering. Connecting while the old link is still open leaves
-     * a one-device-at-a-time headset briefly held by two devices, and the audio stream set up in
-     * that state can keep cutting out with AAC.
+     * link itself to close before answering. Some Bluetooth profiles hold the old link open.
      */
     val linkCloseWaitMs: Long = 5_000,
-    /** After a move where the old link was still open: how often, and how many times, to check it again. */
-    val linkCheckIntervalMs: Long = 4_000,
-    val linkChecks: Int = 4,
     /**
      * After connecting: how long the headset must stay connected here, while every device that
      * let go confirms again that it has (and lets go once more of anything that reconnected),

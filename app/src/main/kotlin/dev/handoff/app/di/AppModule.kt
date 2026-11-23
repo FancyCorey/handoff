@@ -31,6 +31,7 @@ import dev.handoff.app.persistence.RoomTrustedPeerRepository
 import dev.handoff.app.persistence.SettingsRepository
 import dev.handoff.app.runtime.HandoffActions
 import dev.handoff.app.runtime.HandoffRuntime
+import dev.handoff.app.runtime.PlaybackCodecSettings
 import dev.handoff.core.overview.OverviewRepository
 import dev.handoff.core.stage.MoveCount
 import dev.handoff.core.stage.StageRepository
@@ -111,6 +112,7 @@ val appModule = module {
     // Bluetooth (the only module that touches android.bluetooth)
     single { AndroidBluetoothAudioController(androidContext(), get(), demo = demoBluetooth(androidContext())) } binds
         arrayOf(BluetoothAudioController::class, BluetoothDiagnosticsSource::class)
+    single { PlaybackCodecSettings(get(APP_SCOPE), get(), get(), get()) }
 
     // Peer mesh
     single {
@@ -138,6 +140,7 @@ val appModule = module {
             get<LanPeerTransport>(), nearby, get(),
             // Windows can't be reached over Bluetooth (yet); a device not heard from yet might be Android.
             canBeNearby = { peer -> koin.get<MeshOwnershipRepository>().peerInfo.value[peer]?.platform?.startsWith("windows") != true },
+            events = get(),
         )
     } binds arrayOf(PeerTransport::class)
     single { PairingManager(get(), get(), get()) }
@@ -169,6 +172,7 @@ val appModule = module {
             get(), get(), get(), get(), get(),
             guardScope = get(APP_SCOPE),
             holderHasIt = { peer, id, since -> ownership.reportsFor(id).any { it.peerId == peer && it.connected && it.receivedAtMs >= since } },
+            guardLog = get<AndroidBluetoothAudioController>().linkLog::note,
         )
     }
     single {
@@ -267,7 +271,7 @@ val appModule = module {
     // Screens
     viewModel { SetupViewModel(androidContext(), get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { params -> DeviceDetailViewModel(params.get(), get(), get(), get(), get(), get()) }
+    viewModel { params -> DeviceDetailViewModel(params.get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { MapDeviceViewModel(get(), get(), get(), get(), get()) }
     viewModel { PeersViewModel(get(), get(), get(), get(), get()) }
     viewModel { AddPeerViewModel(androidContext(), get(), get(), get(), get(), get(APP_SCOPE)) }

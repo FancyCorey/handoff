@@ -101,16 +101,9 @@ class FakeBluetoothAudioController(val hostName: String = "host") : BluetoothAud
 
     /** What each [awaitLinkClosed] answers, in turn; then true (closed). */
     val linkClosedAnswers = ArrayDeque<Boolean?>()
-    var restartMediaCalls = 0
-        private set
 
     override suspend fun awaitLinkClosed(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean? =
         if (linkClosedAnswers.isEmpty()) true else linkClosedAnswers.removeFirst()
-
-    override suspend fun restartMedia(deviceId: BluetoothDeviceId): Boolean {
-        restartMediaCalls++
-        return isConnectedNow(deviceId)
-    }
 
     fun isConnectedNow(id: BluetoothDeviceId) = state(id).value == AudioConnectionState.CONNECTED
 

@@ -3,20 +3,29 @@ package dev.handoff.core.mesh
 import dev.handoff.core.mesh.security.Crypto
 import dev.handoff.core.mesh.transport.ConnectionPolicy
 import dev.handoff.core.mesh.transport.DiscoveryTags
+import dev.handoff.core.mesh.transport.EndpointMemory
 import dev.handoff.core.mesh.transport.EndpointSource
 import dev.handoff.core.mesh.transport.PeerDirectory
 import dev.handoff.core.model.PeerId
 import dev.handoff.core.model.TrustedPeer
 import dev.handoff.core.store.InMemoryTrustedPeerRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.net.InetAddress
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NetworkPrivacyTest {
+    @get:Rule val files = TemporaryFolder()
+
     private val day = 86_400_000L
     private val peerKey = Crypto.generateEcKeyPair().public.encoded
     private val peer = TrustedPeer(PeerId.random(), "Test phone", peerKey, 0)
@@ -121,6 +130,58 @@ class NetworkPrivacyTest {
         assertEquals(listOf("192.168.1.20", "10.0.0.7"), endpoints.map { it.host })
         assertEquals(listOf(EndpointSource.LAST_SUCCESS, EndpointSource.REMEMBERED), endpoints.map { it.source })
         assertFalse(after.isOnline(id))
+    }
+
+    @Test
+    fun `the first live address is saved even when contact predates collection and timestamps keep changing`() = runTest {
+        val file = files.newFile()
+        val id = peer.peerId
+        val directory = PeerDirectory(clock = { testScheduler.currentTime })
+        val memory = EndpointMemory(file, io = StandardTestDispatcher(testScheduler))
+        memory.attach(directory, backgroundScope) { setOf("192.168.1") }
+
+        directory.onContactSucceeded(id, "192.168.1.20", 47474)
+        testScheduler.runCurrent()
+        repeat(5) {
+            testScheduler.advanceTimeBy(500)
+            directory.onContactSucceeded(id, "192.168.1.20", 47474)
+            testScheduler.runCurrent()
+        }
+
+        assertEquals("192.168.1.20", memory.load().getValue(id).getValue("192.168.1").host)
+        val saved = file.readText()
+        testScheduler.advanceTimeBy(10_000)
+        directory.onContactSucceeded(id, "192.168.1.20", 47474)
+        testScheduler.advanceTimeBy(3_000)
+        assertEquals(saved, file.readText())
+    }
+
+    @Test
+    fun `a return to a known network, a new port and forgetting a peer are persisted`() = runTest {
+        val id = peer.peerId
+        val directory = PeerDirectory(clock = { testScheduler.currentTime })
+        val memory = EndpointMemory(files.newFile(), io = StandardTestDispatcher(testScheduler))
+        memory.attach(directory, backgroundScope) { emptySet() }
+
+        directory.onContactSucceeded(id, "192.168.1.20", 47474)
+        testScheduler.advanceTimeBy(3_000)
+        directory.onContactSucceeded(id, "10.0.0.7", 47474)
+        testScheduler.advanceTimeBy(3_000)
+        val afterSecondNetwork = PeerDirectory().apply { restore(memory.load(), emptySet()) }
+        assertEquals("10.0.0.7", afterSecondNetwork.endpointsFor(id).single().host)
+
+        directory.onContactSucceeded(id, "192.168.1.20", 47474)
+        testScheduler.advanceTimeBy(3_000)
+        val afterReturn = PeerDirectory().apply { restore(memory.load(), emptySet()) }
+        assertEquals("192.168.1.20", afterReturn.endpointsFor(id).single().host)
+
+        directory.onContactSucceeded(id, "192.168.1.20", 48000)
+        testScheduler.advanceTimeBy(3_000)
+        assertEquals(48000, memory.load().getValue(id).getValue("192.168.1").port)
+
+        directory.forget(id)
+        testScheduler.advanceTimeBy(3_000)
+        assertTrue(memory.load().isEmpty())
     }
 
     @Test

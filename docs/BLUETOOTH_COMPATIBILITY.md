@@ -127,6 +127,12 @@ Some phone makers close background apps aggressively to save battery. If a locke
 
 **Tried Handoff on your device?** Share the report from **Settings → Help and diagnostics** in an [issue](https://github.com/FancyCorey/handoff/issues). Reports from more devices help everyone. The [hardware test plan](HARDWARE_TEST_PLAN.md) lists the scenarios worth trying.
 
+## Prefer SBC on Android
+
+On builds that expose Bluetooth codec controls, **Prefer SBC** is available from Android 13 with Companion Device setup and a bonded Classic Bluetooth headset. Handoff asks Android to associate the exact headset after the user chooses **Allow access**. Android 16 AOSP's codec getter and setter verify the association when the caller lacks privileged Bluetooth permission. Device makers can restrict these controls. If Handoff cannot confirm SBC, users can try **Bluetooth audio codec** in Android Developer options while the headphones are connected. [Android 16 A2DP service](https://android.googlesource.com/platform/packages/modules/Bluetooth/+/refs/tags/android-16.0.0_r1/android/app/src/com/android/bluetooth/a2dp/A2dpServiceBinder.java#213)
+
+Handoff checks the active codec on each connection while it is running. It waits for playback to pause before requesting a change. The permission and codec request were verified with an app without privileged Bluetooth permission on a Galaxy Tab S10 FE running Android 16 and using OnePlus Bullets Wireless Z2. Availability still varies by phone and headset.
+
 ## Windows
 
 | API | Visibility | Use |

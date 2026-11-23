@@ -34,10 +34,13 @@ Handoff keeps the following in its private app storage. It is not included in An
 | The headphones you added: their name, their Bluetooth address and a type (headphones, earbuds…) | To connect and disconnect them |
 | A history of recent moves (which headset, when, the result) | For the transfer screen and diagnostics |
 | Your settings | To remember your choices |
+| An optional **Prefer SBC** choice for a paired Bluetooth address (Android) | To request that audio codec on this device when the headphones connect |
 
 ### Bluetooth
 
 Handoff reads the list of Bluetooth devices already paired with this device, their connection state and, when the headset reports it, its battery level. It connects or disconnects only the headphones you added, and only when you (or a linked device, on your behalf) ask it to move them. It never looks for new Bluetooth devices and doesn't use your location.
+
+If you choose **Prefer SBC**, Android asks you to approve access to that pair of headphones. Android stores the association. Handoff uses it to check the current codec and request SBC for that pair. The choice and association are local, and the app sends neither to your other devices. **Automatic** stops future codec requests. Android's app settings can remove the association.
 
 ### Your linked devices
 
@@ -62,7 +65,7 @@ Background mode (**Stay reachable**, under "When this phone is locked") is off u
 
 ### Diagnostics
 
-The diagnostics screen (**Settings → Help and diagnostics**) shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains your phone's make, model and Android version, device and headset names, recent events, and a Bluetooth log of the audio devices around each move (when their connection opened and closed, which audio profiles were connected, when audio streamed, and the codec in use); Bluetooth addresses are shortened and link codes and keys are removed.
+The diagnostics screen (**Settings → Help and diagnostics**) shows a log of recent events, kept only in memory. Handoff never sends it anywhere. If you choose **Share**, Android's share sheet lets you send a copy to the app or person you pick. The report contains the device model and Android version, device and headphone names, move results, playback start and stop times, codec choices and readbacks, and the timing of nearby scans and advertising. It shortens Bluetooth addresses and removes link codes and keys.
 
 ### Update checks
 

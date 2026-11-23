@@ -139,6 +139,11 @@ The Play edition includes Google's Mobile Ads and consent SDKs (`app/src/play` o
 * Diagnostics export additionally strips pairing links and long base64 blobs.
 * Keys, tokens and signatures are never logged. This is covered by `UtilitiesTest` and `DiagnosticsReportTest`.
 
+## Android Bluetooth playback
+
+* **Prefer SBC** requests a system-managed Companion Device association for a single, already paired Classic headset, filtered by its local Bluetooth address. No special device profile or background privilege is requested. Handoff checks the exact association before requesting SBC. The preference and Android approval are local to that phone or tablet.
+* Routine Bluetooth nearby status and ownership messages use cached sightings. Active fallback discovery is reserved for explicit peer checks and moves. Passive discovery stops when Android reports music playback.
+
 ## Networks
 
 * Links are bound to identity keys, not to a network or an IP address. After a network change, peers are rediscovered and every connection re-authenticates against the stored key. A different device that takes over a peer's old IP address is rejected by the handshake.

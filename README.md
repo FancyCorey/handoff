@@ -127,7 +127,10 @@ The technical details are in the [security overview](docs/SECURITY.md), and what
 Any Bluetooth headphones, earbuds or headset that you can pair with your devices. Headphones that can connect to two devices at once work too: **Move here** disconnects them from your other devices so their sounds can't interrupt you, or, if you turn on **Stay connected to other devices**, connects this device as well and leaves the others.
 
 **Does my audio go through Handoff?**
-No. Sound always goes straight from your phone or PC to your headphones. Handoff only decides *which* device is connected.
+Sound goes straight from your phone or PC to your headphones. Handoff coordinates the connection and can ask Android to use SBC if you choose that option.
+
+**What if audio cuts out while my headphones are connected?**
+On supported Android devices, open the headphones in Handoff and choose **Bluetooth audio → Prefer SBC**. Android asks you to allow access to that pair. While Handoff is running, it tries SBC when the headphones connect or while audio is paused. Choose **Stay reachable** to let Handoff do this in the background. The setting is local to this phone or tablet. [Playback help and Android permissions](docs/GETTING_STARTED.md#what-handoff-is-allowed-to-do-on-android)
 
 **Do I need an account or an internet connection?**
 No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The GitHub edition only uses the internet if you ask it to check for updates. The Google Play edition also uses it to load its ad.

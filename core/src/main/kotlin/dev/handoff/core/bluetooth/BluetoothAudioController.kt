@@ -57,11 +57,6 @@ interface BluetoothAudioController {
      */
     suspend fun awaitLinkClosed(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean? = null
 
-    /**
-     * Drop and reconnect the media connection here, so the audio stream is set up again from
-     * scratch. False if it isn't connected here or the platform can't.
-     */
-    suspend fun restartMedia(deviceId: BluetoothDeviceId): Boolean = false
 }
 
 private object NoBattery {

@@ -1,5 +1,10 @@
 package dev.handoff.app.feature.device
 
+import android.app.Activity
+import android.content.IntentSender
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import dev.handoff.app.ui.StatusPill
 import dev.handoff.app.ui.IconBadge
 import androidx.compose.ui.text.style.TextAlign
@@ -26,6 +31,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -52,7 +59,9 @@ import dev.handoff.app.ui.StageButton
 import dev.handoff.app.ui.SystemScreens
 import dev.handoff.app.ui.Texts
 import dev.handoff.app.ui.toneColor
+import dev.handoff.bluetooth.AndroidBluetoothAudioController
 import dev.handoff.core.handoff.TransferTrigger
+import dev.handoff.core.model.BluetoothDeviceId
 import dev.handoff.core.model.LogicalDeviceId
 import dev.handoff.core.overview.DeviceOverview
 import dev.handoff.core.overview.OverviewRepository
@@ -62,10 +71,12 @@ import dev.handoff.core.stage.StageRepository
 import dev.handoff.core.store.LogicalDeviceRepository
 import dev.handoff.core.text.HandoffTexts
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -76,8 +87,23 @@ class DeviceDetailViewModel(
     private val settings: SettingsRepository,
     private val actions: HandoffActions,
     stages: StageRepository,
+    bluetooth: AndroidBluetoothAudioController,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private val id = LogicalDeviceId(logicalId)
+    private val codecs = bluetooth.codecPreferences
+    private var pendingCodecDevice = savedState.get<String>("codecAccessAddress")?.let(::BluetoothDeviceId)
+    private val _codecAccess = MutableStateFlow(
+        if (pendingCodecDevice == null) CodecAccessStep.IDLE else CodecAccessStep.REQUESTING,
+    )
+    private val _codecPrompt = MutableStateFlow<IntentSender?>(null)
+
+    val codecAccess: StateFlow<CodecAccessStep> = _codecAccess
+    val codecPrompt: StateFlow<IntentSender?> = _codecPrompt
+    val codecSupported = codecs.supported
+    val codecStates = codecs.states
+    val codecChoices = settings.settings.map { it.preferSbc }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val device: StateFlow<DeviceOverview?> = overview.devices
         .map { list -> list.firstOrNull { it.device.logicalId == id } }
@@ -105,7 +131,90 @@ class DeviceDetailViewModel(
         devices.find(id)?.let { devices.upsert(it.copy(multipoint = value)) }
     }
 
+    private fun currentCodecDevice(): BluetoothDeviceId? =
+        devices.find(id)?.localDeviceId?.let { BluetoothDeviceId(it.address.uppercase()) }
+
+    fun chooseSbc() {
+        val local = currentCodecDevice() ?: return
+        if (!codecs.canRequestAccess(local)) {
+            _codecAccess.value = CodecAccessStep.INELIGIBLE
+        } else if (codecs.hasAccess(local)) {
+            _codecAccess.value = CodecAccessStep.IDLE
+            viewModelScope.launch { settings.setPreferSbc(local, true) }
+        } else {
+            _codecAccess.value = CodecAccessStep.EXPLAIN
+        }
+    }
+
+    fun chooseAutomatic() {
+        val local = currentCodecDevice() ?: return
+        pendingCodecDevice = null
+        savedState.remove<String>("codecAccessAddress")
+        _codecPrompt.value = null
+        _codecAccess.value = CodecAccessStep.AUTOMATIC
+        viewModelScope.launch { settings.setPreferSbc(local, false) }
+    }
+
+    fun cancelCodecAccess() {
+        _codecAccess.value = CodecAccessStep.IDLE
+    }
+
+    fun askForCodecAccess() {
+        val local = currentCodecDevice() ?: return
+        if (pendingCodecDevice != null) return
+        if (!codecs.canRequestAccess(local)) {
+            _codecAccess.value = CodecAccessStep.INELIGIBLE
+            return
+        }
+        pendingCodecDevice = local
+        _codecAccess.value = CodecAccessStep.REQUESTING
+        codecs.requestAccess(
+            local,
+            onPrompt = { sender ->
+                viewModelScope.launch {
+                    if (pendingCodecDevice == local) _codecPrompt.value = sender
+                }
+            },
+            onResult = { approved ->
+                viewModelScope.launch { finishCodecAccess(local, approved) }
+            },
+        )
+    }
+
+    fun codecPromptLaunched() {
+        savedState["codecAccessAddress"] = pendingCodecDevice?.address
+        _codecPrompt.value = null
+    }
+
+    fun codecActivityFinished(approved: Boolean) {
+        val local = pendingCodecDevice ?: return
+        viewModelScope.launch {
+            // Android can deliver the activity result before the association callback.
+            if (approved && !codecs.hasAccess(local)) delay(1_500)
+            finishCodecAccess(local, approved)
+        }
+    }
+
+    private suspend fun finishCodecAccess(local: BluetoothDeviceId, approved: Boolean) {
+        if (local != pendingCodecDevice) return
+        pendingCodecDevice = null
+        savedState.remove<String>("codecAccessAddress")
+        _codecPrompt.value = null
+        _codecAccess.value = CodecAccessStep.IDLE
+        if (approved && currentCodecDevice() == local && codecs.hasAccess(local)) {
+            settings.setPreferSbc(local, true)
+        } else if (currentCodecDevice() == local) {
+            _codecAccess.value = CodecAccessStep.DECLINED
+        }
+    }
+
     fun forget(onDone: () -> Unit) = viewModelScope.launch {
+        currentCodecDevice()?.let { local ->
+            val alsoMapped = devices.devices.value.any {
+                it.logicalId != id && it.localDeviceId?.address.equals(local.address, ignoreCase = true)
+            }
+            if (!alsoMapped) settings.setPreferSbc(local, false)
+        }
         devices.remove(id)
         if (settings.current().preferredDevice == id) settings.setPreferredDevice(null)
         onDone()
@@ -122,10 +231,27 @@ fun DeviceDetailScreen(
     val overview by vm.device.collectAsStateWithLifecycle()
     val stage by vm.stage.collectAsStateWithLifecycle()
     val preferred by vm.isPreferred.collectAsStateWithLifecycle()
+    val codecAccess by vm.codecAccess.collectAsStateWithLifecycle()
+    val codecPrompt by vm.codecPrompt.collectAsStateWithLifecycle()
+    val codecStates by vm.codecStates.collectAsStateWithLifecycle()
+    val codecChoices by vm.codecChoices.collectAsStateWithLifecycle()
     var confirmForget by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val o = overview
     val s = stage
+    val accessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        vm.codecActivityFinished(result.resultCode == Activity.RESULT_OK)
+    }
+    LaunchedEffect(codecPrompt) {
+        codecPrompt?.let { sender ->
+            vm.codecPromptLaunched()
+            try {
+                accessLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            } catch (_: RuntimeException) {
+                vm.codecActivityFinished(false)
+            }
+        }
+    }
 
     HandoffScaffold(title = o?.device?.displayName ?: "Headphones", onBack = onBack) { padding ->
         if (o == null || s == null) {
@@ -203,6 +329,18 @@ fun DeviceDetailScreen(
                         modifier = Modifier.clickable(onClick = onMap),
                     )
                 }
+            }
+            val local = o.device.localDeviceId?.let { BluetoothDeviceId(it.address.uppercase()) }
+            if (vm.codecSupported && local != null) {
+                CodecPreferenceSection(
+                    preferSbc = local in codecChoices,
+                    access = codecAccess,
+                    status = codecStates[local],
+                    automatic = vm::chooseAutomatic,
+                    sbc = vm::chooseSbc,
+                    askForAccess = vm::askForCodecAccess,
+                    cancelAccess = vm::cancelCodecAccess,
+                )
             }
             Row(Modifier.fillMaxWidth().padding(8.dp)) {
                 Spacer(Modifier.width(4.dp))

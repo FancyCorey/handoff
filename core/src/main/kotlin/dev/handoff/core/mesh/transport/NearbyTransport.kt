@@ -2,6 +2,7 @@ package dev.handoff.core.mesh.transport
 
 import dev.handoff.core.diagnostics.EventLog
 import dev.handoff.core.diagnostics.EventType
+import dev.handoff.core.mesh.protocol.OwnershipChanged
 import dev.handoff.core.mesh.protocol.PeerMessage
 import dev.handoff.core.mesh.protocol.Ping
 import dev.handoff.core.mesh.protocol.Pong
@@ -35,10 +36,11 @@ interface NearbyChannel {
     fun available(): Boolean
 
     /**
-     * Opens a stream to [peerId], looking for it first if it hasn't been seen lately, within
-     * [timeoutMs]. Null if it isn't nearby or the channel couldn't be opened.
+     * Opens a stream to [peerId] within [timeoutMs]. When [allowDiscovery] is false, only an
+     * existing sighting may be used. A channel may skip optional traffic during local media
+     * playback unless [allowDuringPlayback] is true. Null if a stream couldn't be opened.
      */
-    suspend fun open(peerId: PeerId, timeoutMs: Long): NearbyStream?
+    suspend fun open(peerId: PeerId, timeoutMs: Long, allowDiscovery: Boolean, allowDuringPlayback: Boolean): NearbyStream?
 }
 
 /**
@@ -65,7 +67,13 @@ class NearbyPeerTransport(
         val trusted = trust.find(peerId) ?: return CommandResult.Rejected("peer is not trusted")
         if (!channel.available()) return CommandResult.Unreachable
         val deadline = clock() + timeoutMs
-        val stream = channel.open(peerId, timeoutMs) ?: return CommandResult.Unreachable
+        val discovery = message.allowsNearbyDiscovery()
+        val stream = channel.open(
+            peerId,
+            timeoutMs,
+            allowDiscovery = discovery,
+            allowDuringPlayback = discovery || message is OwnershipChanged,
+        ) ?: return CommandResult.Unreachable
         return withContext(io) {
             // A Bluetooth channel has no read timeout: closing it at the deadline ends a blocked read.
             val timedOut = AtomicBoolean(false)
@@ -99,41 +107,72 @@ class NearbyPeerTransport(
  *
  * - For moves (the reachability check and the release request) it looks for the device if
  *   needed, since that is when it matters.
- * - Anything else (status updates) only goes to a device already seen nearby, at most once
- *   per [backgroundIntervalMs] each.
+ * - Status and ownership updates only use a cached sighting. Each has its own limit of one
+ *   attempt per [backgroundIntervalMs] per peer so a status attempt can't delay an ownership update.
  */
 class FallbackPeerTransport(
     private val network: PeerTransport,
     private val nearby: PeerTransport,
     private val directory: PeerDirectory,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
     /** At least this long for Bluetooth: finding the device and connecting take a few seconds. */
     private val nearbyBudgetMs: Long = 12_000,
     private val backgroundIntervalMs: Long = 30_000,
     /** False for devices that can't be reached over Bluetooth (Windows, for now). */
     private val canBeNearby: (PeerId) -> Boolean = { true },
+    private val events: EventLog? = null,
 ) : PeerTransport {
-    private val lastBackground = ConcurrentHashMap<PeerId, Long>()
+    private val lastStatusAttempt = ConcurrentHashMap<PeerId, Long>()
+    private val lastOwnershipAttempt = ConcurrentHashMap<PeerId, Long>()
 
-    override suspend fun isReachable(peerId: PeerId, timeoutMs: Long): Boolean =
-        network.isReachable(peerId, timeoutMs) || (canBeNearby(peerId) && nearby.isReachable(peerId, maxOf(timeoutMs, nearbyBudgetMs)))
+    override suspend fun isReachable(peerId: PeerId, timeoutMs: Long): Boolean {
+        if (network.isReachable(peerId, timeoutMs)) return true
+        if (!canBeNearby(peerId)) return false
+        recordFallback(peerId, reason = "reachability check failed", allowDiscovery = true)
+        return nearby.isReachable(peerId, maxOf(timeoutMs, nearbyBudgetMs))
+    }
 
     override suspend fun request(peerId: PeerId, message: PeerMessage, timeoutMs: Long): CommandResult {
         val first = network.request(peerId, message, timeoutMs)
-        val notDelivered = first == CommandResult.Unreachable || (first is CommandResult.Rejected && first.isWrongEndpoint())
-        if (!notDelivered || !worthTrying(peerId, message)) return first
+        val canFallback = first == CommandResult.Unreachable || (first is CommandResult.Rejected && first.isWrongEndpoint())
+        if (!canFallback || !canBeNearby(peerId)) return first
+        val allowDiscovery = message.allowsNearbyDiscovery()
+        if (!allowDiscovery && !reserveBackgroundAttempt(peerId, message is OwnershipChanged)) return first
+
+        recordFallback(
+            peerId,
+            reason = if (first == CommandResult.Unreachable) "network unreachable" else "wrong network endpoint",
+            allowDiscovery = allowDiscovery,
+        )
         val second = nearby.request(peerId, message, maxOf(timeoutMs, nearbyBudgetMs))
         return if (second == CommandResult.Unreachable) first else second
     }
 
-    private fun worthTrying(peerId: PeerId, message: PeerMessage): Boolean {
-        if (!canBeNearby(peerId)) return false
-        if (message is ReleaseAudioDevice || message is Ping) return true
+    private fun reserveBackgroundAttempt(peerId: PeerId, ownership: Boolean): Boolean {
         if (!directory.isNearby(peerId)) return false
-        val now = clock()
-        val last = lastBackground[peerId]
-        if (last != null && now - last < backgroundIntervalMs) return false
-        lastBackground[peerId] = now
-        return true
+        val attempts = if (ownership) lastOwnershipAttempt else lastStatusAttempt
+        var reserved = false
+        attempts.compute(peerId) { _, last ->
+            val now = clock()
+            if (last != null && now - last < backgroundIntervalMs) last else {
+                reserved = true
+                now
+            }
+        }
+        return reserved
+    }
+
+    private fun recordFallback(peerId: PeerId, reason: String, allowDiscovery: Boolean) {
+        events?.record(
+            EventType.BLUETOOTH_OPERATION,
+            peerId = peerId,
+            details = mapOf(
+                "operation" to "nearby fallback",
+                "reason" to reason,
+                "discovery" to if (allowDiscovery) "allowed" else "cached only",
+            ),
+        )
     }
 }
+
+private fun PeerMessage.allowsNearbyDiscovery() = this is ReleaseAudioDevice || this is Ping

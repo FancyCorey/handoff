@@ -71,28 +71,29 @@ class HandoffCoordinatorTest {
 
         // The release and the confirmation while settling; nothing after.
         assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
-        assertEquals(0, phone.bluetooth.restartMediaCalls)
+        assertEquals(0, phone.bluetooth.disconnectCalls)
     }
 
     @Test
-    fun `an old link still open is checked again, then media restarts here once it closes`() = runTest {
+    fun `a successful move keeps media connected when the old link closes late`() = runTest {
         val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
         val (phone, tablet) = hosts
         headset.connect(tablet.bluetooth, tablet.localBt)
-        // Still open when it let go, while settling and at the first check; closed at the second.
-        tablet.bluetooth.linkClosedAnswers.addAll(listOf(false, false, false, true))
+        // Still open at release and settling. A later check would report it closed.
+        tablet.bluetooth.linkClosedAnswers.addAll(listOf(false, false, true))
 
         assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
-        assertEquals(0, phone.bluetooth.restartMediaCalls)
         testScheduler.advanceTimeBy(30_000); testScheduler.runCurrent()
 
-        assertEquals(4, phone.transport.sentOfType<ReleaseAudioDevice>().size)
-        assertEquals(1, phone.bluetooth.restartMediaCalls)
+        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(listOf(true), tablet.bluetooth.linkClosedAnswers.toList())
+        assertEquals(0, phone.bluetooth.disconnectCalls)
+        assertEquals(listOf(ConnectReason.USER_MOVE_HERE), phone.bluetooth.connectReasons)
         assertEquals(listOf("phone"), headset.connectedHosts())
     }
 
     @Test
-    fun `an old link that never closes is noted, and media isn't restarted`() = runTest {
+    fun `an old link still open at the end of settling is recorded`() = runTest {
         val (hosts, headset) = TestHost.mesh(this, "phone", "tablet")
         val (phone, tablet) = hosts
         headset.connect(tablet.bluetooth, tablet.localBt)
@@ -101,8 +102,8 @@ class HandoffCoordinatorTest {
         assertSuccess(phone.moveHere(), TransferPath.COORDINATED)
         testScheduler.advanceTimeBy(60_000); testScheduler.runCurrent()
 
-        assertEquals(2 + phone.policy.linkChecks, phone.transport.sentOfType<ReleaseAudioDevice>().size)
-        assertEquals(0, phone.bluetooth.restartMediaCalls)
+        assertEquals(2, phone.transport.sentOfType<ReleaseAudioDevice>().size)
+        assertEquals(0, phone.bluetooth.disconnectCalls)
         assertTrue(phone.events.events.value.any { it.details["stillOpenOn"] == "tablet" })
     }
 

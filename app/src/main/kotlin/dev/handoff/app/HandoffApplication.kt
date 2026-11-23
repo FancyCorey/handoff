@@ -3,6 +3,7 @@ package dev.handoff.app
 import android.app.Application
 import dev.handoff.app.di.appModule
 import dev.handoff.app.di.editionModule
+import dev.handoff.app.runtime.PlaybackCodecSettings
 import dev.handoff.app.service.Notifications
 import dev.handoff.app.ui.ThisDevice
 import dev.handoff.core.text.HandoffTexts
@@ -21,7 +22,8 @@ class HandoffApplication : Application() {
             modules(appModule, editionModule)
         }
         get<Notifications>().createChannels()
-        // Observation only (receivers + A2DP proxy); nothing connects or disconnects here.
+        // Observe Bluetooth and apply any saved codec preferences once a paired device connects.
         get<AndroidBluetoothAudioController>().start()
+        get<PlaybackCodecSettings>().start()
     }
 }

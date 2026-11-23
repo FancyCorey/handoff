@@ -42,6 +42,7 @@ class AudioReleaseHandler(
      * reported losing it since). The guard only acts for a holder that really has it.
      */
     private val holderHasIt: (PeerId, LogicalDeviceId, Long) -> Boolean = { _, _, _ -> true },
+    private val guardLog: (String) -> Unit = {},
 ) {
     data class Outcome(val status: ReleaseStatus, val detail: String?, val durationMs: Long, val linkClosed: Boolean? = null)
 
@@ -96,14 +97,21 @@ class AudioReleaseHandler(
                 val mutex = locks.forDevice(logicalId)
                 if (!mutex.tryLock()) continue
                 try {
-                    if (!stillTheirs()) return@launch
-                    actions++
                     val came = bluetooth.connectedProfiles(local)
-                    bluetooth.disconnect(local, DisconnectReason.PEER_RELEASE_REQUEST)
+                    if (!stillTheirs()) return@launch
+                    if (!holderHasIt(holder, logicalId, since) || came.isEmpty()) continue
+                    actions++
+                    val result = bluetooth.disconnect(local, DisconnectReason.PEER_RELEASE_REQUEST)
+                    val status = when (result) {
+                        is BluetoothOperationResult.Requested -> "came back by itself; release requested"
+                        BluetoothOperationResult.AlreadyInState -> "came back by itself; already released"
+                        is BluetoothOperationResult.Failed -> "came back by itself; release failed (${result.error})"
+                    }
                     events.record(
                         EventType.RELEASE_PERFORMED, logicalId, holder,
-                        mapOf("status" to "came back by itself; released again", "profiles" to came.joinToString(), "afterMs" to "${clock() - since}"),
+                        mapOf("status" to status, "profiles" to came.joinToString(), "afterMs" to "${clock() - since}"),
                     )
+                    guardLog("Handoff release guard · $status · ${came.joinToString()}")
                 } finally {
                     mutex.unlock()
                 }

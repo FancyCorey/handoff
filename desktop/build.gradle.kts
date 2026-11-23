@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
 }
 
-val appVersion = "0.8.1"
+val appVersion = "0.8.2"
 group = "dev.handoff"
 version = appVersion
 

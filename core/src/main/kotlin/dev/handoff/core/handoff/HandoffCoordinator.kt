@@ -153,43 +153,6 @@ class DefaultHandoffCoordinator(
         const val NOT_TRUSTED = "not trusted"
     }
 
-    /**
-     * After a move where a device that let go still had its Bluetooth link to the headset open,
-     * the headset was briefly held by two devices while the audio stream here was set up. With
-     * AAC that stream can keep cutting out (SBC copes). So: ask that device again until its link
-     * has closed (letting go of anything that reconnected meanwhile), then restart the media
-     * connection here once, so the stream is set up with the headset on this device alone.
-     */
-    private fun settleOpenLinks(id: LogicalDeviceId, local: BluetoothDeviceId, peers: Set<PeerId>) = backgroundScope.launch {
-        val pending = peers.toMutableSet()
-        for (check in 1..policy.linkChecks) {
-            delay(policy.linkCheckIntervalMs)
-            for (peer in pending.toList()) {
-                val ask = ReleaseAudioDevice(PeerMessage.newCommandId(), clock(), selfId.value, id.value, selfId.value)
-                val reply = (transport.request(peer, ask, policy.releaseTimeoutMs) as? CommandResult.Reply)?.message as? ReleaseResult
-                if (reply?.linkClosed == true) pending -= peer
-            }
-            if (pending.isEmpty()) break
-        }
-        if (pending.isNotEmpty()) {
-            events.record(
-                EventType.BLUETOOTH_OPERATION, id,
-                details = mapOf("check" to "old link", "stillOpenOn" to pending.joinToString(transform = peerName)),
-            )
-            return@launch
-        }
-        // Not if another move started meanwhile, or the headset already left.
-        val mutex = locks.forDevice(id)
-        if (!mutex.tryLock()) return@launch
-        try {
-            if (!bluetooth.isConnected(local)) return@launch
-            val ok = bluetooth.restartMedia(local)
-            events.record(EventType.BLUETOOTH_OPERATION, id, details = mapOf("restartMedia" to if (ok) "done" else "not possible"))
-        } finally {
-            mutex.unlock()
-        }
-    }
-
     /** Both connect attempts of a round failed. */
     private class RoundExhausted(val detail: String?) : Exception()
 
@@ -506,20 +469,22 @@ class DefaultHandoffCoordinator(
         }
 
         /**
-         * The headset must stay connected here for a moment, while each device that let go
-         * confirms again that it has: anything that reconnected there in the meantime (its
-         * system, another app) would pull at the headset and break up the audio here.
+         * Verify the new profile stays connected while the other device confirms the release.
+         * An old ACL that stays open is diagnostic information once the move succeeds.
          */
         private suspend fun settle(local: BluetoothDeviceId): Boolean = coroutineScope {
             val confirmations = letGo.map { peer -> async { peer to confirmLetGo(peer) } }
             delay(policy.settleMs)
-            val stillHere = bluetooth.isConnected(local)
             for ((peer, closed) in confirmations.awaitAll()) {
                 if (closed == false) linkStillOpen += peer else if (closed == true) linkStillOpen -= peer
             }
+            val stillHere = bluetooth.isConnected(local)
             events.record(
                 EventType.CONNECT_VERIFIED, id,
-                details = mapOf("settled" to stillHere.toString(), "othersLetGo" to (letGo - linkStillOpen).joinToString(transform = peerName)),
+                details = mapOf(
+                    "settled" to stillHere.toString(),
+                    "othersLetGo" to (letGo - linkStillOpen).joinToString(transform = peerName),
+                ) + if (linkStillOpen.isEmpty()) emptyMap() else mapOf("stillOpenOn" to linkStillOpen.joinToString(transform = peerName)),
             )
             stillHere
         }
@@ -570,9 +535,6 @@ class DefaultHandoffCoordinator(
             )
             announce(generation)
             record("SUCCESS", result.path, null, null, timings)
-            device.localBluetoothMapping()?.let { local ->
-                if (linkStillOpen.isNotEmpty()) settleOpenLinks(id, local, linkStillOpen.toSet())
-            }
             return result
         }
 

@@ -191,6 +191,7 @@ Checking for updates is the only time the GitHub edition uses the internet, and 
 - **Headphone options:** tap your headphones' card, on Android or Windows:
   - **Stay connected to other devices:** off by default. When it's off, **Move here** disconnects the headset from your other devices, even if your headphones can connect to two at once. That stops a notification or video on another device from interrupting what you're listening to. Turn it on only if you want the headphones connected to several devices at once; **Move here** then adds this device and leaves the others. If the headphones end up connected to two devices anyway (many reconnect to both when switched on), Handoff shows **Use only here**.
   - **Quick Settings tile** (Android) or **Tray menu** (Windows): the headphones the tile or tray menu moves.
+  - **Bluetooth audio** (supported devices on Android 13 or newer): choose **Prefer SBC** if audio cuts out. Approve access to these headphones when Android asks. The choice applies on this phone or tablet while Handoff is running. Choose **Stay reachable** to let Handoff try SBC in the background. If audio is playing, pause it to let Handoff try the change. **Automatic** lets Android choose at the next connection.
   - **Remove from this phone** (or **this PC**): removes the headphones from Handoff on that device. They stay connected in Bluetooth settings.
 - **Start with Windows:** on or off in the Windows **Settings**.
 
@@ -214,6 +215,8 @@ If a move doesn't work, Handoff tries once more by itself. If it still can't fin
 
 Most problems show one button that fixes them; **More** shows a longer explanation.
 
+**Audio cuts out after a move?** Try **Prefer SBC** in the headphones' details. If Android declines the request or the option is unavailable, connect the headphones and choose **SBC** in Android **Developer options → Bluetooth audio codec**. Android may choose another codec on reconnect. When sharing a report, include the time of the cut-out and whether audio recovered after pausing or changing the volume.
+
 **On Windows**, after your headphones move to another device, they no longer appear in the PC's sound settings. That's on purpose: it stops Windows from pulling them back. Tap **Move here** on the PC to get them back, or choose **Connect to this PC** in the headphones' options.
 
 **Two copies of Handoff on one device?** If you installed a test version of Handoff earlier, it can still be on your device next to the current one, and your other devices may link to the wrong copy. Handoff shows a warning on its home screen when it finds one; tap **Remove it**, then link your devices again.
@@ -227,6 +230,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 | Permission | Why Handoff needs it |
 |---|---|
 | Nearby devices | See your paired headphones, and connect or disconnect them. Reach your linked Android devices over Bluetooth when they aren't on the same Wi-Fi. |
+| Access to one pair of headphones | Android asks only if you choose **Prefer SBC**. The approval lets Handoff check and request Bluetooth audio settings for that pair. Manage access in Android's app settings or return to **Automatic** in Handoff. |
 | Network access | Talk to your other devices on your network, and check for updates when you ask. |
 | Install apps | GitHub edition only: install an update you've downloaded. Android asks you to confirm each time. The Google Play edition doesn't have this permission. |
 | Run in the background | Only if you choose **Stay reachable**. |

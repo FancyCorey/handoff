@@ -127,6 +127,8 @@ Every message people see in Handoff, as agreed in the wording review (see [DESIG
 
 ## Details
 
+For **Bluetooth audio** on Android, use **Automatic** and **Prefer SBC**. The default help is “If audio cuts out, try Prefer SBC.” Explain the exact headphones and purpose before asking for **Allow access**. Use “Handoff will try SBC when they connect here” while disconnected, “Pause audio to let Handoff try SBC” during playback, and “SBC is in use” after verification. When Android cannot apply it, point to **Bluetooth audio codec** in Developer options. Switching back uses “Android chooses the next time they connect.”
+
 | Where | Text | Was |
 |---|---|---|
 | Rows | Type / Added on | Status / On this device / Type / Added on |

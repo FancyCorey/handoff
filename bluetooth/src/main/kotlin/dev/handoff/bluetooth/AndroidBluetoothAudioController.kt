@@ -119,6 +119,14 @@ class AndroidBluetoothAudioController(
     val linkLog = BluetoothLinkLog(clock)
 
     private val backgroundScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    val codecPreferences = AndroidCodecPreferences(
+        context = appContext,
+        proxies = proxies,
+        bondedDevice = { id -> adapter?.let { bondedDevice(it, id) } },
+        scope = backgroundScope,
+        log = linkLog::note,
+        enabled = demo == null,
+    )
     private val batteryInvoker = HiddenMethodInvoker(callTimeoutMs = 2_000)
     private val _batteryLevels = MutableStateFlow<Map<String, Int>>(emptyMap())
 
@@ -153,6 +161,7 @@ class AndroidBluetoothAudioController(
 
     private fun onSystemEvent(action: String, intent: Intent) {
         val device = deviceExtra(intent)
+        codecPreferences.onSystemEvent(action, intent, device)
         linkLog.onBroadcast(action, intent, device, device != null && isAudio(device))
         if (action == BluetoothLinkLog.ACTION_CODEC_CONFIG_CHANGED || action == android.bluetooth.BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED ||
             action == BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED
@@ -170,6 +179,7 @@ class AndroidBluetoothAudioController(
         if (action == BluetoothAdapter.ACTION_STATE_CHANGED) {
             val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
             if (state != BluetoothAdapter.STATE_ON) {
+                linkLog.clearAclObservations()
                 proxies.invalidate()
                 companionProxies.forEach { it.second.invalidate() }
             }
@@ -258,15 +268,13 @@ class AndroidBluetoothAudioController(
     /** Released means *every* audio profile is down, not only A2DP; see [CompanionProfileReleaser]. */
     override suspend fun verifyDisconnected(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean = demo?.verifyDisconnected(deviceId, timeoutMs) ?:
         awaitCondition(timeoutMs) {
-            stateNow(deviceId) != AudioConnectionState.CONNECTED &&
-                stateNow(deviceId) != AudioConnectionState.DISCONNECTING &&
-                companionsConnected(deviceId).isEmpty()
+            stateNow(deviceId).allowsA2dpReleaseVerification() && companionsConnected(deviceId).isEmpty()
         }
 
     override suspend fun connectedProfiles(deviceId: BluetoothDeviceId): Set<String> = demo?.connectedProfiles(deviceId) ?: withContext(Dispatchers.IO) {
         proxies.await(PROXY_WAIT_MS)
         buildSet {
-            if (stateNow(deviceId) == AudioConnectionState.CONNECTED) add("A2DP")
+            if (stateNow(deviceId).hasA2dpToRelease()) add("A2DP")
             addAll(companionsConnected(deviceId))
         }
     }
@@ -436,8 +444,8 @@ class AndroidBluetoothAudioController(
     }
 
     /** "After connecting: media, calls · link open · codec AAC 44.1 kHz 16-bit". */
-    private fun noteSnapshot(moment: String, deviceId: BluetoothDeviceId) {
-        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return
+    private fun noteSnapshot(moment: String, deviceId: BluetoothDeviceId): String? {
+        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return null
         val profiles = buildList {
             if (stateNow(deviceId) == AudioConnectionState.CONNECTED) add("media (A2DP)")
             companions.connected(device).forEach { add(if (it == "HFP") "calls (HFP)" else it) }
@@ -447,7 +455,9 @@ class AndroidBluetoothAudioController(
             false -> "link closed"
             null -> "link state unknown"
         }
-        linkLog.note("$moment: ${profiles.joinToString()} · $link · codec ${codecNow(device)}")
+        val codec = codecPreferences.codecSnapshot(device)
+        linkLog.note("$moment: ${profiles.joinToString()} · $link · codec $codec")
+        return codec
     }
 
     /**
@@ -469,20 +479,6 @@ class AndroidBluetoothAudioController(
         null
     } ?: linkLog.isLinked(device.address)
 
-    /** The codec in use, from the hidden BluetoothA2dp.getCodecStatus() where the system allows it. */
-    private fun codecNow(device: BluetoothDevice): String {
-        if (Build.VERSION.SDK_INT < 33) return "unknown (Android 12)"
-        val proxy = proxies.current ?: return "unknown"
-        return try {
-            val status = proxy.javaClass.getMethod("getCodecStatus", BluetoothDevice::class.java).invoke(proxy, device)
-            BluetoothLinkLog.describe((status as? android.bluetooth.BluetoothCodecStatus)?.codecConfig) ?: "unknown"
-        } catch (e: java.lang.reflect.InvocationTargetException) {
-            "not shared (${e.targetException?.javaClass?.simpleName})"
-        } catch (e: Exception) {
-            "not shared (${e.javaClass.simpleName})"
-        }
-    }
-
     override suspend fun awaitLinkClosed(deviceId: BluetoothDeviceId, timeoutMs: Long): Boolean? {
         if (demo != null) return null
         val device = adapter?.let { bondedDevice(it, deviceId) } ?: return null
@@ -493,44 +489,28 @@ class AndroidBluetoothAudioController(
         return closed
     }
 
-    /**
-     * Media (A2DP) only: calls and LE Audio stay as they are. The system sets up the audio
-     * stream again, codec included, when media reconnects.
-     */
-    override suspend fun restartMedia(deviceId: BluetoothDeviceId): Boolean = withContext(Dispatchers.IO) {
-        if (demo != null) return@withContext false
-        val device = adapter?.let { bondedDevice(it, deviceId) } ?: return@withContext false
-        if (stateNow(deviceId) != AudioConnectionState.CONNECTED) return@withContext false
-        linkLog.note("Restarting media now that the other device has let go completely")
-        if (reflection.disconnect(device) != StrategyResult.Accepted) return@withContext false
-        awaitState(deviceId, AudioConnectionState.DISCONNECTED, RESTART_STEP_MS)
-        delay(RESTART_PAUSE_MS)
-        // Twice at most: a headset that was busy a moment ago usually takes the second one.
-        val ok = (1..2).any {
-            reflection.connect(device) == StrategyResult.Accepted && awaitState(deviceId, AudioConnectionState.CONNECTED, RESTART_STEP_MS)
-        }
-        noteSnapshot(if (ok) "After restarting media" else "Restarting media failed", deviceId)
-        ok
-    }
-
-    /** A snapshot of every connected audio device, for opening Help and diagnostics. */
-    fun noteCurrentState() {
-        val adapter = adapter ?: return
-        if (!hasConnectPermission()) return
-        backgroundScope.launch {
+    /** Snapshot the codecs and log the link state when Help and diagnostics opens. */
+    suspend fun noteCurrentState(mapped: Set<BluetoothDeviceId>): Map<BluetoothDeviceId, String> =
+        withContext(Dispatchers.IO) {
+            val adapter = adapter ?: return@withContext emptyMap()
+            if (!hasConnectPermission()) return@withContext emptyMap()
             val bonded = try {
                 adapter.bondedDevices.orEmpty()
             } catch (_: SecurityException) {
-                return@launch
+                return@withContext emptyMap()
             }
-            bonded.filter { isAudio(it) }.forEach { d ->
-                val id = BluetoothDeviceId(d.address)
-                if (stateNow(id) == AudioConnectionState.CONNECTED || companions.connected(d).isNotEmpty() || linkOpen(d) == true) {
-                    noteSnapshot("Now", id)
+            buildMap {
+                for (device in bonded) {
+                    val id = BluetoothDeviceId(device.address.uppercase())
+                    if (id !in mapped && !isAudio(device)) continue
+                    if (stateNow(id) == AudioConnectionState.CONNECTED || companions.connected(device).isNotEmpty() ||
+                        linkOpen(device) == true
+                    ) {
+                        noteSnapshot("Now", id)?.let { put(id, it) }
+                    }
                 }
             }
         }
-    }
 
     // ---- platform reads (all exception-safe) --------------------------------------------
 
@@ -616,7 +596,5 @@ class AndroidBluetoothAudioController(
         const val VERIFY_POLL_MS = 400L
         const val VERIFY_ATTRIBUTION_SLACK_MS = 5_000L
         const val RELEASE_LINK_CHECK_MS = 10_000L
-        const val RESTART_STEP_MS = 6_000L
-        const val RESTART_PAUSE_MS = 500L
     }
 }

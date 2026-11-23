@@ -65,7 +65,7 @@ class AudioReleaseHandlerTest {
 
         assertEquals(2, host.bluetooth.disconnectCalls)
         assertFalse(host.bluetooth.isConnectedNow(host.localBt))
-        assertTrue(host.events.events.value.any { it.details["status"] == "came back by itself; released again" })
+        assertTrue(host.events.events.value.any { it.details["status"] == "came back by itself; release requested" })
     }
 
     @Test

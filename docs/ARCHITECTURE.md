@@ -121,7 +121,7 @@ flowchart LR
 
   Online status comes from mDNS plus recent authenticated contact, or a recent Bluetooth sighting (`nearby`: reachable over Bluetooth but not the network).
 * **Transport:** one short-lived TCP connection per request. Each one does a handshake, one encrypted request and one encrypted reply. `PeerTransport` is an interface, so a relay can implement it later.
-* **Bluetooth nearby (Android):** `FallbackPeerTransport` tries `LanPeerTransport` first and, when nothing was delivered, `NearbyPeerTransport`, which runs the same exchange (`StreamExchange`) over a `NearbyChannel`. On Android that is `BleNearbyChannel`: a rotating beacon (`NearbyTags`) and an L2CAP channel served by `PeerServer.serveNearby`. Moves (ping and release) look for the device if needed; other requests go only to a device already seen nearby, at most every 30 s, since Bluetooth shares the radio with the headphones. Windows has no `NearbyChannel` yet.
+* **Bluetooth nearby (Android):** `FallbackPeerTransport` tries `LanPeerTransport` first. `NearbyPeerTransport` carries the same authenticated exchange over a rotating beacon and an L2CAP channel served by `PeerServer.serveNearby`. Moves can discover a peer. Other requests use a recent cached sighting and never start a fresh scan. Routine status skips Bluetooth while local music plays. Ownership notifications remain available from cache for move confirmation, with a separate 30-second per-peer limit from status.
 
 ## Logical devices
 
@@ -232,11 +232,9 @@ CONNECTING -> VERIFYING (A2DP CONNECTED within 8 s) -> settle 2.5 s (still conne
             \-> RETRYING (1.5 s; abort with CONTENTION if another host connected meanwhile)
                 -> CONNECTING (attempt 2) -> VERIFYING -> COMPLETE | FAILED
 COMPLETE: generation+1, persist owner, OWNERSHIP_CHANGED to peers (background)
-  peer's link was still open -> background: ask it again every 4 s (≤4 times) until linkClosed,
-                                then restart media here once (A2DP drop + reconnect)
 ```
 
-**Why the link matters (AAC cut-outs).** Releasing the audio profiles doesn't close the Bluetooth link (ACL) at once; Android closes it a few seconds later, or keeps it while anything else uses it. Connecting from the new host before that leaves a one-device-at-a-time headset briefly held by two hosts, and the audio stream set up in that state can keep cutting out with AAC, which has a fixed bitrate (SBC lowers its bitrate when the link is busy, so it copes). So the releasing host waits up to 5 s for its link to close and reports `linkClosed` in `RELEASE_RESULT`; the new host connects as soon as it's closed. If it didn't close in time, the move still goes ahead, then the new host checks again and restarts its media connection once the old link is gone, so the stream is set up with the headset on one host only. Hosts that can't tell (`linkClosed` null: Windows, Handoff 0.8.0 and earlier) keep the 1.5 s settle and no follow-up.
+**Old Bluetooth link.** The releasing host waits up to five seconds for its ACL to close and reports `linkClosed` in `RELEASE_RESULT`. A confirmed closure shortens the pause before connecting. An open link is recorded during settling for diagnostics. After a successful move the receiving host leaves the media connection in place.
 
 `UNSUPPORTED`, `PERMISSION_DENIED`, `BLUETOOTH_OFF`, `DEVICE_NOT_BONDED` and `RATE_LIMITED` are never retried.
 
@@ -311,6 +309,8 @@ Duplicate command ids get the cached reply (`CommandGuard`), which makes release
 | Hammering | `OperationThrottle` (12 ops/min) in the controller; `AutoSwitchPolicy` cooldowns |
 
 ## Background execution
+
+Android's optional **Prefer SBC** choice belongs to a local mapped Bluetooth address. Android stores the user-approved Companion Device association. Handoff checks the actual codec after A2DP connects, waits if audio is playing, and verifies whether Android applied the preference. It leaves an active stream in place and attempts at most one change per connection. Choosing **Automatic** stops applying the preference. The next connection negotiates normally.
 
 `HandoffService` is a foreground service of type `connectedDevice`. It holds the runtime (peer server + NSD) while *Stay reachable in the background* is on (off by default; otherwise the runtime runs only while the UI is open). It runs no timers or polling; a process with a foreground service keeps network access while the device is idle.
 
