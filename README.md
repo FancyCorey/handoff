@@ -44,7 +44,7 @@ You're listening on your laptop, then pick up your phone to watch a video, and t
 - **Move your headphones with one tap**, from a phone, a tablet or a PC, in any direction.
 - **See where your headphones are** from any of your devices, along with their battery level.
 - **Use it anywhere.** Link your devices once and they find each other on any Wi-Fi: at home, at work or on the road. No Wi-Fi? A hotspot from your phone or PC is enough.
-- **Know what's happening.** Handoff checks that sound really comes through, tries once more if something gets in the way, and shows what went wrong and what to do if it can't finish.
+- **Know what's happening.** Handoff checks that the headphones connect, tries again if the move needs it, and explains what to do next if it can't finish.
 - **Stay in control.** Cancel a move at any time, and choose whether Handoff should run in the background.
 - **Reach it quickly** from a Quick Settings tile on Android or the tray icon on Windows.
 
@@ -130,7 +130,7 @@ Any Bluetooth headphones, earbuds or headset that you can pair with your devices
 Sound goes straight from your phone or PC to your headphones. Handoff coordinates the connection and can ask Android to use SBC if you choose that option.
 
 **What if audio cuts out while my headphones are connected?**
-On supported Android devices, open the headphones in Handoff and choose **Bluetooth audio → Prefer SBC**. Android asks you to allow access to that pair. While Handoff is running, it tries SBC when the headphones connect or while audio is paused. Choose **Stay reachable** to let Handoff do this in the background. The setting is local to this phone or tablet. [Playback help and Android permissions](docs/GETTING_STARTED.md#what-handoff-is-allowed-to-do-on-android)
+On supported devices running Android 13 or newer, open the headphones in Handoff and choose **Bluetooth audio → Prefer SBC**. Android asks you to allow access to that pair. While Handoff is running, it checks the codec when the headphones connect and waits for any playback to pause before requesting a change. Choose **Stay reachable** to let Handoff do this in the background. The setting is local to this phone or tablet. [Playback troubleshooting](docs/GETTING_STARTED.md#if-something-goes-wrong)
 
 **Do I need an account or an internet connection?**
 No. Your devices just need to be on the same Wi-Fi, or on a hotspot from one of them. The GitHub edition only uses the internet if you ask it to check for updates. The Google Play edition also uses it to load its ad.

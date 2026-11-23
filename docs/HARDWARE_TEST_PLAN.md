@@ -199,3 +199,12 @@ Run Tests 0–4 on an Android 16 device, then:
 2. **Local network protection.** Android 16 lets developers opt in early to a coming rule that puts local-network access behind a permission. Run `adb shell am compat enable RESTRICT_LOCAL_NETWORK dev.handoff.app` (on a test device only), restart Handoff and record whether linking and moves still work. Handoff doesn't request that permission yet; this test shows what will break when the rule is enforced. Undo with `adb shell am compat reset RESTRICT_LOCAL_NETWORK dev.handoff.app`.
 3. **Back gesture and layout.** Predictive back on every screen, and on a tablet: rotate and resize the window. Nothing is cut off and nothing restarts a move.
 4. **Background.** With background mode on and the device locked for 30 minutes, **Move here** on the other device still works.
+
+## Test 15: Audio cut-outs after a move
+
+Use two linked Android devices and a pair of Classic Bluetooth headphones that connect to one device at a time. Keep both devices nearby, on the same Wi-Fi with Bluetooth on. Use the same downloaded track and playback volume for each run.
+
+1. With **Bluetooth audio → Automatic** on the listening device, move the headphones there with Handoff. In **Settings → Help and diagnostics → Technical details**, record the active codec if Android lets Handoff read it. Android Developer options can also show the codec while the headphones are connected. Listen for at least 20 minutes.
+2. Repeat with the same codec, using **Disconnect** on the old device and **Connect** on the listening device in Android Bluetooth settings. Keep Handoff and its background settings the same. Record the time of any cut-out and whether pressing pause or changing the volume restores playback.
+3. If the codec was AAC, repeat the Handoff move. During playback, choose **Bluetooth audio → Prefer SBC → Allow access** on the listening device and approve the matching headphones. The app should wait until you pause. After pausing, expect **SBC is in use** or a message if Android could not confirm SBC. On a device that applies the preference, reconnect and verify it again, then select **Automatic** and check that Android chooses the codec on the next connection.
+4. Compare the results and share a report from each device if the audio cuts out. Include the move method, codec, and elapsed time for each run.

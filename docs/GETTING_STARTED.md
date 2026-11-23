@@ -230,7 +230,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 | Permission | Why Handoff needs it |
 |---|---|
 | Nearby devices | See your paired headphones, and connect or disconnect them. Reach your linked Android devices over Bluetooth when they aren't on the same Wi-Fi. |
-| Access to one pair of headphones | Android asks only if you choose **Prefer SBC**. The approval lets Handoff check and request Bluetooth audio settings for that pair. Manage access in Android's app settings or return to **Automatic** in Handoff. |
+| Access to one pair of headphones | Android asks only if you choose **Prefer SBC**. The approval lets Handoff check and request Bluetooth audio settings for that pair. Choose **Automatic** in Handoff to stop codec requests. Manage the approval in Android's app settings. |
 | Network access | Talk to your other devices on your network, and check for updates when you ask. |
 | Install apps | GitHub edition only: install an update you've downloaded. Android asks you to confirm each time. The Google Play edition doesn't have this permission. |
 | Run in the background | Only if you choose **Stay reachable**. |
@@ -238,7 +238,7 @@ Most problems show one button that fixes them; **More** shows a longer explanati
 | Start at boot | Only to restart background mode after a reboot, if it's on. |
 | Camera | Only when you scan a link code. You can paste the code instead. |
 
-Handoff never asks for your location and never searches for new Bluetooth devices: over Bluetooth, it only looks for your own linked devices. The Google Play edition also includes permissions that Google's ad library adds (the advertising ID and basic phone state, which don't ask you anything). The [privacy policy](../PRIVACY.md) covers what each edition does.
+Handoff never asks for your location. Its Bluetooth nearby searches look for your linked devices. If you choose **Prefer SBC**, Android handles approval for the headphones you already paired. The Google Play edition also includes permissions that Google's ad library adds (the advertising ID and basic phone state, which don't ask you anything). The [privacy policy](../PRIVACY.md) covers what each edition does.
 
 ## Uninstalling
 

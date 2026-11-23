@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated: 17 October 2026. Applies to Handoff 0.6.0 and later, on Android and Windows.*
+*Last updated 23 November 2026 for Handoff 0.8.2 on Android and Windows.*
 
 Handoff moves your Bluetooth headphones between your own phones, tablets and PCs. It works on your local network: your devices talk directly to each other, and Handoff has no servers, accounts or cloud service of its own.
 
@@ -38,9 +38,9 @@ Handoff keeps the following in its private app storage. It is not included in An
 
 ### Bluetooth
 
-Handoff reads the list of Bluetooth devices already paired with this device, their connection state and, when the headset reports it, its battery level. It connects or disconnects only the headphones you added, and only when you (or a linked device, on your behalf) ask it to move them. It never looks for new Bluetooth devices and doesn't use your location.
+Handoff reads the list of Bluetooth devices already paired with this device, their connection state and, when the headset reports it, its battery level. It connects or disconnects headphones you've added when you use the connection controls or when a linked device asks on your behalf. Handoff doesn't use your location.
 
-If you choose **Prefer SBC**, Android asks you to approve access to that pair of headphones. Android stores the association. Handoff uses it to check the current codec and request SBC for that pair. The choice and association are local, and the app sends neither to your other devices. **Automatic** stops future codec requests. Android's app settings can remove the association.
+If you choose **Prefer SBC**, Android asks you to approve access to that pair of headphones and stores the approval. Handoff uses it to check the current codec and request SBC for that pair. If the first request leaves the codec unchanged, Handoff may reconnect those headphones while playback is paused. The choice and approval stay on this device. **Automatic** stops future codec requests. Android's app settings can remove the approval.
 
 ### Your linked devices
 
